@@ -1,7 +1,7 @@
 import { EntityTarget } from 'typeorm';
 import { QueryFailedError } from 'typeorm';
-import { DatabaseEntityUniqueConstraintError } from '../errors/database-entity-unique-constraint.error';
-import { DatabaseEntityError } from '../errors/database-entity.error';
+import { DatabaseEntityUniqueConstraintError } from './database-entity-unique-constraint.error';
+import { DatabaseEntityError } from './database-entity.error';
 
 export class DatabaseErrorFactory {
   static create(

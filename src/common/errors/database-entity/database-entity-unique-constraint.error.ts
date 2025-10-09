@@ -1,6 +1,6 @@
 import { EntityTarget, QueryFailedError } from 'typeorm';
 import { DatabaseEntityError } from './database-entity.error';
-import { getNotUniqueErrorText } from '../decorators/not-unique-error-metadata.decorator';
+import { getNotUniqueErrorText } from '../../decorators/not-unique-error-metadata.decorator';
 
 export class DatabaseEntityUniqueConstraintError extends DatabaseEntityError {
   constructor(
