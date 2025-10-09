@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ParseFilePipeBuilder,
+} from '@nestjs/common';
 import sharp from 'sharp';
 import { rgbaToThumbHash } from 'thumbhash';
 import { FileStorageService } from './file-storage.service';
@@ -19,6 +23,17 @@ const IMAGE_PROCESSING_PRESETS: Record<ImageType, ImageProcessingOptions> = {
     quality: 75,
   },
 };
+
+export const avatarValidator = new ParseFilePipeBuilder()
+  .addFileTypeValidator({
+    fileType: /^(image\/jpeg|image\/png|image\/webp)$/,
+  })
+  .addMaxSizeValidator({
+    maxSize: 10 * 1024 * 1024,
+  })
+  .build({
+    fileIsRequired: false,
+  });
 
 @Injectable()
 export class ImageFileStorageService {

@@ -3,11 +3,20 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './domain/users/users.module';
 import { User } from './entities/user.entity';
+import { AuthModule } from './domain/auth/auth.module';
+
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-registration.guard';
+import { environmentValidationSchema } from './env.schema';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: environmentValidationSchema,
+      validationOptions: {
+        abortEarly: true,
+      },
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -22,6 +31,13 @@ import { User } from './entities/user.entity';
     }),
     TypeOrmModule.forFeature([User]),
     UsersModule,
+    AuthModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthWithRegistrationGuard,
+    },
   ],
 })
 export class AppModule {}
