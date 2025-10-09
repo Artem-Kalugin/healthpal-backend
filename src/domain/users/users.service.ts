@@ -44,6 +44,7 @@ export class UsersService {
         ...rest,
         password: hashedPassword,
         avatar: avatarSaved,
+        registrationComplete: false,
       });
 
       try {
@@ -99,6 +100,9 @@ export class UsersService {
           return await userRepository.safeUpdate(id, {
             ...updateUserDto,
             avatar: avatarSaved,
+            registrationComplete: !!(
+              updateUserDto.birthday && updateUserDto.gender
+            ),
           });
         } catch (error) {
           if (savedFilePath) {
@@ -113,5 +117,15 @@ export class UsersService {
         }
         return updatedUser;
       });
+  }
+
+  async findOneByPhone(phone: string): Promise<User> {
+    const user = await this.repository.findOne({ where: { phone } });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    return user;
   }
 }

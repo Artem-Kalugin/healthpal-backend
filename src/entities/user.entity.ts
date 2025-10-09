@@ -51,7 +51,7 @@ export class User {
     type: String,
     format: 'date',
   })
-  @Column()
+  @Column({ nullable: true })
   @Check(`"birthday" <= CURRENT_DATE`)
   birthday: Date;
 
@@ -61,7 +61,7 @@ export class User {
     enum: Gender,
     enumName: 'Gender',
   })
-  @Column({ type: 'enum', enum: Gender })
+  @Column({ type: 'enum', enum: Gender, nullable: true })
   gender: Gender;
 
   @ApiPropertyOptional({
@@ -69,4 +69,11 @@ export class User {
   })
   @Column({ type: 'jsonb', nullable: true })
   avatar?: { image: string; thumbhash: string };
+
+  @ApiProperty({
+    description: 'Никнейм пользователя',
+    type: 'boolean',
+  })
+  @Column({ nullable: true })
+  registrationComplete: boolean;
 }

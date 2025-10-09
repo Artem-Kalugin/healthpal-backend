@@ -15,5 +15,6 @@ const UserModuleEntities = [User];
     ...createSafeRepositoryProviders(UserModuleEntities),
   ],
   controllers: [UsersController],
+  exports: [UsersService],
 })
 export class UsersModule {}
