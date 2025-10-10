@@ -22,16 +22,8 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
       context.getHandler(),
       context.getClass(),
     ]);
+
     if (isPublic) return true;
-
-    const isAuthenticated = await super.canActivate(context);
-    if (!isAuthenticated) return false;
-
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { user: JwtContent }>();
-    const user = request.user;
-    if (!user) throw new ForbiddenException('Пользователь не найден');
 
     const requiredType = this.reflector.getAllAndOverride<
       AuthGuardsByRegistration | undefined
@@ -43,6 +35,15 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
       );
     }
 
+    const isAuthenticated = await super.canActivate(context);
+    if (!isAuthenticated) return false;
+
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user: JwtContent }>();
+    const user = request.user;
+    if (!user) throw new ForbiddenException('Пользователь не найден');
+
     switch (requiredType) {
       case AuthGuardsByRegistration.COMPLETE_REGISTRATION:
         return this.checkComplete(user);
@@ -50,7 +51,7 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
         return this.checkIncomplete(user);
       case AuthGuardsByRegistration.PENDING_REGISTRATION:
         return this.checkPending(user);
-      default:
+      case AuthGuardsByRegistration.ANY:
         return true;
     }
   }

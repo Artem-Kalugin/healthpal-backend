@@ -3,7 +3,6 @@ import {
   Body,
   Patch,
   UseInterceptors,
-  ClassSerializerInterceptor,
   UploadedFile,
   SerializeOptions,
   Get,
@@ -29,15 +28,14 @@ import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registr
 @Controller('users')
 @ApiBearerJwtAuth()
 @AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
-@UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Patch('/me')
   @ApiConsumes('multipart/form-data')
   @ApiOkResponse({ type: UserResponseDto })
-  @UseInterceptors(FileInterceptor('avatar'))
   @SerializeOptions({ type: UserResponseDto })
+  @UseInterceptors(FileInterceptor('avatar'))
   async updateCurrent(
     @Req() request: Request,
     @Body() updateUserDto: UpdateUserDto,
@@ -53,8 +51,9 @@ export class UsersController {
 
   @Get('me')
   @ApiOkResponse({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'Пользователь не найден' })
   @SerializeOptions({ type: UserResponseDto })
+  @ApiNotFoundResponse({ description: 'Пользователь не найден' })
+  @AuthRegistrationGuardType(AuthGuardsByRegistration.ANY)
   async getCurrent(@Req() request: Request): Promise<UserResponseDto> {
     return this.usersService.findOne(request.user!.id);
   }

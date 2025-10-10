@@ -8,6 +8,8 @@ import { AuthModule } from './domain/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-registration.guard';
 import { environmentValidationSchema } from './env.schema';
+import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
+import { OnboardingSlide } from './entities/onboarding-slide.entity';
 
 @Module({
   imports: [
@@ -25,13 +27,13 @@ import { environmentValidationSchema } from './env.schema';
       username: process.env.DATABASE_USER,
       password: process.env.DATABASE_PASSWORD,
       database: process.env.DATABASE_NAME ?? 'HealthPal',
-      entities: [User],
+      entities: [User, OnboardingSlide],
       synchronize: true,
       logging: true,
     }),
-    TypeOrmModule.forFeature([User]),
     UsersModule,
     AuthModule,
+    OnboardingSlidesModule,
   ],
   providers: [
     {
