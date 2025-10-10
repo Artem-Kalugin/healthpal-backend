@@ -39,12 +39,7 @@ export class AuthController {
   ): Promise<LoginResponseDto> {
     const user = await this.usersService.create(createUserDto);
 
-    const loginDto = {
-      phone: createUserDto.phone,
-      password: createUserDto.password,
-    };
-
-    return this.authService.login(loginDto, user);
+    return this.authService.getJwtAccessTokenWithUser(user);
   }
 
   @Post('login')
@@ -76,11 +71,6 @@ export class AuthController {
       avatar?.buffer,
     );
 
-    const loginDto = {
-      phone: updatedUser.phone,
-      password: updatedUser.password,
-    };
-
-    return this.authService.login(loginDto);
+    return this.authService.getJwtAccessTokenWithUser(updatedUser);
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { JwtContent } from 'src/common/types/jwt-content.type';
 
 declare global {
@@ -9,8 +10,18 @@ declare global {
 }
 
 export interface EnvironmentVariables {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   JWT_SECRET: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   JWT_EXPIRES_IN: string;
+
+  DATABASE_USER: string;
+  DATABASE_PASSWORD: string;
+
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  REDIS_PASSWORD: string;
+  REDIS_DB: number;
+
+  OTP_TTL: number;
+  RECOVERY_TTL: number;
+  OTP_HMAC_SECRET: string;
 }

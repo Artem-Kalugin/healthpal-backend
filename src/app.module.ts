@@ -4,12 +4,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './domain/users/users.module';
 import { User } from './entities/user.entity';
 import { AuthModule } from './domain/auth/auth.module';
-
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-registration.guard';
 import { environmentValidationSchema } from './env.schema';
 import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
 import { OnboardingSlide } from './entities/onboarding-slide.entity';
+import { PasswordModule } from './infrastructure/password/password.module';
 
 @Module({
   imports: [
@@ -34,6 +34,7 @@ import { OnboardingSlide } from './entities/onboarding-slide.entity';
     UsersModule,
     AuthModule,
     OnboardingSlidesModule,
+    PasswordModule,
   ],
   providers: [
     {

@@ -2,13 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { User } from '../../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import * as bcrypt from 'bcrypt';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { UserNotFoundException } from './exceptions/user-not-found.exception';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import type { SafeRepository } from 'src/common/providers/safe-repository.providers';
+import type { SafeRepository } from 'src/common/providers/safe-repository.provider';
+import { UserNotFoundException } from './exceptions/user-not-found.exception';
+import { PasswordService } from 'src/infrastructure/password/password.service';
 
 @Injectable()
 export class UsersService {
@@ -16,6 +16,7 @@ export class UsersService {
     @Inject(getEntityRepository(User.name))
     private readonly repository: SafeRepository<User>,
     private readonly imageFileStorageService: ImageFileStorageService,
+    private readonly passwordService: PasswordService,
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
@@ -30,7 +31,7 @@ export class UsersService {
       const userRepository = manager.withRepository(this.repository);
 
       const { password, ...rest } = createUserDto;
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await this.passwordService.hash(password);
 
       if (avatar) {
         avatarSaved = await this.imageFileStorageService.processAndSave(
@@ -129,5 +130,9 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async changeUserPassword(userId: string, newPasswordHash: string) {
+    await this.repository.safeUpdate(userId, { password: newPasswordHash });
   }
 }
