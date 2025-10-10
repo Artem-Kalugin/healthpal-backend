@@ -1,10 +1,13 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 
-import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  ClassSerializerInterceptor,
+  ValidationPipe,
+} from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { DatabaseEntityErrorFilter } from './common/filters/database-entity-error.filter';
 
 async function bootstrap() {
@@ -33,7 +36,12 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new DatabaseEntityErrorFilter());
-
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector), {
+      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
+    }),
+  );
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('HealthPal API')
@@ -52,10 +60,6 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
-
-  app.useStaticAssets(join(__dirname, '..', 'Uploads'), {
-    prefix: '/uploads/',
-  });
 
   SwaggerModule.setup('api', app, document);
 

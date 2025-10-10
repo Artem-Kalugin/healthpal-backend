@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { rgbaToThumbHash } from 'thumbhash';
 import { FileStorageService } from './file-storage.service';
 
-type ImageType = 'avatar';
+type ImageType = 'avatar' | 'onboarding';
 interface ImageProcessingOptions {
   resize: {
     width: number;
@@ -21,6 +21,10 @@ const IMAGE_PROCESSING_PRESETS: Record<ImageType, ImageProcessingOptions> = {
   avatar: {
     resize: { width: 400, height: 400, fit: 'cover' },
     quality: 75,
+  },
+  onboarding: {
+    resize: { width: 1024, height: 1024, fit: 'cover' },
+    quality: 95,
   },
 };
 
@@ -42,6 +46,7 @@ export class ImageFileStorageService {
   async processAndSave(
     avatar: Buffer<ArrayBufferLike>,
     type: ImageType,
+    isProtected: boolean = true,
   ): Promise<{ image: string; thumbhash: string }> {
     const preset = IMAGE_PROCESSING_PRESETS[type];
     let imagePath = '';
@@ -51,7 +56,7 @@ export class ImageFileStorageService {
         .resize(preset.resize.width, preset.resize.height, {
           fit: preset.resize.fit,
         })
-        .jpeg({ quality: preset.quality })
+        .webp({ quality: preset.quality })
         .toBuffer();
 
       const resizedForThumhash = await sharp(avatar)
@@ -61,7 +66,7 @@ export class ImageFileStorageService {
         .jpeg({ quality: preset.quality })
         .toBuffer();
 
-      imagePath = this.fileService.saveFile(resized, 'jpg');
+      imagePath = this.fileService.saveFile(resized, 'webp', isProtected);
 
       const { data, info } = await sharp(resizedForThumhash)
         .raw()
@@ -77,6 +82,9 @@ export class ImageFileStorageService {
       if (imagePath) {
         this.fileService.deleteFile(imagePath);
       }
+
+      // eslint-disable-next-line
+      //TODO: File service error
       throw new BadRequestException(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         `Failed to process image: ${error.message}`,
