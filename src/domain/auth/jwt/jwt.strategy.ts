@@ -13,12 +13,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<EnvironmentVariables>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey:
-        configService.get<EnvironmentVariables['JWT_SECRET']>('JWT_SECRET')!,
+      secretOrKey: configService.get('JWT_SECRET')!,
     });
   }
 
@@ -29,6 +28,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new AuthError('Недействительный токен');
     }
 
-    return this.authService.createJwtPayload(user);
+    return this.authService.getJwtPayload(user);
   }
 }

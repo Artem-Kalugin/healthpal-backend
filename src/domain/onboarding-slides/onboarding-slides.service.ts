@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { SafeRepository } from 'src/common/providers/safe-repository.providers';
+import type { SafeRepository } from 'src/common/providers/safe-repository.provider';
 import { OnboardingSlide } from 'src/entities/onboarding-slide.entity';
 import { DataSource, FindManyOptions } from 'typeorm';
 import { CreateOnboardingSlideDto } from 'src/domain/onboarding-slides/dto/create-onboarding-slide.dto';
