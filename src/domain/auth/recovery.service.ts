@@ -36,15 +36,21 @@ export class RecoveryService {
   async requestOtp(phone: string) {
     await this.usersService.findOneByPhone(phone);
 
+    const otpKey = `otp:${phone}`;
+    const otpLockKey = `otp_lock:${phone}`;
+
+    const lockSet = await this.redis.set(otpLockKey, '1', 'EX', 10, 'NX');
+
+    if (!lockSet) {
+      throw new AuthError(
+        'Повторный запрос OTP возможен только через 10 секунд',
+      );
+    }
+
     const otp = this.generateOtp();
     const otpHash = this.hmac(otp);
 
-    await this.redis.set(
-      `otp:${phone}`,
-      otpHash,
-      'EX',
-      this.config.get('OTP_TTL')!,
-    );
+    await this.redis.set(otpKey, otpHash, 'EX', this.config.get('OTP_TTL')!);
 
     return { smsDemoOnly: otp };
   }

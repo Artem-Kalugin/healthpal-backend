@@ -1,6 +1,6 @@
 import { Body, Controller, Post, SerializeOptions } from '@nestjs/common';
 import { RecoveryService } from './recovery.service';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { AuthError } from 'src/common/errors/database-entity/auth.error';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
@@ -9,13 +9,18 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
+// eslint-disable-next-line @typescript-eslint/naming-convention, sonarjs/class-name
+class DemoOnly_SMSResponse {
+  @ApiProperty()
+  smsDemoOnly: string;
+}
 @ApiTags()
 @Public()
 @Controller('auth/recovery')
 export class RecoveryController {
   constructor(private readonly recoveryService: RecoveryService) {}
 
-  @ApiOkResponse()
+  @ApiOkResponse({ type: DemoOnly_SMSResponse })
   @Post('request-otp')
   requestOtp(@Body() body: RequestOtpDto) {
     return this.recoveryService.requestOtp(body.phone);

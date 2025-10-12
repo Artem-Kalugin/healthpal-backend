@@ -13,9 +13,9 @@ export class LoginDto {
   @IsString({ message: 'Пароль должен быть строкой' })
   @MinLength(8, { message: 'Пароль должен содержать минимум 4 символов' })
   @MaxLength(50, { message: 'Пароль не должен превышать 50 символов' })
-  // eslint-disable-next-line sonarjs/regex-complexity
-  @Matches(/^(?:(?=.*[a-z])(?=.*[A-Z])|(?=.*[A-Za-z])(?=.*\d)).+$/, {
-    message: 'Пароль должен содержать буквы различного регистра или цифру',
+  @Matches(/^(?=.*\p{Ll})(?=.*[\p{Lu}\d]).+$/u, {
+    message:
+      'Пароль должен содержать как минимум два типа символов: строчные, прописные или цифры',
   })
   password: string;
 }

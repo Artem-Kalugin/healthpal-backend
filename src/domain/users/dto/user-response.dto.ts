@@ -9,11 +9,16 @@ export class UserResponseDto {
   id: string;
 
   @ApiProperty({
-    description: 'Имя и фамилия пользователя',
-    example: 'Пользователь Приложения',
+    description: 'Имя',
   })
   @Expose()
-  fullName: string;
+  name: string;
+
+  @ApiProperty({
+    description: 'Фамилия',
+  })
+  @Expose()
+  surname: string;
 
   @ApiProperty({
     description: 'Телефон в формате +7...',

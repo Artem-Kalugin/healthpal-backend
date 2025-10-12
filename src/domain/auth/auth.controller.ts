@@ -7,7 +7,7 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiConsumes, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
@@ -32,7 +32,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
-  @ApiCreatedResponse({ type: LoginResponseDto })
+  @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
   async register(
     @Body() createUserDto: CreateUserDto,
@@ -44,7 +44,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
-  @ApiCreatedResponse({ type: LoginResponseDto })
+  @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(loginDto);
@@ -52,7 +52,7 @@ export class AuthController {
 
   @Post('complete-registration')
   @ApiBearerJwtAuth()
-  @ApiCreatedResponse({ type: LoginResponseDto })
+  @ApiOkResponse({ type: LoginResponseDto })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('avatar'))
   @AuthRegistrationGuardType(AuthGuardsByRegistration.INCOMPLETE_REGISTRATION)

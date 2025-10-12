@@ -19,7 +19,10 @@ export class User {
   id: string;
 
   @Column()
-  fullName: string;
+  name: string;
+
+  @Column()
+  surname: string;
 
   @NotUniqueErrorMetadata(
     'Пользователь с таким номером телефона уже существует',
