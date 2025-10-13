@@ -18,8 +18,6 @@ export class OnboardingSlidesController {
   })
   @SerializeOptions({ type: OnboardingSlideResponseDto })
   async getAll(): Promise<OnboardingSlideResponseDto[]> {
-    const res = await this.service.findAll(true, true);
-    console.log(res);
-    return res;
+    return await this.service.findAll(true, true);
   }
 }

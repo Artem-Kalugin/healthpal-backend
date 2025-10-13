@@ -1,6 +1,8 @@
+import { ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 
 import { Redis } from 'ioredis';
+import { EnvironmentVariables } from 'declarations';
 
 export const REDIS_PROVIDER_KEY = 'REDIS_CLIENT';
 
@@ -8,12 +10,13 @@ export const REDIS_PROVIDER_KEY = 'REDIS_CLIENT';
   providers: [
     {
       provide: REDIS_PROVIDER_KEY,
-      useFactory: () => {
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<EnvironmentVariables>) => {
         return new Redis({
-          host: process.env.REDIS_HOST,
-          port: Number(process.env.REDIS_PORT),
-          password: process.env.REDIS_PASSWORD || undefined,
-          db: Number(process.env.REDIS_DB) || 0,
+          host: configService.get('REDIS_HOST'),
+          port: Number(configService.get('REDIS_PORT')),
+          password: configService.get('REDIS_PASSWORD') || undefined,
+          db: Number(configService.get('REDIS_DB')) || 0,
         });
       },
     },
