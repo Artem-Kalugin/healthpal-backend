@@ -14,7 +14,7 @@ class DemoOnly_SMSResponse {
   @ApiProperty()
   smsDemoOnly: string;
 }
-@ApiTags()
+@ApiTags('Auth')
 @Public()
 @Controller('auth/recovery')
 export class RecoveryController {
