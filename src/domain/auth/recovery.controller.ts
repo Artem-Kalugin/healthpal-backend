@@ -9,6 +9,7 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
+/** Этот класс используется только для swagger-документации, а не в runtime */
 // eslint-disable-next-line @typescript-eslint/naming-convention, sonarjs/class-name
 class DemoOnly_SMSResponse {
   @ApiProperty()

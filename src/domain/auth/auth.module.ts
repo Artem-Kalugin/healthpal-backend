@@ -11,6 +11,7 @@ import { RecoveryService } from './recovery.service';
 import { RecoveryController } from './recovery.controller';
 import { PasswordModule } from 'src/infrastructure/password/password.module';
 import { RedisModule } from 'src/infrastructure/redis/redis.module';
+import { JwtAuthWithRegistrationGuard } from './jwt/jwt-auth-with-registration.guard';
 
 @Module({
   imports: [
@@ -28,7 +29,12 @@ import { RedisModule } from 'src/infrastructure/redis/redis.module';
       }),
     }),
   ],
-  providers: [AuthService, RecoveryService, JwtStrategy],
+  providers: [
+    AuthService,
+    RecoveryService,
+    JwtAuthWithRegistrationGuard,
+    JwtStrategy,
+  ],
   controllers: [AuthController, RecoveryController],
   exports: [AuthService, RecoveryService],
 })

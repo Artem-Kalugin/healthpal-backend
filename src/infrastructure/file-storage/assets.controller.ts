@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Res } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registration-completion.config';
@@ -16,46 +16,16 @@ export class AssetsController {
   @ApiOkResponse()
   @Public()
   getPublicFile(@Param('filename') filename: string, @Res() res: Response) {
-    try {
-      const filePath = this.fs.getFilePath(filename, false); // false для protected
-      res.sendFile(filePath);
-    } catch (error) {
-      console.log(
-        'internal file error',
-        // eslint-disable-next-line
-        //TODO: internal file service error
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        'message' in error && typeof error.message == 'string'
-          ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            error.message
-          : undefined,
-      );
-      throw new NotFoundException();
-    }
+    const filePath = this.fs.getFilePath(filename, false);
+    res.sendFile(filePath);
   }
 
-  // Protected
   @Get('protected/:filename')
   @ApiBearerJwtAuth()
   @AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
   @ApiOkResponse()
-  // eslint-disable-next-line sonarjs/no-identical-functions
   getProtectedFile(@Param('filename') filename: string, @Res() res: Response) {
-    try {
-      const filePath = this.fs.getFilePath(filename, false); // false для protected
-      res.sendFile(filePath);
-    } catch (error) {
-      console.log(
-        'internal file error',
-        // eslint-disable-next-line
-        //TODO: internal file service error
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        'message' in error && typeof error.message == 'string'
-          ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            error.message
-          : undefined,
-      );
-      throw new NotFoundException();
-    }
+    const filePath = this.fs.getFilePath(filename, true);
+    res.sendFile(filePath);
   }
 }

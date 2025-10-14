@@ -5,7 +5,6 @@ import { OnboardingSlide } from 'src/entities/onboarding-slide.entity';
 import { DataSource, FindManyOptions } from 'typeorm';
 import { CreateOnboardingSlideDto } from 'src/domain/onboarding-slides/dto/create-onboarding-slide.dto';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
-
 @Injectable()
 export class OnboardingSlidesService {
   constructor(

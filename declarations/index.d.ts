@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { JwtContent } from 'src/common/types/jwt-content.type';
+import { JoinTableOptions } from 'typeorm';
 
 declare global {
   namespace Express {
@@ -8,6 +9,14 @@ declare global {
     }
   }
 }
+
+type MinimalManyToManyJoinOptions = RequiredAll<
+  Pick<JoinTableOptions, 'name' | 'joinColumn' | 'inverseJoinColumn'>
+>;
+
+type RequiredAll<T> = {
+  [K in keyof T]-?: T[K];
+};
 
 export interface EnvironmentVariables {
   JWT_SECRET: string;
