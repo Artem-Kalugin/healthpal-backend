@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { AuthGuardsByRegistration } from '../types/auth-guard-by-registration-completion.config';
+import { AuthGuardsByRegistration } from 'src/common/config';
 
 export const AUTH_REGISTRATION_TYPE_KEY = 'auth:registrationType';
 

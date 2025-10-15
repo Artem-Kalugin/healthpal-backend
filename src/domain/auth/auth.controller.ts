@@ -16,10 +16,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { avatarValidator } from 'src/infrastructure/file-storage/image-file-storage.service';
 import type { Request } from 'express';
-import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registration-completion.config';
-import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
-import { Public } from 'src/common/decorators/public.decorator';
-import { ApiBearerJwtAuth } from 'src/common/decorators/api-bearer-auth.decorator';
+import { AuthGuardsByRegistration } from 'src/common/config';
+import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { LoginResponseDto } from './dto/login-response.dto';
 
 @ApiTags('Auth')

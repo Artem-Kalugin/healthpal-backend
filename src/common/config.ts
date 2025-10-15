@@ -4,3 +4,8 @@ export enum AuthGuardsByRegistration {
   PENDING_REGISTRATION = 'PENDING_REGISTRATION',
   ANY = 'ANY',
 }
+
+export enum SortOrder {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}

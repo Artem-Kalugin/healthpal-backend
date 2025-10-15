@@ -1,13 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { SafeRepository } from 'src/common/providers/safe-repository.provider';
+import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
-import {
-  UserJoinTableSettings,
-  UserRelationKeys,
-} from 'src/entities/user.entity';
+import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
 import { MedicalCenterResponseFavoritePropertyName } from './dto/medical-center-response.dto';
-import { WithUserFavoriteSpec } from '../users/specification/with-user-favorite.specifiaction';
+import { WithIsUserFavorite } from '../users/specification/with-user-favorite.specifiaction';
 import { WithDistance } from './specifiactions/with-distance.specification';
 import { WithOrderBy } from './specifiactions/with-order-by.specification';
 import { mapMedicalCenterWithRaw } from './medical-center.mapper';
@@ -15,7 +12,7 @@ import { mapMedicalCenterWithRaw } from './medical-center.mapper';
 const ALIAS = 'center' as const;
 
 const UserFavoriteMeta =
-  UserJoinTableSettings[UserRelationKeys.FAVORITE_MEDICAL_CENTERS];
+  UserJoinsStructure[UserRelationKeys.FAVORITE_MEDICAL_CENTERS];
 
 @Injectable()
 export class MedicalCentersService {
@@ -69,7 +66,7 @@ export class MedicalCentersService {
   private buildBaseQuery(userId: string) {
     const qb = this.repo.createQueryBuilder(ALIAS);
 
-    new WithUserFavoriteSpec(
+    new WithIsUserFavorite<MedicalCenter>(
       UserFavoriteMeta,
       ALIAS,
       MedicalCenterResponseFavoritePropertyName,

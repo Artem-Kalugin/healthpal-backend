@@ -20,9 +20,9 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarValidator } from 'src/infrastructure/file-storage/image-file-storage.service';
 import type { Request } from 'express';
-import { ApiBearerJwtAuth } from 'src/common/decorators/api-bearer-auth.decorator';
-import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registration-completion.config';
+import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
+import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import { AuthGuardsByRegistration } from 'src/common/config';
 
 @ApiTags('Users')
 @Controller('users')

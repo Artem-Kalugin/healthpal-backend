@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
-import { AuthError } from 'src/common/errors/database-entity/auth.error';
+import { AuthError } from 'src/common/errors/auth.error';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables } from 'declarations';

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { DatabaseEntityErrorFilter } from './common/filters/database-entity-error.filter';
+import { DatabaseEntityErrorFilter } from './common/errors/database-entity/database-entity-error.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

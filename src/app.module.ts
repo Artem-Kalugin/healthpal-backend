@@ -8,9 +8,9 @@ import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-re
 import { environmentValidationSchema } from './env.schema';
 import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
 import { PasswordModule } from './infrastructure/password/password.module';
-import { DoctorCategoryModule } from './domain/doctor/modules/doctor-category/doctor-category.module';
 import { MedicalCentersModule } from './domain/medical-center/medical-center.module';
-import { LoggerMiddleware } from './common/middlewars/logger';
+import { LoggerMiddleware } from './common/middlewares/console.logger';
+import { DoctorModule } from './domain/doctor/doctor.module';
 
 @Module({
   imports: [
@@ -35,7 +35,7 @@ import { LoggerMiddleware } from './common/middlewars/logger';
     UsersModule,
     AuthModule,
     OnboardingSlidesModule,
-    DoctorCategoryModule,
+    DoctorModule,
     MedicalCentersModule,
     PasswordModule,
   ],

@@ -1,6 +1,6 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { Specification } from 'src/common/types/base.specification';
+import { Specification } from 'src/common/helpers/base.specification';
 
 export class WithOrderBy<T extends string, Alias extends string>
   implements Specification<MedicalCenter>

@@ -10,4 +10,8 @@ export class DoctorCategoryResponseDto {
   @Expose()
   @ApiProperty()
   icon: string;
+
+  @Expose()
+  @ApiProperty()
+  id: string;
 }

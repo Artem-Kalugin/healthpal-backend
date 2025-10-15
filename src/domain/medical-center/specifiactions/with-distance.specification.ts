@@ -1,4 +1,4 @@
-import { Specification } from 'src/common/types/base.specification';
+import { Specification } from 'src/common/helpers/base.specification';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
 import { SelectQueryBuilder } from 'typeorm';
 

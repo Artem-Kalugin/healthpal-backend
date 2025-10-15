@@ -2,7 +2,7 @@ import { Provider } from '@nestjs/common';
 import { DataSource, ObjectType, QueryFailedError } from 'typeorm';
 import { Repository, DeepPartial, ObjectLiteral } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { getEntityRepository } from '../helpers/get-entity-repository';
+import { getEntityRepository } from './get-entity-repository';
 import { DatabaseErrorFactory } from '../errors/database-entity/database-entity-error.factory';
 
 type EntityClass<T> = ObjectType<T>;

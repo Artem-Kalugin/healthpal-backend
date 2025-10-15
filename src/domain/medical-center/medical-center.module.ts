@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MedicalCentersService } from './medical-center.service';
 import { UsersModule } from '../users/users.module';
 import { MedicalCentersController } from './medical-center.controller';
-import { createSafeRepositoryProviders } from 'src/common/providers/safe-repository.provider';
+import { createSafeRepositoryProviders } from 'src/common/helpers/safe-repository.provider';
 
 const MedicalCenterEntities = [MedicalCenter];
 

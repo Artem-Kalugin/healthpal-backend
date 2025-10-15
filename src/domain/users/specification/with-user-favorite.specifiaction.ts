@@ -1,17 +1,20 @@
-import { MinimalManyToManyJoinOptions } from 'declarations';
-import { Specification } from 'src/common/types/base.specification';
+import { ManyToManyJoinOptions } from 'declarations';
+import { Specification } from 'src/common/helpers/base.specification';
+import { Doctor } from 'src/entities/doctor.entity';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
 import { SelectQueryBuilder } from 'typeorm';
 
-export class WithUserFavoriteSpec implements Specification<MedicalCenter> {
+export class WithIsUserFavorite<T extends MedicalCenter | Doctor>
+  implements Specification<T>
+{
   constructor(
-    private readonly userFavoriteMeta: MinimalManyToManyJoinOptions,
+    private readonly userFavoriteMeta: ManyToManyJoinOptions,
     private readonly alias: string,
     private readonly isFavoriteKey: string,
     private readonly userId: string,
   ) {}
 
-  apply(qb: SelectQueryBuilder<MedicalCenter>) {
+  apply(qb: SelectQueryBuilder<T>) {
     const { name, joinColumn, inverseJoinColumn } = this.userFavoriteMeta;
 
     return qb
