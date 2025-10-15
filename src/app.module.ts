@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './domain/users/users.module';
@@ -9,6 +9,8 @@ import { environmentValidationSchema } from './env.schema';
 import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
 import { PasswordModule } from './infrastructure/password/password.module';
 import { DoctorCategoryModule } from './domain/doctor/modules/doctor-category/doctor-category.module';
+import { MedicalCentersModule } from './domain/medical-center/medical-center.module';
+import { LoggerMiddleware } from './common/middlewars/logger';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { DoctorCategoryModule } from './domain/doctor/modules/doctor-category/do
     AuthModule,
     OnboardingSlidesModule,
     DoctorCategoryModule,
+    MedicalCentersModule,
     PasswordModule,
   ],
   providers: [
@@ -43,4 +46,8 @@ import { DoctorCategoryModule } from './domain/doctor/modules/doctor-category/do
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

@@ -11,7 +11,6 @@ import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/decorators/auth-registrat
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided
 export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
   constructor(private readonly reflector: Reflector) {
     super();

@@ -37,7 +37,7 @@ export class UsersService {
         avatarSaved = await this.imageFileStorageService.processAndSave(
           avatar,
           'avatar',
-          false,
+          true,
         );
         savedFilePath = avatarSaved.image;
       }

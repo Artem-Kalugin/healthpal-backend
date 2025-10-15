@@ -6,12 +6,36 @@ import {
   Check,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
+import { MedicalCenter } from './medical-center.entity';
+import { MinimalManyToManyJoinOptions } from 'declarations';
 
 export enum Gender {
   MALE = 'MALE',
   FEMALE = 'FEMALE',
 }
+
+export enum UserRelationKeys {
+  FAVORITE_MEDICAL_CENTERS = 'favoriteMedicalCenters',
+}
+
+export const UserJoinTableSettings: {
+  [x in UserRelationKeys]: MinimalManyToManyJoinOptions;
+} = {
+  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: {
+    name: 'user_favorite_medical_centers',
+    joinColumn: {
+      name: 'userId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'centerId',
+      referencedColumnName: 'id',
+    },
+  },
+};
 
 @Entity()
 export class User {
@@ -49,6 +73,10 @@ export class User {
 
   @Column({ type: 'jsonb', nullable: true })
   avatar?: { image: string; thumbhash: string };
+
+  @ManyToMany(() => MedicalCenter)
+  @JoinTable(UserJoinTableSettings[UserRelationKeys.FAVORITE_MEDICAL_CENTERS])
+  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: MedicalCenter[];
 
   @Column({ nullable: true })
   registrationComplete: boolean;

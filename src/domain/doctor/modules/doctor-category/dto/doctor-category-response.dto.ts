@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 import { DoctorCategoryType } from 'src/entities/doctor-category.entity';
 
@@ -8,6 +8,6 @@ export class DoctorCategoryResponseDto {
   type: DoctorCategoryType;
 
   @Expose()
-  @ApiPropertyOptional()
-  icon?: string;
+  @ApiProperty()
+  icon: string;
 }

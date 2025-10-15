@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { rgbaToThumbHash } from 'thumbhash';
 import { FileStorageService } from './file-storage.service';
 
-type ImageType = 'avatar' | 'onboarding';
+type ImageType = 'avatar' | 'onboarding' | 'medical-centers';
 interface ImageProcessingOptions {
   resize: {
     width: number;
@@ -23,6 +23,11 @@ const IMAGE_PROCESSING_PRESETS: Record<ImageType, ImageProcessingOptions> = {
     quality: 75,
   },
   onboarding: {
+    resize: { width: 1024, height: 1024, fit: 'cover' },
+    quality: 95,
+  },
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  'medical-centers': {
     resize: { width: 1024, height: 1024, fit: 'cover' },
     quality: 95,
   },

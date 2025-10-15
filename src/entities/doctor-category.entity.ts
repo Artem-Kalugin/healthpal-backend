@@ -25,6 +25,6 @@ export class DoctorCategory {
   @Column({ type: 'int', default: 0 })
   order: number;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text' })
   icon: string;
 }
