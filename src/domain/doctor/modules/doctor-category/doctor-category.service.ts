@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { SafeRepository } from 'src/common/providers/safe-repository.provider';
+import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { DoctorCategory } from 'src/entities/doctor-category.entity';
 import { CreateDoctorCategoryDto } from './dto/create-doctor-category.dto';
 

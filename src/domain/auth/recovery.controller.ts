@@ -1,11 +1,11 @@
 import { Body, Controller, Post, SerializeOptions } from '@nestjs/common';
 import { RecoveryService } from './recovery.service';
 import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { AuthError } from 'src/common/errors/database-entity/auth.error';
+import { AuthError } from 'src/common/errors/auth.error';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Public } from 'src/common/decorators/public.decorator';
+import { Public } from 'src/common/helpers/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
@@ -22,13 +22,13 @@ export class RecoveryController {
   constructor(private readonly recoveryService: RecoveryService) {}
 
   @ApiOkResponse({ type: DemoOnly_SMSResponse })
-  @Post('request-otp')
+  @Post('otp/request')
   requestOtp(@Body() body: RequestOtpDto) {
     return this.recoveryService.requestOtp(body.phone);
   }
 
   @ApiOkResponse({ type: VerifyOtpResponseDto })
-  @Post('verify-otp')
+  @Post('otp/verify')
   @SerializeOptions({ type: VerifyOtpResponseDto })
   verifyOtp(@Body() body: VerifyOtpDto) {
     return this.recoveryService.verifyOtp(body.phone, body.otp);

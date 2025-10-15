@@ -1,4 +1,4 @@
-import { NotUniqueErrorMetadata } from 'src/common/decorators/not-unique-error-metadata.decorator';
+import { NotUniqueErrorMetadata } from 'src/common/helpers/decorators/not-unique-error-metadata.decorator';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -10,7 +10,8 @@ import {
   JoinTable,
 } from 'typeorm';
 import { MedicalCenter } from './medical-center.entity';
-import { MinimalManyToManyJoinOptions } from 'declarations';
+import { ManyToManyJoinOptions } from 'declarations';
+import { Doctor } from './doctor.entity';
 
 export enum Gender {
   MALE = 'MALE',
@@ -19,10 +20,11 @@ export enum Gender {
 
 export enum UserRelationKeys {
   FAVORITE_MEDICAL_CENTERS = 'favoriteMedicalCenters',
+  FAVORITE_DOCTORS = 'favoriteDoctors',
 }
 
-export const UserJoinTableSettings: {
-  [x in UserRelationKeys]: MinimalManyToManyJoinOptions;
+export const UserJoinsStructure: {
+  [x in UserRelationKeys]: ManyToManyJoinOptions;
 } = {
   [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: {
     name: 'user_favorite_medical_centers',
@@ -32,6 +34,17 @@ export const UserJoinTableSettings: {
     },
     inverseJoinColumn: {
       name: 'centerId',
+      referencedColumnName: 'id',
+    },
+  },
+  [UserRelationKeys.FAVORITE_DOCTORS]: {
+    name: 'user_favorite_doctors',
+    joinColumn: {
+      name: 'userId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'doctorId',
       referencedColumnName: 'id',
     },
   },
@@ -75,8 +88,12 @@ export class User {
   avatar?: { image: string; thumbhash: string };
 
   @ManyToMany(() => MedicalCenter)
-  @JoinTable(UserJoinTableSettings[UserRelationKeys.FAVORITE_MEDICAL_CENTERS])
+  @JoinTable(UserJoinsStructure[UserRelationKeys.FAVORITE_MEDICAL_CENTERS])
   [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: MedicalCenter[];
+
+  @ManyToMany(() => Doctor)
+  @JoinTable(UserJoinsStructure[UserRelationKeys.FAVORITE_DOCTORS])
+  [UserRelationKeys.FAVORITE_DOCTORS]: Doctor[];
 
   @Column({ nullable: true })
   registrationComplete: boolean;

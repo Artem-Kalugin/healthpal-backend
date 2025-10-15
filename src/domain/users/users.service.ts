@@ -6,7 +6,7 @@ import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-f
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import type { SafeRepository } from 'src/common/providers/safe-repository.provider';
+import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { UserNotFoundException } from './exceptions/user-not-found.exception';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 

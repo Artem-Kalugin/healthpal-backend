@@ -2,12 +2,12 @@ import { Controller, Get, SerializeOptions } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { DoctorCategoryService } from './doctor-category.service';
 import { DoctorCategoryResponseDto } from './dto/doctor-category-response.dto';
-import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registration-completion.config';
-import { ApiBearerJwtAuth } from 'src/common/decorators/api-bearer-auth.decorator';
+import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import { AuthGuardsByRegistration } from 'src/common/config';
+import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 
-@ApiTags('Doctor')
-@Controller('/doctor/categories')
+@ApiTags('Doctors')
+@Controller('/doctor-categories')
 @ApiBearerJwtAuth()
 @AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
 export class DoctorCategoryController {

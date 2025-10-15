@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import { Image } from 'src/common/helpers/image.dto';
 import { MedicalCenterType } from 'src/entities/medical-center.entity';
 
 export const MedicalCenterResponseFavoritePropertyName = 'isFavorite';
@@ -19,7 +20,7 @@ export class MedicalCenterResponseDto {
   city: string;
   @ApiProperty()
   @Expose()
-  image: { image: string; thumbhash: string };
+  image: Image;
   @ApiProperty()
   @Expose()
   lat: number;

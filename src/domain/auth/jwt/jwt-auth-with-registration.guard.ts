@@ -4,11 +4,11 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthGuardsByRegistration } from 'src/common/types/auth-guard-by-registration-completion.config';
-import { JwtContent } from 'src/common/types/jwt-content.type';
-import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
-import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/decorators/auth-registration-type.decorator';
+import { AuthGuardsByRegistration } from 'src/common/config';
+import { IS_PUBLIC_KEY } from 'src/common/helpers/decorators/public.decorator';
+import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtContent } from 'declarations';
 
 @Injectable()
 export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {

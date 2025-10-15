@@ -1,5 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
-import { DatabaseEntityError } from '../errors/database-entity/database-entity.error';
+import { DatabaseEntityError } from './database-entity.error';
 import { Response } from 'express';
 
 @Catch(DatabaseEntityError)

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { Image } from 'src/common/types/image.dto';
+import { Image } from 'src/common/helpers/image.dto';
 
 export class OnboardingSlideResponseDto {
   @ApiProperty({

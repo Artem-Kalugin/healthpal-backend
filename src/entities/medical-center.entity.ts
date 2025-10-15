@@ -11,10 +11,10 @@ export class MedicalCenter {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ collation: 'ru_RU.UTF-8' })
   name: string;
 
-  @Column()
+  @Column({ collation: 'ru_RU.UTF-8' })
   address: string;
 
   @Column()
