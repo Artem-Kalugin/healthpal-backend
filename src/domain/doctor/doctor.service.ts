@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import {
   Doctor,
   DoctorJoinsStructure,
@@ -8,13 +8,21 @@ import type { SafeRepository } from 'src/common/helpers/safe-repository.provider
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import { WithDoctorMedicalCenterNameAndAdress } from './specification/with-medical-center-name-and-adress.specification';
 import { WithDoctorCategoryType } from './specification/with-category-type.specification';
-import { WithIsUserFavorite } from '../users/specification/with-user-favorite.specifiaction';
+import {
+  favoritedByUserAtPropertyName,
+  WithIsUserFavorite,
+} from '../users/specification/with-user-favorite.specifiaction';
 import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
 import { FilterByRelation } from './specification/filter-by-relation.specification';
 import { AliasedSlugs } from 'declarations';
-import { takePaginated } from 'src/common/helpers/pagination/paginate';
+import {
+  getPaginatedUsingLimitOffest,
+  getPaginatedUsingSkipTake,
+} from 'src/common/helpers/pagination/paginate';
 import { SortOrder } from 'src/common/config';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
+import { mapDoctorWithRaw } from './doctor.mapper';
+import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 
 const UserFavoriteMeta = UserJoinsStructure[UserRelationKeys.FAVORITE_DOCTORS];
 
@@ -82,7 +90,30 @@ export class DoctorService {
       qb.orderBy(`${ALIAS}.id`, SortOrder.ASC);
     }
 
-    return takePaginated(qb, page, size);
+    const res = await getPaginatedUsingSkipTake(qb, page, size);
+
+    return { ...res, data: mapDoctorWithRaw(res.data) };
+  }
+
+  async findFavoritesForUser(
+    parameters: DoctorFavoritesQueryDto & { userId: string },
+  ) {
+    const { userId, page, size } = parameters;
+    const qb = this.baseQueryBuilderForUser(userId);
+
+    qb.andWhere(`t.${UserFavoriteMeta.inverseJoinColumn.name} = :userId`, {
+      userId,
+    });
+
+    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.ASC);
+
+    const res = await getPaginatedUsingLimitOffest(qb, page, size);
+
+    return { ...res, data: mapDoctorWithRaw(res.data) };
+  }
+
+  async existsById(doctorId: string) {
+    return this.repo.existsBy({ id: doctorId });
   }
 
   async findOneForUser(userId: string, doctorId: string) {
@@ -90,12 +121,7 @@ export class DoctorService {
 
     qb.andWhere(`${ALIAS}.id = :doctorId`, { doctorId });
 
-    const doctor = await qb.getOne();
-    if (!doctor) {
-      throw new NotFoundException();
-    }
-
-    return doctor;
+    return mapDoctorWithRaw(await qb.getRawAndEntities())[0];
   }
 
   baseQueryBuilderForUser(userId: string) {
@@ -105,13 +131,8 @@ export class DoctorService {
     new WithDoctorCategoryType(ALIAS).apply(qb);
     const qbWithFavorite = new WithIsUserFavorite<
       Doctor & { isFavorite: boolean }
-    >(
-      UserFavoriteMeta,
-      ALIAS,
-      'isFavorite',
-      userId,
       //@ts-expect-error attaches isFavorite
-    ).apply(qb);
+    >(UserFavoriteMeta, ALIAS, userId, false).apply(qb);
 
     return qbWithFavorite;
   }

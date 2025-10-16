@@ -1,42 +1,16 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
-  IsInt,
   IsOptional,
-  IsPositive,
   IsString,
-  Min,
   MaxLength,
   IsIn,
   MinLength,
   IsEnum,
-  Max,
 } from 'class-validator';
 import { SortOrder } from 'src/common/config';
+import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
 
-export class DoctorSearchQueryDto {
-  @ApiPropertyOptional({
-    description: 'Номер страницы (>=1)',
-    example: 1,
-    type: 'number',
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page = 1;
-
-  @ApiPropertyOptional({
-    description: 'Размер страницы (1–100)',
-    example: 10,
-    type: 'number',
-  })
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  @Min(10)
-  @Max(100)
-  size = 10;
-
+export class DoctorSearchQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
     description: 'Поисковый запрос (>=3 символов)',
     example: 'Иван',

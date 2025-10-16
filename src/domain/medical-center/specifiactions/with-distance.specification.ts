@@ -2,14 +2,14 @@ import { Specification } from 'src/common/helpers/base.specification';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
 import { SelectQueryBuilder } from 'typeorm';
 
-export class WithDistance implements Specification<MedicalCenter> {
+export class WithDistance<T extends MedicalCenter> implements Specification<T> {
   constructor(
     private readonly alias: string,
     private readonly lat: number,
     private readonly lon: number,
   ) {}
 
-  apply(qb: SelectQueryBuilder<MedicalCenter>) {
+  apply(qb: SelectQueryBuilder<T>) {
     const formula = `
     6371 * acos(
       cos(radians(:lat)) * cos(radians(${this.alias}.lat)) *
