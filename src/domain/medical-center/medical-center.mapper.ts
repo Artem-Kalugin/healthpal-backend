@@ -1,14 +1,10 @@
 import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { MedicalCenterResponseFavoritePropertyName } from './dto/medical-center-response.dto';
+import { favoritedByUserPropertyName } from '../users/specification/with-user-favorite.specifiaction';
 
-export function mapMedicalCenterWithRaw(payload: {
-  entities: MedicalCenter[];
+export function mapMedicalCenterWithRaw<T extends MedicalCenter>(payload: {
+  entities: T[];
   raw: Record<string, any>[];
-}): (MedicalCenter & {
-  isFavorite: boolean;
-  distance?: number;
-  walkingTimeMinutes?: number;
-})[] {
+}): T[] {
   const { entities, raw: raws } = payload;
   return entities.map((center, index) => {
     const raw = raws[index];
@@ -17,9 +13,12 @@ export function mapMedicalCenterWithRaw(payload: {
     return {
       ...center,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      [MedicalCenterResponseFavoritePropertyName]:
-        raw[MedicalCenterResponseFavoritePropertyName],
+      [favoritedByUserPropertyName]: raw[favoritedByUserPropertyName],
       distance,
+
+      reviewsCount: raw.reviewsCount,
+
+      rating: raw.rating,
       walkingTimeMinutes: distance
         ? Math.round((distance / 5) * 60)
         : undefined,

@@ -11,6 +11,7 @@ import { PasswordModule } from './infrastructure/password/password.module';
 import { MedicalCentersModule } from './domain/medical-center/medical-center.module';
 import { LoggerMiddleware } from './common/middlewares/console.logger';
 import { DoctorModule } from './domain/doctor/doctor.module';
+import { FavoritesModule } from './domain/favorites/favorites.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DoctorModule } from './domain/doctor/doctor.module';
       synchronize: true,
       logging: true,
     }),
+    FavoritesModule,
     UsersModule,
     AuthModule,
     OnboardingSlidesModule,

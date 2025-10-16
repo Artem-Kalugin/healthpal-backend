@@ -6,12 +6,12 @@ import {
   Check,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToMany,
-  JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { MedicalCenter } from './medical-center.entity';
 import { ManyToManyJoinOptions } from 'declarations';
-import { Doctor } from './doctor.entity';
+import { UserFavoriteDoctor } from './user-favorite-doctor.relation';
+import { UserFavoriteMedicalCenter } from './user-favorite-medical-center.relation';
 
 export enum Gender {
   MALE = 'MALE',
@@ -27,24 +27,24 @@ export const UserJoinsStructure: {
   [x in UserRelationKeys]: ManyToManyJoinOptions;
 } = {
   [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: {
-    name: 'user_favorite_medical_centers',
+    name: 'user_favorite_medical_center',
     joinColumn: {
-      name: 'userId',
+      name: 'medicalCenterId',
       referencedColumnName: 'id',
     },
     inverseJoinColumn: {
-      name: 'centerId',
+      name: 'userId',
       referencedColumnName: 'id',
     },
   },
   [UserRelationKeys.FAVORITE_DOCTORS]: {
-    name: 'user_favorite_doctors',
+    name: 'user_favorite_doctor',
     joinColumn: {
-      name: 'userId',
+      name: 'doctorId',
       referencedColumnName: 'id',
     },
     inverseJoinColumn: {
-      name: 'doctorId',
+      name: 'userId',
       referencedColumnName: 'id',
     },
   },
@@ -87,13 +87,11 @@ export class User {
   @Column({ type: 'jsonb', nullable: true })
   avatar?: { image: string; thumbhash: string };
 
-  @ManyToMany(() => MedicalCenter)
-  @JoinTable(UserJoinsStructure[UserRelationKeys.FAVORITE_MEDICAL_CENTERS])
-  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: MedicalCenter[];
+  @OneToMany(() => UserFavoriteDoctor, favorite => favorite.user)
+  [UserRelationKeys.FAVORITE_DOCTORS]: UserFavoriteDoctor[];
 
-  @ManyToMany(() => Doctor)
-  @JoinTable(UserJoinsStructure[UserRelationKeys.FAVORITE_DOCTORS])
-  [UserRelationKeys.FAVORITE_DOCTORS]: Doctor[];
+  @OneToMany(() => UserFavoriteMedicalCenter, favorite => favorite.user)
+  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: MedicalCenter[];
 
   @Column({ nullable: true })
   registrationComplete: boolean;

@@ -18,6 +18,7 @@ import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
 import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { AuthGuardsByRegistration } from 'src/common/config';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
+import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 
 const PaginatedDoctorResponse = PaginatedResponseOf(DoctorResponseDto);
 
@@ -38,6 +39,23 @@ export class DoctorController {
     @Query() query: DoctorSearchQueryDto,
   ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
     const result = await this.doctorService.searchDoctorsForUser({
+      ...query,
+      userId: request.user!.id,
+    });
+
+    return new PaginatedDoctorResponse(result);
+  }
+
+  @Get('/favorites')
+  @ApiOkResponse({ type: PaginatedResponseDto<DoctorResponseDto> })
+  @SerializeOptions({
+    type: PaginatedDoctorResponse,
+  })
+  async favoritesForUser(
+    @Req() request: Request,
+    @Query() query: DoctorFavoritesQueryDto,
+  ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
+    const result = await this.doctorService.findFavoritesForUser({
       ...query,
       userId: request.user!.id,
     });
