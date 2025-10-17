@@ -7,10 +7,10 @@ import {
   favoritedByUserAtPropertyName,
   WithIsUserFavorite,
 } from '../users/specification/with-user-favorite.specifiaction';
-import { WithDistance } from './specifiactions/with-distance.specification';
-import { WithOrderBy } from './specifiactions/with-order-by.specification';
+import { WithDistance } from './specifications/with-distance.specification';
+import { WithOrderBy } from './specifications/with-order-by.specification';
 import { mapMedicalCenterWithRaw } from './medical-center.mapper';
-import { WithDoctorsAggregates } from './specifiactions/with-doctors-aggregates.specifiaction';
+import { WithDoctorsAggregates } from './specifications/with-doctors-aggregates.specifiaction';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 import { SortOrder } from 'src/common/config';
 import { getPaginatedUsingLimitOffest } from 'src/common/helpers/pagination/paginate';
