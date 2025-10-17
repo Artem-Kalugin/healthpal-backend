@@ -1,4 +1,4 @@
-import { ApiProperty, PickType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 import { DoctorCategoryResponseDto } from '../modules/doctor-category/dto/doctor-category-response.dto';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
@@ -53,8 +53,8 @@ export class DoctorResponseDto {
   description: string;
 
   @Expose()
-  @ApiProperty()
-  [favoritedByUserPropertyName]: boolean;
+  @ApiPropertyOptional()
+  [favoritedByUserPropertyName]?: boolean;
 
   @Expose()
   @Type(() => DoctorResponseDoctorCategoryDto)

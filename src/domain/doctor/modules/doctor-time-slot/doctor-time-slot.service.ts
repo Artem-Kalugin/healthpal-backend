@@ -17,18 +17,21 @@ export class DoctorTimeSlotService {
   ) {
     const slots = await this.repo.find({
       where: {
-        doctorId,
+        doctor: { id: doctorId },
         date: Between(startDate, endDate),
       },
       order: {
         date: 'ASC',
         startTime: 'ASC',
       },
+      relations: ['appointment'],
     });
 
     const grouped: Record<string, DoctorTimeSlot[]> = {};
 
-    for (const slot of slots) {
+    const slotsFiltered = slots.filter(element => !element.appointment);
+
+    for (const slot of slotsFiltered) {
       if (!grouped[slot.date]) grouped[slot.date] = [];
       grouped[slot.date].push(slot);
     }
@@ -38,7 +41,6 @@ export class DoctorTimeSlotService {
       slots: slots.map(s => ({
         startTime: s.startTime.slice(0, 5),
         endTime: s.endTime.slice(0, 5),
-        available: s.available,
         id: s.id,
       })),
     }));

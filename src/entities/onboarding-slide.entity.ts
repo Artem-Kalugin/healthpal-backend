@@ -1,21 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Image } from 'src/common/helpers/image.dto';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class OnboardingSlide {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ApiProperty({
-    description: '{ image: ссылка на файл, thumbhash: хэш превью }',
-  })
-  image: { image: string; thumbhash: string };
+  @Column({ type: 'jsonb' })
+  image: Image;
 
   @Column({ length: 128 })
   title: string;
@@ -28,10 +20,4 @@ export class OnboardingSlide {
 
   @Column({ default: true })
   isActive: boolean;
-
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
 }
