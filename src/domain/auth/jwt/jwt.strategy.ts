@@ -5,7 +5,6 @@ import { UsersService } from '../../users/users.service';
 import { AuthService } from '../auth.service';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables, JwtContent } from 'declarations';
-import { AuthError } from 'src/common/errors/auth.error';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,13 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtContent): Promise<JwtContent> {
-    const user = await this.usersService.findOne(payload.id);
-
-    if (!user) {
-      throw new AuthError('Недействительный токен');
-    }
-
-    return this.authService.getJwtPayload(user);
+  validate(payload: JwtContent): JwtContent {
+    return payload;
   }
 }
