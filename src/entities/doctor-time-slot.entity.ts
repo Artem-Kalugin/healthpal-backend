@@ -4,8 +4,10 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
+import { Appointment } from './appointment';
 
 @Entity()
 export class DoctorTimeSlot {
@@ -14,13 +16,12 @@ export class DoctorTimeSlot {
 
   @Column('uuid')
   doctorId: string;
-
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctorId' })
   doctor: Doctor;
 
   @Column({ type: 'date' })
-  date: string; // конкретный день слота
+  date: string;
 
   @Column({ type: 'time' })
   startTime: string;
@@ -28,9 +29,8 @@ export class DoctorTimeSlot {
   @Column({ type: 'time' })
   endTime: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  appointmentId?: string;
-
-  @Column({ type: 'boolean', default: true })
-  available: boolean;
+  @OneToOne(() => Appointment, appointment => appointment.timeSlot, {
+    onDelete: 'CASCADE',
+  })
+  appointment: Appointment;
 }

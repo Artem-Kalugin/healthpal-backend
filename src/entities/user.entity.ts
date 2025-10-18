@@ -7,7 +7,6 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { MedicalCenter } from './medical-center.entity';
 import { ManyToManyJoinOptions } from 'declarations';
 import { UserFavoriteDoctor } from './user-favorite-doctor.relation';
 import { UserFavoriteMedicalCenter } from './user-favorite-medical-center.relation';
@@ -91,7 +90,7 @@ export class User {
   [UserRelationKeys.FAVORITE_DOCTORS]: UserFavoriteDoctor[];
 
   @OneToMany(() => UserFavoriteMedicalCenter, favorite => favorite.user)
-  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: MedicalCenter[];
+  [UserRelationKeys.FAVORITE_MEDICAL_CENTERS]: UserFavoriteMedicalCenter[];
 
   @Column({ nullable: true })
   registrationComplete: boolean;

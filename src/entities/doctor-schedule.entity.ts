@@ -1,14 +1,20 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Doctor } from './doctor.entity';
 
 export enum ScheduleDay {
   MONDAY = 1,
-  THURSDAY = 2,
+  TUESDAY = 2,
   WEDNESDAY = 3,
-  TUESDAY = 4,
+  THURSDAY = 4,
   FRIDAY = 5,
-  SUNDAY = 6,
-  SATURDAY = 7,
+  SATURDAY = 6,
+  SUNDAY = 7,
 }
 
 @Entity()
@@ -18,9 +24,9 @@ export class DoctorSchedule {
 
   @Column('uuid')
   doctorId: string;
-
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
-  doctor: string;
+  @JoinColumn({ name: 'doctorId' })
+  doctor: Doctor;
 
   @Column({ type: 'time' })
   startTime: string;

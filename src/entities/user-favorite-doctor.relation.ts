@@ -1,4 +1,10 @@
-import { ManyToOne, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+import {
+  ManyToOne,
+  CreateDateColumn,
+  Entity,
+  PrimaryColumn,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Doctor } from './doctor.entity';
 
@@ -6,14 +12,14 @@ import { Doctor } from './doctor.entity';
 export class UserFavoriteDoctor {
   @PrimaryColumn('uuid')
   userId: string;
+  @ManyToOne(() => User, user => user.favoriteDoctors, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @PrimaryColumn('uuid')
   doctorId: string;
-
-  @ManyToOne(() => User, user => user.favoriteDoctors, { onDelete: 'CASCADE' })
-  user: User;
-
   @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'doctorId' })
   doctor: Doctor;
 
   @CreateDateColumn({ type: 'timestamptz' })
