@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   app:
     build:
@@ -9,8 +7,6 @@ services:
       - .env
     container_name: healthpal-app
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       NODE_ENV: production
       DATABASE_HOST: postgres
@@ -52,8 +48,8 @@ services:
 
   postgres:
     build: 
-        context: .
-        dockerfile: ./docker/postgres/Dockerfile
+      context: .
+      dockerfile: ./docker/postgres/Dockerfile
     container_name: healthpal-postgres
     restart: unless-stopped
     environment:
@@ -68,12 +64,10 @@ services:
         --encoding=UTF8
         --lc-collate=ru_RU.UTF-8
         --lc-ctype=ru_RU.UTF-8
+    
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    
-    ports:
-      - "5432:5432"
+      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh
     
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-healthpal} -d ${DATABASE_NAME:-healthpal}"]
@@ -95,9 +89,6 @@ services:
     image: redis:7-alpine
     container_name: healthpal-redis
     restart: unless-stopped
-  
-    ports:
-      - "6379:6379"
     
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change_me}", "ping"]
@@ -108,6 +99,33 @@ services:
     
     networks:
       - healthpal-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: healthpal-ngrok
+    restart: unless-stopped
+    command: 
+      http app:3000 
+      --authtoken=${NGROK_AUTH_TOKEN}
+      --log=stdout
+    
+    environment:
+      NGROK_AUTH_TOKEN: ${NGROK_AUTH_TOKEN}
+    
+    depends_on:
+      - app
+    
+    networks:
+      - healthpal-network
+    
+    ports:
+      - "4040:4040"  
     
     logging:
       driver: "json-file"

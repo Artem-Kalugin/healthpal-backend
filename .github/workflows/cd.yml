@@ -5,20 +5,63 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Deploy using ssh
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.PRIVATE_KEY }}
-        port: 22
-        script: |
-          cd ~/healthpal-backend
-          git pull origin main
-          git status
-          docker compose build --no-cache
-          docker compose up -d  
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            
+            echo "🚀 Starting deployment..."
+            cd ~/healthpal-backend || { echo "❌ Directory not found"; exit 1; }
+            
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+            git status
+            
+            echo "🔨 Building Docker images..."
+            docker compose build --no-cache
+            
+            echo "🟢 Starting containers..."
+            docker compose down --remove-orphans || true
+            docker compose up -d
+            
+            echo "⏳ Waiting for services to start..."
+            sleep 5
+            
+            echo "📊 Container status:"
+            docker compose ps
+            
+            echo "🔍 Checking ngrok service..."
+            if docker compose ps | grep -q "healthpal-ngrok"; then
+              echo "✅ ngrok is running"
+              
+              # Пробуем получить URL (с retries)
+              for i in {1..10}; do
+                NGROK_URL=$(docker compose logs ngrok 2>/dev/null | grep -oP 'URL.*https://\K[^ ]+' | tail -1)
+                if [ -n "$NGROK_URL" ]; then
+                  echo "✅ App deployed at: https://$NGROK_URL"
+                  break
+                fi
+                echo "⏳ Waiting for ngrok URL... ($i/10)"
+                sleep 2
+              done
+              
+              if [ -z "$NGROK_URL" ]; then
+                echo "⚠️  Could not retrieve ngrok URL, but deployment succeeded"
+                echo "🔗 Check ngrok dashboard: http://$(hostname -I | awk '{print $1}'):4040"
+              fi
+            else
+              echo "⚠️  ngrok service not found, but other services are running"
+              docker compose logs ngrok 2>&1 | tail -20
+            fi
+            
+            echo "✅ Deployment completed!"

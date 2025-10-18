@@ -28,6 +28,7 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --chown=nestjs:nodejs .env ./
+COPY --chown=nestjs:nodejs package.json ./
 
 RUN mkdir -p /app/Uploads && \
     chown -R nestjs:nodejs /app/Uploads && \
