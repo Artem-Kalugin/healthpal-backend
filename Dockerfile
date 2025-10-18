@@ -25,14 +25,14 @@ RUN apk add --no-cache tini curl
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
+RUN mkdir -p /app/uploads/public /app/uploads/protected && \
+    chown -R nestjs:nodejs /app/uploads && \
+    chmod -R 755 /app/uploads
+
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --chown=nestjs:nodejs .env ./
 COPY --chown=nestjs:nodejs package.json ./
-
-RUN mkdir -p /app/Uploads && \
-    chown -R nestjs:nodejs /app/Uploads && \
-    chmod 755 /app/Uploads
 
 USER nestjs
 

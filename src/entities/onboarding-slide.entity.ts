@@ -1,4 +1,4 @@
-import { Image } from 'src/common/helpers/image.dto';
+import { Image } from '../common/helpers/image.dto';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()

@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
     container_name: healthpal-app
     restart: unless-stopped
     environment:
@@ -37,14 +35,14 @@ services:
       - healthpal-network
     
     volumes:
-      - /app/node_modules 
-      - uploads_data:/app/Uploads
+      - uploads_data:/app/uploads
     
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
 
   postgres:
     build: 
@@ -67,7 +65,7 @@ services:
     
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
     
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-healthpal} -d ${DATABASE_NAME:-healthpal}"]
@@ -132,6 +130,38 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  seed:
+    build:
+      context: .
+      dockerfile: ./docker/seed/Dockerfile
+    container_name: healthpal-seed
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME:-healthpal}
+      
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-0}
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    volumes:
+      - uploads_data:/app/uploads
+    
+    networks:
+      - healthpal-network
+    
+    profiles:
+      - seed
 
 volumes:
   postgres_data:

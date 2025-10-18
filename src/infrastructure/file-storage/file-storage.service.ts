@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class FileStorageService {
-  private readonly baseDir = path.join(__dirname, '..', '..', '..', 'Uploads');
+  private readonly baseDir = path.join(__dirname, '..', '..', '..', 'uploads');
   private readonly publicDir = path.join(this.baseDir, 'public');
   private readonly protectedDir = path.join(this.baseDir, 'protected');
 

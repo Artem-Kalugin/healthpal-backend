@@ -10,7 +10,7 @@ import {
 import { ManyToManyJoinOptions } from 'declarations';
 import { UserFavoriteDoctor } from './user-favorite-doctor.relation';
 import { UserFavoriteMedicalCenter } from './user-favorite-medical-center.relation';
-import { NotUniqueErrorMetadata } from 'src/common/helpers/decorators/not-unique-error-metadata.decorator';
+import { NotUniqueErrorMetadata } from '../common/helpers/decorators/not-unique-error-metadata.decorator';
 
 export enum Gender {
   MALE = 'MALE',
