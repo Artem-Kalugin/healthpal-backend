@@ -13,6 +13,8 @@ import { LoggerMiddleware } from './common/middlewares/console.logger';
 import { DoctorModule } from './domain/doctor/doctor.module';
 import { FavoritesModule } from './domain/favorites/favorites.module';
 import { AppointmentModule } from './domain/appointment/appointment.module';
+import { HealthModule } from './infrastructure/health/health.module';
+import { TerminusModule } from '@nestjs/terminus';
 
 @Module({
   imports: [
@@ -22,6 +24,9 @@ import { AppointmentModule } from './domain/appointment/appointment.module';
       validationOptions: {
         abortEarly: true,
       },
+    }),
+    TerminusModule.forRoot({
+      gracefulShutdownTimeoutMs: 1000,
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -42,6 +47,7 @@ import { AppointmentModule } from './domain/appointment/appointment.module';
     DoctorModule,
     MedicalCentersModule,
     PasswordModule,
+    HealthModule,
   ],
   providers: [
     {
