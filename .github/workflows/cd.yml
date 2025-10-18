@@ -2,11 +2,11 @@ name: Node.js CD
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
     - name: Deploy using ssh
@@ -18,7 +18,7 @@ jobs:
         port: 22
         script: |
           cd ~/healthpal-backend
-          git pull origin master
+          git pull origin main
           git status
-          docker-compose build --no-cache
-          docker-compose up -d  
+          docker compose build --no-cache
+          docker compose up -d  
