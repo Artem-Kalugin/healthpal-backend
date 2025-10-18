@@ -16,6 +16,7 @@ import { AppointmentModule } from './domain/appointment/appointment.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { TerminusModule } from '@nestjs/terminus';
 
+console.log('test ci cd');
 @Module({
   imports: [
     ConfigModule.forRoot({
