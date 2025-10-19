@@ -21,6 +21,7 @@ import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-re
 import { Public } from 'src/common/helpers/decorators/public.decorator';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { RefreshDto } from './dto/refresh.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -36,18 +37,25 @@ export class AuthController {
   @SerializeOptions({ type: LoginResponseDto })
   async register(
     @Body() createUserDto: CreateUserDto,
+    @Req() request: Request,
   ): Promise<LoginResponseDto> {
+    const userAgent = request.headers['user-agent'] || 'unknown';
     const user = await this.usersService.create(createUserDto);
 
-    return this.authService.getJwtAccessTokenWithUser(user);
+    return this.authService.generateTokens(user, userAgent);
   }
 
   @Post('login')
   @Public()
   @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
-  async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() request: Request,
+  ): Promise<LoginResponseDto> {
+    const userAgent = request.headers['user-agent'] || 'unknown';
+
+    return this.authService.login(loginDto, userAgent);
   }
 
   @Post('complete-registration')
@@ -71,6 +79,24 @@ export class AuthController {
       avatar?.buffer,
     );
 
-    return this.authService.getJwtAccessTokenWithUser(updatedUser);
+    return this.authService.generateTokens(
+      updatedUser,
+      request.headers['user-agent'] || 'unknown',
+    );
+  }
+
+  @Public()
+  @Post('refresh')
+  @ApiOkResponse({ type: LoginResponseDto })
+  @SerializeOptions({ type: LoginResponseDto })
+  async refresh(
+    @Body() { userId, refreshToken }: RefreshDto,
+    @Req() request: Request,
+  ): Promise<LoginResponseDto> {
+    return this.authService.refresh(
+      userId,
+      request.headers['user-agent'] || 'unknown',
+      refreshToken,
+    );
   }
 }

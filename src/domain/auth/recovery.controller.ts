@@ -1,4 +1,4 @@
-import { Body, Controller, Post, SerializeOptions } from '@nestjs/common';
+import { Body, Controller, Post, Req, SerializeOptions } from '@nestjs/common';
 import { RecoveryService } from './recovery.service';
 import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { AuthError } from 'src/common/errors/auth.error';
@@ -8,6 +8,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from 'src/common/helpers/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import type { Request } from 'express';
 
 /** Этот класс используется только для swagger-документации, а не в runtime */
 // eslint-disable-next-line @typescript-eslint/naming-convention, sonarjs/class-name
@@ -37,13 +38,15 @@ export class RecoveryController {
   @Post('reset-password')
   @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
-  async resetPassword(@Body() body: ResetPasswordDto) {
+  async resetPassword(@Body() body: ResetPasswordDto, @Req() request: Request) {
     const { token, password, confirmPassword } = body;
 
     if (password !== confirmPassword) {
       throw new AuthError('Пароли не совпадают');
     }
 
-    return this.recoveryService.resetPassword(token, password);
+    const userAgent = request.headers['user-agent'] || 'unknown';
+
+    return this.recoveryService.resetPassword(token, password, userAgent);
   }
 }
