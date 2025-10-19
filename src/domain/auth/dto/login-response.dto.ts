@@ -7,6 +7,10 @@ export class LoginResponseDto {
   @Expose()
   accessToken: string;
 
+  @ApiProperty()
+  @Expose()
+  refreshToken: string;
+
   @ApiProperty({ type: () => UserResponseDto })
   @Expose()
   @Type(() => UserResponseDto)

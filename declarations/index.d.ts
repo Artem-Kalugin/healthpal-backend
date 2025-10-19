@@ -35,6 +35,7 @@ type AliasedSlugs<
 export interface EnvironmentVariables {
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
+  JWT_REFRESH_TTL: string;
 
   DATABASE_USER: string;
   DATABASE_PASSWORD: string;

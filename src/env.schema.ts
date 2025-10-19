@@ -8,6 +8,9 @@ const validationSchemaRaw: { [x in keyof EnvironmentVariables]: any } = {
     'any.required': 'JWT_SECRET is required',
     'string.min': 'JWT_SECRET should be at least 32 characters long',
   }),
+  JWT_REFRESH_TTL: Joi.number().required().messages({
+    'any.required': 'JWT_REFRESH_TTL is required',
+  }),
   JWT_EXPIRES_IN: Joi.string()
     .pattern(/^\d+[smhd]$/)
     .required()
