@@ -20,6 +20,17 @@ export class UsersService {
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
+  private normalizeNameOrSurname(value: string): string {
+    return value
+      .split('-')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('-');
+  }
+
+  private normalizeNickname(nickname?: string): string | undefined {
+    return nickname?.toLowerCase();
+  }
+
   async create(
     createUserDto: CreateUserDto,
     avatar?: Buffer<ArrayBufferLike>,
@@ -30,7 +41,8 @@ export class UsersService {
     return await this.dataSource.transaction(async manager => {
       const userRepository = manager.withRepository(this.repository);
 
-      const { password, ...rest } = createUserDto;
+      const { password, name, surname, ...rest } = createUserDto;
+
       const hashedPassword = await this.passwordService.hash(password);
 
       if (avatar) {
@@ -44,6 +56,8 @@ export class UsersService {
 
       const user = userRepository.create({
         ...rest,
+        name: this.normalizeNameOrSurname(name),
+        surname: this.normalizeNameOrSurname(surname),
         password: hashedPassword,
         avatar: avatarSaved,
         registrationComplete: false,
@@ -58,16 +72,6 @@ export class UsersService {
         throw error;
       }
     });
-  }
-
-  async findOne(id: string): Promise<User> {
-    const user = await this.repository.findOne({ where: { id } });
-
-    if (!user) {
-      throw new UserNotFoundException();
-    }
-
-    return user;
   }
 
   async update(
@@ -102,6 +106,13 @@ export class UsersService {
         try {
           return await userRepository.safeUpdate(id, {
             ...updateUserDto,
+            name: updateUserDto.name
+              ? this.normalizeNameOrSurname(updateUserDto.name)
+              : undefined,
+            surname: updateUserDto.surname
+              ? this.normalizeNameOrSurname(updateUserDto.surname)
+              : undefined,
+            nickname: this.normalizeNickname(updateUserDto.nickname),
             avatar: avatarSaved,
             registrationComplete: !!(
               updateUserDto.birthday && updateUserDto.gender
@@ -120,6 +131,16 @@ export class UsersService {
         }
         return updatedUser;
       });
+  }
+
+  async findOne(id: string): Promise<User> {
+    const user = await this.repository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    return user;
   }
 
   async findOneByPhone(phone: string): Promise<User> {
