@@ -73,9 +73,7 @@ export class DoctorService {
       const term = `%${searchFor}%`;
       qb.andWhere(
         `(
-      ${ALIAS}.name ILIKE :term OR
-      ${ALIAS}.surname ILIKE :term OR
-      ${ALIAS}.description ILIKE :term OR
+      CONCAT(${ALIAS}.name, ' ', ${ALIAS}.surname) ILIKE :term OR
       ${DoctorRelationKeys.MEDICAL_CENTER}.name ILIKE :term OR
       ${DoctorRelationKeys.MEDICAL_CENTER}.address ILIKE :term
     )`,
