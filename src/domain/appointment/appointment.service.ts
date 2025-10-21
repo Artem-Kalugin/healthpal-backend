@@ -63,7 +63,7 @@ export class AppointmentService {
       case AppointmentType.FUTURE:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
         qb.andWhere(
-          `${ALIAS}.date > :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime > :nowTime)`,
+          `(${ALIAS}.date > :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime > :nowTime))`,
           {
             now: now.toISOString().split('T')[0],
             nowTime: now.toTimeString().split(' ')[0],
@@ -76,7 +76,7 @@ export class AppointmentService {
       case AppointmentType.PAST:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
         qb.andWhere(
-          `${ALIAS}.date < :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime <= :nowTime)`,
+          `(${ALIAS}.date < :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime <= :nowTime))`,
           {
             now: now.toISOString().split('T')[0],
             nowTime: now.toTimeString().split(' ')[0],
