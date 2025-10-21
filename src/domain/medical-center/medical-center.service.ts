@@ -15,6 +15,11 @@ import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.d
 import { SortOrder } from 'src/common/config';
 import { getPaginatedUsingLimitOffest } from 'src/common/helpers/pagination/paginate';
 
+type BaseQueryEntity = MedicalCenter & {
+  isFavorite: boolean;
+  rating: string;
+  reviewsCount: string;
+};
 const ALIAS = 'center' as const;
 
 const UserFavoriteMeta =
@@ -39,11 +44,8 @@ export class MedicalCentersService {
     const qbWithDistance = new WithOrderBy<
       'distance',
       typeof ALIAS,
-      MedicalCenter & {
+      BaseQueryEntity & {
         distance: number;
-        isFavorite: boolean;
-        rating: string;
-        reviewsCount: string;
       }
       // @ts-expect-error attaches distance
     >('distance', 'ASC').apply(qb);
@@ -58,11 +60,17 @@ export class MedicalCentersService {
   async findByRatingForUser(userId: string, top5Only: boolean) {
     const qb = this.buildBaseQueryForUser(userId);
 
+    const qbOrderedByRating = new WithOrderBy<
+      'rating',
+      typeof ALIAS,
+      BaseQueryEntity
+    >('rating', 'DESC').apply(qb);
+
     if (top5Only) {
-      qb.take(5);
+      qbOrderedByRating.take(5);
     }
 
-    return mapMedicalCenterWithRaw(await qb.getRawAndEntities());
+    return mapMedicalCenterWithRaw(await qbOrderedByRating.getRawAndEntities());
   }
 
   async findFavoritesForUser(
@@ -94,14 +102,9 @@ export class MedicalCentersService {
       //@ts-expect-error attaches isFavorite
     >(UserFavoriteMeta, ALIAS, userId, true).apply(qb);
 
-    const qbWithFavoriteWithDoctorsReviewsAndRating = new WithDoctorsAggregates<
-      MedicalCenter & {
-        isFavorite: boolean;
-        rating: string;
-        reviewsCount: string;
-      }
+    const qbWithFavoriteWithDoctorsReviewsAndRating =
       //@ts-expect-error attaches rating, reviewsCount
-    >(ALIAS).apply(qbWithFavorite);
+      new WithDoctorsAggregates<BaseQueryEntity>(ALIAS).apply(qbWithFavorite);
 
     return qbWithFavoriteWithDoctorsReviewsAndRating;
   }
