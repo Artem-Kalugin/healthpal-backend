@@ -34,7 +34,7 @@ import { TerminusModule } from '@nestjs/terminus';
       port: Number(process.env.DATABASE_PORT) ?? 5432,
       username: process.env.DATABASE_USER,
       password: process.env.DATABASE_PASSWORD,
-      database: process.env.DATABASE_NAME ?? 'HealthPal',
+      database: process.env.DATABASE_NAME ?? 'healthpal',
       autoLoadEntities: true,
       synchronize: true,
       logging: true,

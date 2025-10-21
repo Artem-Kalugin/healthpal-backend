@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
@@ -12,13 +12,17 @@ export class DoctorTimeSlotService {
 
   async getSlotsForDoctor(
     doctorId: string,
-    startDate: string,
+    mayBeOverridedStartDate: string,
     endDate: string,
   ) {
+    const now = new Date();
+    const nowDate = now.toISOString().split('T')[0];
+    const nowTime = now.toTimeString().split(' ')[0];
+
     const slots = await this.repo.find({
       where: {
         doctor: { id: doctorId },
-        date: Between(startDate, endDate),
+        date: Between(mayBeOverridedStartDate, endDate),
       },
       order: {
         date: 'ASC',
@@ -27,16 +31,22 @@ export class DoctorTimeSlotService {
       relations: ['appointment'],
     });
 
-    const grouped: Record<string, DoctorTimeSlot[]> = {};
+    const slotsFiltered = slots.filter(slot => {
+      if (slot.appointment) return false;
+      if (slot.date > nowDate) return true;
+      if (slot.date === nowDate && slot.startTime > nowTime) return true;
 
-    const slotsFiltered = slots.filter(element => !element.appointment);
+      return false;
+    });
+
+    const grouped: Record<string, DoctorTimeSlot[]> = {};
 
     for (const slot of slotsFiltered) {
       if (!grouped[slot.date]) grouped[slot.date] = [];
       grouped[slot.date].push(slot);
     }
 
-    const resultSlots = Object.entries(grouped).map(([date, slots]) => ({
+    return Object.entries(grouped).map(([date, slots]) => ({
       date,
       slots: slots.map(s => ({
         startTime: s.startTime.slice(0, 5),
@@ -44,8 +54,6 @@ export class DoctorTimeSlotService {
         id: s.id,
       })),
     }));
-
-    return resultSlots;
   }
 
   async getSlotsRange(doctorId: string) {
@@ -56,9 +64,24 @@ export class DoctorTimeSlotService {
       .where('slot.doctorId = :doctorId', { doctorId })
       .getRawOne<{ minDate: string; maxDate: string }>();
 
-    return {
-      minDate: minMaxSlot?.minDate || null,
-      maxDate: minMaxSlot?.maxDate || null,
+    if (!minMaxSlot?.minDate || !minMaxSlot?.maxDate) {
+      throw new NotFoundException('Нет доступного времени записи');
+    }
+
+    const now = new Date();
+    const nowDate = now.toISOString().split('T')[0];
+
+    const minDate = (minMaxSlot.minDate as unknown as Date)
+      .toISOString()
+      .split('T')[0];
+
+    const minDateMaybeOverrided = minDate < nowDate ? nowDate : minDate;
+
+    const res = {
+      minDate: minDateMaybeOverrided,
+      maxDate: minMaxSlot?.maxDate,
     };
+
+    return res;
   }
 }

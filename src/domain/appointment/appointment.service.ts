@@ -94,7 +94,6 @@ export class AppointmentService {
 
     const res = await getPaginatedUsingSkipTake(qb, page, size);
 
-    console.log(res, userId);
     return { ...res, data: mapAppointmentWithRaw(res.data) };
   }
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
