@@ -1,98 +1,106 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🚧 HealthPal API 🚧
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend для демонстрационного мобильного приложения HealthPal. Предоставляет REST API для управления записями к врачам, профилями пользователей и медицинскими центрами.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Swagger документация доступна по [ссылке](https://temptable-shantelle-cusped.ngrok-free.dev/api).
 
-## Description
+> 🚧 Бэкенд находится в разработке. API создано для демонстрации навыков работы с NestJS и построения серверных приложений. 🚧
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## ⚡ Технологический стек
 
-## Project setup
+- **NestJS** — фреймворк для построения масштабируемых серверных приложений
+- **TypeScript** — строгая типизация
+- **TypeORM** — ORM для работы с PostgreSQL
+- **PostgreSQL** — основная база данных
+- **Redis** — хранение временных данных (OTP-коды, refresh-token)
+- **JWT** — аутентификация пользователей
+- **Docker Compose** — контейнеризация для удобного развертывания
+- **Passport** — стратегии аутентификации
+- **class-validator + class-transformer** — валидация DTO
+- **Sharp** — обработка изображений
+- **Swagger** — документация API
 
-```bash
-$ yarn install
+## Реализованные модули
+
+1. **🔐 Аутентификация** - регистрация, вход, обновление токенов
+2. **🔑 Восстановление пароля** - OTP-коды через с временным хранением в Redis
+3. **👨‍⚕️ Врачи** - поиск, фильтрация, информация о специалистах
+4. **📅 Расписание и слоты** - управление доступным временем для записи
+5. **🏥 Медицинские центры** - медицинские центры с геолокацией и расчетом расстояния
+6. **📝 Записи на приём** - создание, просмотр, перенос записей
+7. **⭐ Избранное** - сохранение врачей и центров
+8. **👤 Профили пользователей** - управление данными, загрузка фото
+9. **📱 Онбординг** - слайды для первого входа
+10. **📊 Категории специалистов** - справочник медицинских направлений
+
+## Структура проекта
+
+```
+src/
+├── domain/              # Бизнес-логика по доменам
+│   ├── auth/           # Аутентификация
+│   ├── users/          # Пользователи
+│   ├── doctor/         # Врачи и связанные модули
+│   ├── medical-center/ # Медицинские центры
+│   ├── appointment/    # Записи на приём
+│   └── favorites/      # Избранное
+├── entities/           # TypeORM сущности
+├── infrastructure/     # Инфраструктурные модули
+│   ├── file-storage/  # Загрузка и хранение файлов
+│   ├── password/      # Хеширование паролей
+│   └── redis/         # Redis клиент
+└── common/            # Общие утилиты, декораторы, фильтры
 ```
 
-## Compile and run the project
+## 🚀 Запуск
 
+### Требования
+- Docker и Docker Compose
+- Node.js
+- Ngrok
+
+### Через Docker Compose
+
+1. Создать `.env` файл на основе примера
+2. Запустить контейнеры:
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+docker-compose up -d
 ```
 
-## Run tests
-
+3. 🚧 (Опционально) Заполнить БД тестовыми данными: 🚧
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+docker-compose --profile seed up seed
 ```
 
-## Deployment
+API будет доступно на `http://localhost:3000`
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Локальная разработка
 
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+npm install
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 📝 Документация API
 
-## Resources
+Swagger документация доступна по адресу `/api/docs` после запуска сервера.
 
-Check out a few resources that may come in handy when working with NestJS:
+## Особенности реализации
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- **Specification Pattern** — гибкие и переиспользуемые запросы к БД
+- **Custom Exception Filters** — обработка ошибок БД (unique constraints и др.)
+- **DTO маппинг** — разделение сущностей БД и API ответов
+- **Пагинация** — стандартизированный подход для всех списочных эндпоинтов
+- **Геолокация** — расчет расстояния от пользователя до медцентров
+- **Безопасное хранение паролей** — bcrypt хеширование
+- **Health checks** — эндпоинты для мониторинга состояния сервиса
 
-## Support
+## 🔧 Что планируется
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- Unit и E2E тесты
+- Логирование запросов
+- Кэширование с помощью Redis
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+*Проект создан для демонстрации навыков backend разработки. API полностью интегрировано с [мобильным приложением HealthPal](https://github.com/Artem-Kalugin/healthpal-mobile).*
