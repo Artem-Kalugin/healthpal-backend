@@ -62,3 +62,5 @@ package-lock.json
 /uploads
 
 seeds/
+# Personal notes
+/agents/

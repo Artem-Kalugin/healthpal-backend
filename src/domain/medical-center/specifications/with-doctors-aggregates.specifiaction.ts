@@ -3,9 +3,9 @@ import { Specification } from 'src/common/helpers/base.specification';
 import { MedicalCenter } from 'src/entities/medical-center.entity';
 import { Doctor } from 'src/entities/doctor.entity';
 
-export class WithDoctorsAggregates<T extends MedicalCenter>
-  implements Specification<T>
-{
+export class WithDoctorsAggregates<
+  T extends MedicalCenter,
+> implements Specification<T> {
   constructor(private readonly alias: string) {}
 
   apply(qb: SelectQueryBuilder<T>) {

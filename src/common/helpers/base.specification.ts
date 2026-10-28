@@ -4,9 +4,9 @@ export interface Specification<T extends ObjectLiteral> {
   apply(qb: SelectQueryBuilder<T>): SelectQueryBuilder<T>;
 }
 
-export abstract class CompositeSpecification<T extends ObjectLiteral>
-  implements Specification<T>
-{
+export abstract class CompositeSpecification<
+  T extends ObjectLiteral,
+> implements Specification<T> {
   private readonly specs: Specification<T>[] = [];
 
   apply(qb: SelectQueryBuilder<T>) {

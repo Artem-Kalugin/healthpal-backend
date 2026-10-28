@@ -7,9 +7,9 @@ import { SelectQueryBuilder } from 'typeorm';
 export const favoritedByUserAtPropertyName = 'favoritedAt';
 export const favoritedByUserPropertyName = 'isFavorite';
 
-export class WithIsUserFavorite<T extends MedicalCenter | Doctor>
-  implements Specification<T>
-{
+export class WithIsUserFavorite<
+  T extends MedicalCenter | Doctor,
+> implements Specification<T> {
   constructor(
     private readonly userFavoriteMeta: ManyToManyJoinOptions,
     private readonly alias: string,

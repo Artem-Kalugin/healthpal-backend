@@ -18,6 +18,5 @@ export function getNotUniqueErrorText(
   propertyKey: string | symbol,
 ) {
   return Reflect.getMetadata(NOT_INIQUE_ERROR_TEXT_KEY, target, propertyKey) as
-    | string
-    | undefined;
+    string | undefined;
 }

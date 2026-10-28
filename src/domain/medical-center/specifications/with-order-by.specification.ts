@@ -6,8 +6,7 @@ export class WithOrderBy<
   T extends string,
   Alias extends string,
   S extends MedicalCenter,
-> implements Specification<S>
-{
+> implements Specification<S> {
   constructor(
     private readonly field: `${Alias}.${keyof MedicalCenter}` | T,
     private readonly direction: 'ASC' | 'DESC',

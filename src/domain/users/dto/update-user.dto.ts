@@ -39,7 +39,6 @@ export class UpdateUserDto extends PartialType(
     description: 'Пол',
     example: Gender.MALE,
     enum: Gender,
-    required: true,
     enumName: 'Gender',
   })
   gender: Gender;

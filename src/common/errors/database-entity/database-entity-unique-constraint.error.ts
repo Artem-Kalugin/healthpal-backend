@@ -20,14 +20,12 @@ export class DatabaseEntityUniqueConstraintError extends DatabaseEntityError {
       start !== -1 && end !== -1
         ? originalError.detail.slice(start + 1, end)
         : 'field';
-    if (
-      !(
-        field &&
-        typeof entity === 'function' &&
-        entity.prototype &&
-        typeof entity.prototype === 'object'
-      )
-    ) {
+    if (!(
+      field &&
+      typeof entity === 'function' &&
+      entity.prototype &&
+      typeof entity.prototype === 'object'
+    )) {
       return;
     }
 
