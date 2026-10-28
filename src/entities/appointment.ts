@@ -9,6 +9,7 @@ import {
 import { Doctor } from './doctor.entity';
 import { User } from './user.entity';
 import { DoctorTimeSlot } from './doctor-time-slot.entity';
+import { NotUniqueErrorMetadata } from '../common/helpers/decorators/not-unique-error-metadata.decorator';
 
 @Entity()
 export class Appointment {
@@ -27,6 +28,7 @@ export class Appointment {
   @JoinColumn({ name: 'doctorId' })
   doctor: Doctor;
 
+  @NotUniqueErrorMetadata('Время записи уже занято')
   @Column({ type: 'uuid', nullable: true })
   timeSlotId: string | null;
   @OneToOne(() => DoctorTimeSlot, { onDelete: 'SET NULL', nullable: true })

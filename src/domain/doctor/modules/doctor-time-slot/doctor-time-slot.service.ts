@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
+import { Doctor } from 'src/entities/doctor.entity';
+import { getZonedNowParts } from 'src/common/helpers/clinic-time';
 
 @Injectable()
 export class DoctorTimeSlotService {
@@ -15,9 +17,9 @@ export class DoctorTimeSlotService {
     mayBeOverridedStartDate: string,
     endDate: string,
   ) {
-    const now = new Date();
-    const nowDate = now.toISOString().split('T')[0];
-    const nowTime = now.toTimeString().split(' ')[0];
+    const { date: nowDate, time: nowTime } = getZonedNowParts(
+      await this.getDoctorTimezone(doctorId),
+    );
 
     const slots = await this.repo.find({
       where: {
@@ -59,8 +61,8 @@ export class DoctorTimeSlotService {
   async getSlotsRange(doctorId: string) {
     const minMaxSlot = await this.repo
       .createQueryBuilder('slot')
-      .select('MIN(slot.date)', 'minDate')
-      .addSelect('MAX(slot.date)', 'maxDate')
+      .select('MIN(slot.date)::text', 'minDate')
+      .addSelect('MAX(slot.date)::text', 'maxDate')
       .where('slot.doctorId = :doctorId', { doctorId })
       .getRawOne<{ minDate: string; maxDate: string }>();
 
@@ -68,14 +70,12 @@ export class DoctorTimeSlotService {
       throw new NotFoundException('Нет доступного времени записи');
     }
 
-    const now = new Date();
-    const nowDate = now.toISOString().split('T')[0];
+    const { date: nowDate } = getZonedNowParts(
+      await this.getDoctorTimezone(doctorId),
+    );
 
-    const minDate = (minMaxSlot.minDate as unknown as Date)
-      .toISOString()
-      .split('T')[0];
-
-    const minDateMaybeOverrided = minDate < nowDate ? nowDate : minDate;
+    const minDateMaybeOverrided =
+      minMaxSlot.minDate < nowDate ? nowDate : minMaxSlot.minDate;
 
     const res = {
       minDate: minDateMaybeOverrided,
@@ -83,5 +83,21 @@ export class DoctorTimeSlotService {
     };
 
     return res;
+  }
+
+  private async getDoctorTimezone(doctorId: string) {
+    const row = await this.repo.manager
+      .createQueryBuilder()
+      .select('center.timezone', 'timezone')
+      .from(Doctor, 'doctor')
+      .innerJoin('doctor.medicalCenter', 'center')
+      .where('doctor.id = :doctorId', { doctorId })
+      .getRawOne<{ timezone: string }>();
+
+    if (!row) {
+      throw new NotFoundException('Врач не найден');
+    }
+
+    return row.timezone;
   }
 }

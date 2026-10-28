@@ -29,6 +29,10 @@ export class MedicalCenter {
   @Column({ type: 'float' })
   lon: number;
 
+  /** IANA-имя пояса (`Europe/Moscow`): в нём заданы `date`/`startTime` слотов центра. */
+  @Column({ default: 'Europe/Moscow' })
+  timezone: string;
+
   @Column({
     type: 'enum',
     enum: MedicalCenterType,

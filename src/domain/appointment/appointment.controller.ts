@@ -87,6 +87,9 @@ export class AppointmentController {
 
   @Patch(':id/reschedule')
   @ApiOkResponse({ type: AppointmentResponseDto })
+  @SerializeOptions({
+    type: AppointmentResponseDto,
+  })
   async rescheduleAppointment(
     @Param('id') appointmentId: string,
     @Body() dto: RescheduleAppointmentDto,

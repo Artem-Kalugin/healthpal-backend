@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { IsUUID, IsOptional } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class CreateAppointmentDto {
   @Expose()
@@ -9,8 +9,7 @@ export class CreateAppointmentDto {
   doctorId: string;
 
   @Expose()
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsUUID()
-  timeSlotId?: string;
+  timeSlotId: string;
 }

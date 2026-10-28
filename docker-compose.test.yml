@@ -1,0 +1,41 @@
+# Отдельные Postgres и Redis для интеграционных и e2e тестов (`pnpm test:db:up`).
+# Не пересекаются с основным стеком: Postgres на 5433 (данные в tmpfs, БД `healthpal_test`), Redis на 6380.
+name: healthpal-test
+
+services:
+  postgres-test:
+    build:
+      context: .
+      dockerfile: ./docker/postgres/Dockerfile
+    container_name: healthpal-postgres-test
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: healthpal_test
+      POSTGRES_INITDB_ARGS: >
+        --locale=ru_RU.UTF-8
+        --encoding=UTF8
+        --lc-collate=ru_RU.UTF-8
+        --lc-ctype=ru_RU.UTF-8
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test -d healthpal_test']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: healthpal-redis-test
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 15

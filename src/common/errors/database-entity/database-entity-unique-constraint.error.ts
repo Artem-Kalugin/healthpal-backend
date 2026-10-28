@@ -18,7 +18,7 @@ export class DatabaseEntityUniqueConstraintError extends DatabaseEntityError {
     const end = originalError.detail.indexOf(')=', start);
     const field =
       start !== -1 && end !== -1
-        ? originalError.detail.slice(start + 1, end)
+        ? originalError.detail.slice(start + 1, end).replaceAll('"', '')
         : 'field';
     if (!(
       field &&

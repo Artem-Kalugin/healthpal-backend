@@ -9,3 +9,5 @@ export enum SortOrder {
   ASC = 'ASC',
   DESC = 'DESC',
 }
+
+export const APPOINTMENT_MIN_LEAD_MINUTES = 120;

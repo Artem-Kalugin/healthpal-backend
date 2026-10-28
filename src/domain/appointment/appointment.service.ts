@@ -2,10 +2,11 @@ import {
   Injectable,
   Inject,
   BadRequestException,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
+import { Doctor, DoctorRelationKeys } from 'src/entities/doctor.entity';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -15,6 +16,11 @@ import {
 } from './dto/appointment-query.dto';
 import { getPaginatedUsingSkipTake } from 'src/common/helpers/pagination/paginate';
 import { SortOrder } from 'src/common/config';
+import { getSlotStart } from 'src/common/helpers/clinic-time';
+import {
+  assertBookingWindow,
+  assertSlotBookable,
+} from './helpers/booking-rules';
 import { Appointment } from 'src/entities/appointment';
 import { WithDoctorMedicalCenterNameAndAdress } from '../doctor/specification/with-medical-center-name-and-adress.specification';
 import { WithDoctorCategoryType } from '../doctor/specification/with-category-type.specification';
@@ -23,6 +29,12 @@ import { mapAppointmentWithRaw } from './appointment.mapper';
 
 const ALIAS = 'appointment' as const;
 const DOCTOR_ALIAS = 'doctor' as const;
+const CENTER_ALIAS = DoctorRelationKeys.MEDICAL_CENTER;
+const DOCTOR_CENTER_RELATIONS = ['doctor', 'doctor.medicalCenter'];
+
+// Момент начала записи: колонки date + startTime заданы в поясе центра.
+const START_LOCAL = `(${ALIAS}.date + ${ALIAS}.startTime)`;
+const NOW_LOCAL = `(CAST(:now AS timestamptz) AT TIME ZONE ${CENTER_ALIAS}.timezone)`;
 
 @Injectable()
 export class AppointmentService {
@@ -62,26 +74,14 @@ export class AppointmentService {
 
       case AppointmentType.FUTURE:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
-        qb.andWhere(
-          `(${ALIAS}.date > :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime > :nowTime))`,
-          {
-            now: now.toISOString().split('T')[0],
-            nowTime: now.toTimeString().split(' ')[0],
-          },
-        );
+        qb.andWhere(`${START_LOCAL} > ${NOW_LOCAL}`, { now });
         qb.orderBy(`${ALIAS}.date`, SortOrder.ASC);
         qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.ASC);
         break;
 
       case AppointmentType.PAST:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
-        qb.andWhere(
-          `(${ALIAS}.date < :now OR (${ALIAS}.date = :now AND ${ALIAS}.startTime <= :nowTime))`,
-          {
-            now: now.toISOString().split('T')[0],
-            nowTime: now.toTimeString().split(' ')[0],
-          },
-        );
+        qb.andWhere(`${START_LOCAL} <= ${NOW_LOCAL}`, { now });
         qb.orderBy(`${ALIAS}.date`, SortOrder.DESC);
         qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.DESC);
         break;
@@ -99,32 +99,29 @@ export class AppointmentService {
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
     const { doctorId, timeSlotId } = dto;
 
-    await this.doctorRepo.findOneByOrFail({ id: doctorId });
+    const doctor = await this.doctorRepo.findOneBy({ id: doctorId });
+
+    if (!doctor) {
+      throw new NotFoundException('Врач не найден');
+    }
+
     const timeSlot = await this.timeSlotRepo.findOne({
       where: {
         id: timeSlotId,
       },
-      relations: ['doctor'],
+      relations: DOCTOR_CENTER_RELATIONS,
     });
 
     if (!timeSlot) {
       throw new NotFoundException('Тайм слот недоступен');
     }
 
-    if (timeSlot.doctor.id !== doctorId) {
-      throw new BadRequestException('Времененной слот не соответствует врачу');
-    }
-
-    const existing = await this.repo.findOne({
-      where: {
-        timeSlotId,
-        isCancelled: false,
-      },
-    });
-
-    if (existing) {
-      throw new BadRequestException('Время записи уже занято');
-    }
+    assertSlotBookable(
+      timeSlot,
+      doctorId,
+      timeSlot.doctor.medicalCenter.timezone,
+    );
+    await this.assertSlotFree(timeSlotId);
 
     const entity = this.repo.create({
       user: { id: userId },
@@ -135,23 +132,33 @@ export class AppointmentService {
       endTime: timeSlot.endTime,
     });
 
-    return this.repo.save(entity);
+    return this.repo.safeSave(entity);
   }
 
   async cancelAppointment(appointmentId: string, userId: string) {
-    const appointment = await this.repo.findOneOrFail({
+    const appointment = await this.repo.findOne({
       where: {
         id: appointmentId,
         user: { id: userId },
       },
+      relations: DOCTOR_CENTER_RELATIONS,
     });
 
-    if (appointment.userId !== userId) {
-      throw new BadRequestException('Вы не можете управлять данной записью');
+    if (!appointment) {
+      throw new NotFoundException('Запись не найдена');
     }
 
-    if (appointment.timeSlotId === null) {
+    if (appointment.isCancelled) {
       throw new BadRequestException('Запись уже отменена');
+    }
+
+    const { timezone } = appointment.doctor.medicalCenter;
+
+    if (
+      getSlotStart(appointment.date, appointment.startTime, timezone) <=
+      new Date()
+    ) {
+      throw new BadRequestException('Прошедшую запись нельзя отменить');
     }
 
     await this.repo.update(
@@ -162,7 +169,7 @@ export class AppointmentService {
       },
     );
 
-    return { success: true };
+    return { ...appointment, isCancelled: true, timeSlotId: null };
   }
 
   async rescheduleAppointment(
@@ -171,21 +178,25 @@ export class AppointmentService {
     newTimeSlotId: string,
   ) {
     const appointment = await this.repo.findOne({
-      where: { id: appointmentId },
-      relations: ['doctor', 'timeSlot'],
+      where: { id: appointmentId, user: { id: userId } },
+      relations: [...DOCTOR_CENTER_RELATIONS, 'timeSlot'],
     });
 
     if (!appointment) {
       throw new NotFoundException('Запись не найдена');
     }
 
-    if (appointment.userId !== userId) {
-      throw new BadRequestException('Вы не можете управлять этой записью');
-    }
-
     if (appointment.isCancelled) {
       throw new BadRequestException('Отменённую запись нельзя перенести');
     }
+
+    const { timezone } = appointment.doctor.medicalCenter;
+
+    assertBookingWindow(
+      appointment,
+      timezone,
+      'Запись нельзя перенести: слишком мало времени до начала приёма',
+    );
 
     const newSlot = await this.timeSlotRepo.findOne({
       where: { id: newTimeSlotId },
@@ -196,19 +207,12 @@ export class AppointmentService {
       throw new NotFoundException('Новый тайм слот не найден');
     }
 
-    if (newSlot.doctor.id !== appointment.doctorId) {
-      throw new BadRequestException(
-        'Новый тайм слот не принадлежит врачу текущей записи',
-      );
+    if (newSlot.id === appointment.timeSlotId) {
+      throw new BadRequestException('Запись уже назначена на это время');
     }
 
-    const existing = await this.repo.findOne({
-      where: { timeSlotId: newTimeSlotId, isCancelled: false },
-    });
-
-    if (existing) {
-      throw new BadRequestException('Выбранное время уже занято');
-    }
+    assertSlotBookable(newSlot, appointment.doctorId, timezone);
+    await this.assertSlotFree(newTimeSlotId);
 
     appointment.timeSlot = newSlot;
     appointment.timeSlotId = newSlot.id;
@@ -216,6 +220,16 @@ export class AppointmentService {
     appointment.startTime = newSlot.startTime;
     appointment.endTime = newSlot.endTime;
 
-    return this.repo.save(appointment);
+    return this.repo.safeSave(appointment);
+  }
+
+  private async assertSlotFree(timeSlotId: string) {
+    const existing = await this.repo.findOne({
+      where: { timeSlotId, isCancelled: false },
+    });
+
+    if (existing) {
+      throw new ConflictException('Время записи уже занято');
+    }
   }
 }
