@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import {
   Doctor,
   DoctorJoinsStructure,
@@ -20,6 +20,7 @@ import {
   getPaginatedUsingSkipTake,
 } from 'src/common/helpers/pagination/paginate';
 import { SortOrder } from 'src/common/config';
+import { escapeLike } from 'src/common/helpers/escape-like';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
 import { mapDoctorWithRaw } from './doctor.mapper';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
@@ -70,7 +71,7 @@ export class DoctorService {
       ).apply(qb);
 
     if (searchFor) {
-      const term = `%${searchFor}%`;
+      const term = `%${escapeLike(searchFor)}%`;
       qb.andWhere(
         `(
       CONCAT(${ALIAS}.name, ' ', ${ALIAS}.surname) ILIKE :term OR
@@ -103,7 +104,7 @@ export class DoctorService {
       userId,
     });
 
-    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.ASC);
+    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
 
     const res = await getPaginatedUsingLimitOffest(qb, page, size);
 
@@ -119,7 +120,10 @@ export class DoctorService {
 
     qb.andWhere(`${ALIAS}.id = :doctorId`, { doctorId });
 
-    return mapDoctorWithRaw(await qb.getRawAndEntities())[0];
+    const [doctor] = mapDoctorWithRaw(await qb.getRawAndEntities());
+    if (!doctor) throw new NotFoundException();
+
+    return doctor;
   }
 
   baseQueryBuilderForUser(userId: string) {

@@ -21,8 +21,8 @@ export class WithIsUserFavorite<
     const { name, joinColumn, inverseJoinColumn } = this.userFavoriteMeta;
 
     const selectCreatedAtKey = this.aggregated
-      ? `(ARRAY_AGG(t."${joinColumn.name}" ORDER BY t."createdAt" DESC))[1]`
-      : `t."${joinColumn.name}"`;
+      ? 'MAX(t."createdAt")'
+      : 't."createdAt"';
 
     const selectJoinColumnKey = this.aggregated
       ? `BOOL_OR(t."${joinColumn.name}" IS NOT NULL)`
