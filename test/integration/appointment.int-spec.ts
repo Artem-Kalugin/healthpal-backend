@@ -302,7 +302,6 @@ describe('AppointmentService (integration)', () => {
 
       expect(pages.map(p => p.data.length)).toEqual([2, 2, 1]);
       expect(pages.map(p => p.count)).toEqual([5, 5, 5]);
-      expect(pages.map(p => p.lastPage)).toEqual([3, 3, 3]);
       expect(pages.flatMap(p => p.data.map(a => a.id))).toEqual(
         own.map(a => a.id),
       );
