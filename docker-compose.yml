@@ -33,6 +33,9 @@ services:
     
     networks:
       - healthpal-network
+
+    ports:
+      - "3000:3000"
     
     volumes:
       - uploads_data:/app/uploads

@@ -77,8 +77,8 @@ API будет доступно на `http://localhost:3000`
 ### Локальная разработка
 
 ```bash
-npm install
-npm run start:dev
+pnpm install
+pnpm start:dev
 ```
 
 ## 📝 Документация API

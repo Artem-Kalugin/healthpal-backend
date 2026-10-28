@@ -1,0 +1,9 @@
+# 3 days (in minutes) — защита от supply chain атак на свежеопубликованные версии
+minimumReleaseAge: 4320
+
+allowBuilds:
+  '@scarf/scarf': false
+  '@nestjs/core': false
+  bcrypt: true
+  sharp: true
+  unrs-resolver: true

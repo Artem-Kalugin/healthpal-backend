@@ -4,17 +4,19 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
-COPY package*.json ./
-COPY yarn.lock ./
+RUN corepack enable
 
-RUN yarn install --frozen-lockfile --production
-RUN yarn add @nestjs/cli --dev
+ENV HUSKY=0
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN yarn run build
+RUN pnpm run build
 
-RUN yarn cache clean
+RUN pnpm prune --prod --ignore-scripts
 
 FROM node:22-alpine
 
