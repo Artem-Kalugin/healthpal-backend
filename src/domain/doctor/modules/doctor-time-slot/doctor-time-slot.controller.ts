@@ -28,14 +28,7 @@ export class DoctorTimeSlotController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    const res = await this.service.getSlotsForDoctor(
-      doctorId,
-      startDate,
-      endDate,
-    );
-
-    console.log(res[0].slots);
-    return res;
+    return this.service.getSlotsForDoctor(doctorId, startDate, endDate);
   }
 
   @Get('/range')

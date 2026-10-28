@@ -161,4 +161,19 @@ describe('Doctors (e2e)', () => {
       expect(status).toBe(404);
     });
   });
+
+  describe('GET /doctors/:id/time-slots', () => {
+    it('врач без свободных слотов → 200 и пустой список', async () => {
+      const { token } = await newUser();
+      const doctor = await factories.doctor();
+
+      const response = await request(app.getHttpServer())
+        .get(`/doctors/${doctor.id}/time-slots`)
+        .query({ startDate: '2026-11-01', endDate: '2026-11-30' })
+        .set('Authorization', token);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    });
+  });
 });

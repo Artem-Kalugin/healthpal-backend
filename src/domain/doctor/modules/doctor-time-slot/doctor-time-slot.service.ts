@@ -58,31 +58,30 @@ export class DoctorTimeSlotService {
     }));
   }
 
+  /** Диапазон дат, в котором у врача есть свободные будущие слоты (те же правила, что в `getSlotsForDoctor`). */
   async getSlotsRange(doctorId: string) {
-    const minMaxSlot = await this.repo
-      .createQueryBuilder('slot')
-      .select('MIN(slot.date)::text', 'minDate')
-      .addSelect('MAX(slot.date)::text', 'maxDate')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .getRawOne<{ minDate: string; maxDate: string }>();
-
-    if (!minMaxSlot?.minDate || !minMaxSlot?.maxDate) {
-      throw new NotFoundException('Нет доступного времени записи');
-    }
-
-    const { date: nowDate } = getZonedNowParts(
+    const { date: nowDate, time: nowTime } = getZonedNowParts(
       await this.getDoctorTimezone(doctorId),
     );
 
-    const minDateMaybeOverrided =
-      minMaxSlot.minDate < nowDate ? nowDate : minMaxSlot.minDate;
+    const range = await this.repo
+      .createQueryBuilder('slot')
+      .leftJoin('slot.appointment', 'appointment')
+      .select('MIN(slot.date)::text', 'minDate')
+      .addSelect('MAX(slot.date)::text', 'maxDate')
+      .where('slot.doctorId = :doctorId', { doctorId })
+      .andWhere('appointment.id IS NULL')
+      .andWhere(
+        '(slot.date > :nowDate OR (slot.date = :nowDate AND slot.startTime > :nowTime))',
+        { nowDate, nowTime },
+      )
+      .getRawOne<{ minDate: string | null; maxDate: string | null }>();
 
-    const res = {
-      minDate: minDateMaybeOverrided,
-      maxDate: minMaxSlot?.maxDate,
-    };
+    if (!range?.minDate || !range?.maxDate) {
+      throw new NotFoundException('Нет доступного времени записи');
+    }
 
-    return res;
+    return { minDate: range.minDate, maxDate: range.maxDate };
   }
 
   private async getDoctorTimezone(doctorId: string) {
