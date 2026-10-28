@@ -115,7 +115,8 @@ export class UsersService {
             nickname: this.normalizeNickname(updateUserDto.nickname),
             avatar: avatarSaved,
             registrationComplete: !!(
-              updateUserDto.birthday && updateUserDto.gender
+              (updateUserDto.birthday ?? existingUser.birthday) &&
+              (updateUserDto.gender ?? existingUser.gender)
             ),
           });
         } catch (error) {

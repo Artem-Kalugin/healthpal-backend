@@ -2,7 +2,8 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": "..",
   "moduleNameMapper": {
-    "^src/(.*)$": "<rootDir>/src/$1"
+    "^src/(.*)$": "<rootDir>/src/$1",
+    "^thumbhash$": "<rootDir>/test/e2e/stubs/thumbhash.ts"
   },
   "testRegex": "test/integration/.*\\.int-spec\\.ts$",
   "transform": {
