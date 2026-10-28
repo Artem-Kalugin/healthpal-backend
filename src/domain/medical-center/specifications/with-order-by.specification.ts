@@ -10,10 +10,11 @@ export class WithOrderBy<
   constructor(
     private readonly field: `${Alias}.${keyof MedicalCenter}` | T,
     private readonly direction: 'ASC' | 'DESC',
+    private readonly nulls?: 'NULLS FIRST' | 'NULLS LAST',
   ) {}
 
   apply(qb: SelectQueryBuilder<S>) {
-    qb.addOrderBy(`${this.field}`, this.direction);
+    qb.addOrderBy(`${this.field}`, this.direction, this.nulls);
     return qb;
   }
 }

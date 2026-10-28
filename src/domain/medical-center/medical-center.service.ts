@@ -49,6 +49,7 @@ export class MedicalCentersService {
       }
       // @ts-expect-error attaches distance
     >('distance', 'ASC').apply(qb);
+    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
 
     if (top5Only) {
       qbWithDistance.take(5);
@@ -64,7 +65,8 @@ export class MedicalCentersService {
       'rating',
       typeof ALIAS,
       BaseQueryEntity
-    >('rating', 'DESC').apply(qb);
+    >('rating', 'DESC', 'NULLS LAST').apply(qb);
+    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
 
     if (top5Only) {
       qbOrderedByRating.take(5);
@@ -83,7 +85,8 @@ export class MedicalCentersService {
       userId,
     });
 
-    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.ASC);
+    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
+    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
 
     const res = await getPaginatedUsingLimitOffest(qb, page, size);
 

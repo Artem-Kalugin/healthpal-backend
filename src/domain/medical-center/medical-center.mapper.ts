@@ -8,7 +8,8 @@ export function mapMedicalCenterWithRaw<T extends MedicalCenter>(payload: {
   const { entities, raw: raws } = payload;
   return entities.map((center, index) => {
     const raw = raws[index];
-    const distance = raw?.distance ? +(+raw.distance).toFixed(1) : undefined;
+    const distance =
+      raw?.distance != null ? +(+raw.distance).toFixed(1) : undefined;
 
     return {
       ...center,
@@ -19,9 +20,8 @@ export function mapMedicalCenterWithRaw<T extends MedicalCenter>(payload: {
       reviewsCount: raw.reviewsCount,
 
       rating: raw.rating,
-      walkingTimeMinutes: distance
-        ? Math.round((distance / 5) * 60)
-        : undefined,
+      walkingTimeMinutes:
+        distance !== undefined ? Math.round((distance / 5) * 60) : undefined,
     };
   });
 }

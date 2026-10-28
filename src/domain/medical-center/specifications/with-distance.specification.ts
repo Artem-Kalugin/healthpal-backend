@@ -11,11 +11,11 @@ export class WithDistance<T extends MedicalCenter> implements Specification<T> {
 
   apply(qb: SelectQueryBuilder<T>) {
     const formula = `
-    6371 * acos(
+    6371 * acos(LEAST(1, GREATEST(-1,
       cos(radians(:lat)) * cos(radians(${this.alias}.lat)) *
       cos(radians(${this.alias}.lon) - radians(:lon)) +
       sin(radians(:lat)) * sin(radians(${this.alias}.lat))
-    )::numeric
+    )))::numeric
   `;
 
     qb.addSelect(`ROUND(${formula}, 1)`, 'distance').setParameters({

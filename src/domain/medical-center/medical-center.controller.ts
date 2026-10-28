@@ -62,7 +62,6 @@ export class MedicalCentersController {
       ...query,
       userId: request.user!.id,
     });
-    console.log(result);
 
     return new PaginatedMedicalCenterResponse(result);
   }
