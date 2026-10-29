@@ -55,44 +55,27 @@ describe('Auth (e2e)', () => {
     jest.useRealTimers();
   });
 
-  const post = (path: string, body: object, userAgent?: string) => {
-    const agent = request(app.getHttpServer()).post(path);
-
-    // supertest сам подставляет User-Agent, пустое значение убирает заголовок
-    return (
-      userAgent === undefined
-        ? agent.set('User-Agent', '')
-        : agent.set('User-Agent', userAgent)
-    ).send(body);
-  };
+  const post = (path: string, body: object) =>
+    request(app.getHttpServer()).post(path).send(body);
 
   it('register → login → refresh: токены рабочие, пароль не отдаётся', async () => {
     freezeDate(new Date('2026-10-29T12:00:00Z'));
-    const registered = await post(
-      '/auth/register',
-      {
-        phone: PHONE,
-        password: PASSWORD,
-        name: 'Иван',
-        surname: 'Иванов',
-      },
-      'e2e',
-    );
-    const loggedIn = await post(
-      '/auth/login',
-      { phone: PHONE, password: PASSWORD },
-      'e2e',
-    );
+    const registered = await post('/auth/register', {
+      phone: PHONE,
+      password: PASSWORD,
+      name: 'Иван',
+      surname: 'Иванов',
+    });
+    const loggedIn = await post('/auth/login', {
+      phone: PHONE,
+      password: PASSWORD,
+    });
     freezeDate(new Date('2026-10-29T12:00:10Z'));
     const loggedInBody = loggedIn.body as AuthBody;
-    const refreshed = await post(
-      '/auth/refresh',
-      {
-        userId: loggedInBody.user.id,
-        refreshToken: loggedInBody.refreshToken,
-      },
-      'e2e',
-    );
+    const refreshed = await post('/auth/refresh', {
+      userId: loggedInBody.user.id,
+      refreshToken: loggedInBody.refreshToken,
+    });
     const refreshedBody = refreshed.body as AuthBody;
     const me = await request(app.getHttpServer())
       .get('/users/me')
@@ -105,24 +88,5 @@ describe('Auth (e2e)', () => {
     expect(refreshedBody.user).not.toHaveProperty('password');
     expect(me.status).toBe(200);
     expect((me.body as { id: string }).id).toBe(loggedInBody.user.id);
-  });
-
-  it('без заголовка User-Agent login и refresh используют одну сессию', async () => {
-    await post('/auth/register', {
-      phone: PHONE,
-      password: PASSWORD,
-      name: 'Иван',
-      surname: 'Иванов',
-    });
-    const loggedIn = (
-      await post('/auth/login', { phone: PHONE, password: PASSWORD })
-    ).body as AuthBody;
-
-    const { status } = await post('/auth/refresh', {
-      userId: loggedIn.user.id,
-      refreshToken: loggedIn.refreshToken,
-    });
-
-    expect(status).toBe(201);
   });
 });

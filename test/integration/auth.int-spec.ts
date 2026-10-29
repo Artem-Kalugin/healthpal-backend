@@ -20,7 +20,7 @@ import { freezeDate } from './time';
 const PASSWORD = 'Password1';
 const WRONG_PASSWORD = 'Password2';
 /* eslint-enable sonarjs/no-hardcoded-passwords */
-const USER_AGENT = 'jest';
+const SID = 'session-1';
 const ACCESS_TTL = 3600;
 // отличается от ACCESS_TTL, чтобы тест различал, какой токен получил какой срок
 const REFRESH_TTL = 7200;
@@ -30,6 +30,7 @@ const T1 = new Date('2026-10-29T12:00:10Z');
 interface TokenClaims {
   id: string;
   registrationComplete: boolean;
+  sid: string;
   iat: number;
   exp: number;
 }
@@ -92,8 +93,8 @@ describe('AuthService (integration)', () => {
     await dataSource.destroy();
   });
 
-  const refreshKey = (userId = user.id, userAgent = USER_AGENT) =>
-    `refresh:${userId}:${userAgent}`;
+  const refreshKey = (userId = user.id, sid = SID) =>
+    `refresh:${userId}:${sid}`;
 
   const claims = (token: string) => jwtService.verify<TokenClaims>(token);
 
@@ -105,14 +106,14 @@ describe('AuthService (integration)', () => {
 
   describe('login', () => {
     it('верные данные → токены, пользователь и refresh-токен в Redis', async () => {
-      const result = await service.login(
-        { phone, password: PASSWORD },
-        USER_AGENT,
-      );
+      const result = await service.login({ phone, password: PASSWORD });
 
       expect(result.user.id).toBe(user.id);
       expect(claims(result.accessToken).id).toBe(user.id);
-      expect(await redis.get(refreshKey())).toBe(result.refreshToken);
+      const { sid } = claims(result.refreshToken);
+      expect(await redis.get(refreshKey(user.id, sid))).toBe(
+        result.refreshToken,
+      );
     });
 
     it.each([
@@ -125,7 +126,7 @@ describe('AuthService (integration)', () => {
         dto: () => ({ phone: '+70000000000', password: PASSWORD }),
       },
     ])('$name → AuthError, сессия не создаётся', async ({ dto }) => {
-      const error = await rejection(service.login(dto(), USER_AGENT));
+      const error = await rejection(service.login(dto()));
 
       expect(error).toBeInstanceOf(AuthError);
       expect(await redis.keys('refresh:*')).toEqual([]);
@@ -138,7 +139,7 @@ describe('AuthService (integration)', () => {
       async registrationComplete => {
         const tokens = await service.generateTokens(
           { ...user, registrationComplete },
-          USER_AGENT,
+          SID,
         );
 
         const access = claims(tokens.accessToken);
@@ -151,15 +152,30 @@ describe('AuthService (integration)', () => {
       },
     );
 
-    it('refresh-токен хранится по ключу пользователя и userAgent со сроком жизни', async () => {
-      const tokens = await service.generateTokens(user, USER_AGENT);
+    it('refresh-токен хранится по ключу пользователя и sid со сроком жизни', async () => {
+      const tokens = await service.generateTokens(user, SID);
 
       expect(await redis.get(refreshKey())).toBe(tokens.refreshToken);
       expect(await redis.ttl(refreshKey())).toBeGreaterThan(REFRESH_TTL - 5);
       expect(await redis.ttl(refreshKey())).toBeLessThanOrEqual(REFRESH_TTL);
     });
 
-    it('разные userAgent живут независимо, тот же userAgent перезаписывается', async () => {
+    it('без sid каждый вызов создаёт новую сессию, refresh-токен несёт её sid', async () => {
+      const first = await service.generateTokens(user);
+      const second = await service.generateTokens(user);
+
+      const firstSid = claims(first.refreshToken).sid;
+      const secondSid = claims(second.refreshToken).sid;
+      expect(firstSid).not.toBe(secondSid);
+      expect(await redis.get(refreshKey(user.id, firstSid))).toBe(
+        first.refreshToken,
+      );
+      expect(await redis.get(refreshKey(user.id, secondSid))).toBe(
+        second.refreshToken,
+      );
+    });
+
+    it('разные sid живут независимо, тот же sid перезаписывается', async () => {
       freezeDate(T0);
       const phoneSession = await service.generateTokens(user, 'phone');
       const tabletSession = await service.generateTokens(user, 'tablet');
@@ -179,14 +195,10 @@ describe('AuthService (integration)', () => {
   describe('refresh', () => {
     it('валидный токен → новая пара, в Redis новый токен', async () => {
       freezeDate(T0);
-      const old = await service.generateTokens(user, USER_AGENT);
+      const old = await service.generateTokens(user, SID);
       freezeDate(T1);
 
-      const result = await service.refresh(
-        user.id,
-        USER_AGENT,
-        old.refreshToken,
-      );
+      const result = await service.refresh(user.id, old.refreshToken);
 
       expect(result.user.id).toBe(user.id);
       expect(result.refreshToken).not.toBe(old.refreshToken);
@@ -196,56 +208,71 @@ describe('AuthService (integration)', () => {
     it('токен одноразовый: повторное использование → AuthError', async () => {
       // в одну секунду refresh выдал бы тот же JWT и «старый» токен снова стал бы валидным
       freezeDate(T0);
-      const { refreshToken } = await service.generateTokens(user, USER_AGENT);
+      const { refreshToken } = await service.generateTokens(user, SID);
       freezeDate(T1);
-      await service.refresh(user.id, USER_AGENT, refreshToken);
+      await service.refresh(user.id, refreshToken);
 
-      const error = await rejection(
-        service.refresh(user.id, USER_AGENT, refreshToken),
-      );
+      const error = await rejection(service.refresh(user.id, refreshToken));
 
       expect(error).toBeInstanceOf(AuthError);
     });
 
     it('параллельные запросы с одним токеном: проходит ровно один', async () => {
-      const { refreshToken } = await service.generateTokens(user, USER_AGENT);
+      const { refreshToken } = await service.generateTokens(user, SID);
 
       const results = await Promise.allSettled([
-        service.refresh(user.id, USER_AGENT, refreshToken),
-        service.refresh(user.id, USER_AGENT, refreshToken),
+        service.refresh(user.id, refreshToken),
+        service.refresh(user.id, refreshToken),
       ]);
 
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     });
 
     it('чужой токен → AuthError и сессия владельца остаётся рабочей', async () => {
-      const { refreshToken } = await service.generateTokens(user, USER_AGENT);
+      const { refreshToken } = await service.generateTokens(user, SID);
+
+      const error = await rejection(service.refresh(user.id, 'garbage'));
+
+      expect(error).toBeInstanceOf(AuthError);
+      expect(await redis.get(refreshKey())).toBe(refreshToken);
+    });
+
+    it('нет сессии (ключ удалён или истёк срок) → AuthError', async () => {
+      const { refreshToken } = await service.generateTokens(user, SID);
+      await redis.del(refreshKey());
+
+      const error = await rejection(service.refresh(user.id, refreshToken));
+
+      expect(error).toBeInstanceOf(AuthError);
+    });
+
+    it('токен другого пользователя в запросе → AuthError, сессия остаётся', async () => {
+      const { refreshToken } = await service.generateTokens(user, SID);
 
       const error = await rejection(
-        service.refresh(user.id, USER_AGENT, 'garbage'),
+        service.refresh('00000000-0000-4000-8000-000000000000', refreshToken),
       );
 
       expect(error).toBeInstanceOf(AuthError);
       expect(await redis.get(refreshKey())).toBe(refreshToken);
     });
 
-    it('нет сессии (другой userAgent или истёк срок) → AuthError', async () => {
-      const { refreshToken } = await service.generateTokens(user, 'phone');
+    it('refresh сохраняет sid сессии', async () => {
+      freezeDate(T0);
+      const { refreshToken } = await service.generateTokens(user, SID);
+      freezeDate(T1);
 
-      const error = await rejection(
-        service.refresh(user.id, 'tablet', refreshToken),
-      );
+      const result = await service.refresh(user.id, refreshToken);
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(claims(result.refreshToken).sid).toBe(SID);
+      expect(await redis.keys('refresh:*')).toEqual([refreshKey()]);
     });
 
     it('пользователь удалён → AuthError, а не 404', async () => {
-      const { refreshToken } = await service.generateTokens(user, USER_AGENT);
+      const { refreshToken } = await service.generateTokens(user, SID);
       await dataSource.getRepository(User).delete(user.id);
 
-      const error = await rejection(
-        service.refresh(user.id, USER_AGENT, refreshToken),
-      );
+      const error = await rejection(service.refresh(user.id, refreshToken));
 
       expect(error).toBeInstanceOf(AuthError);
     });

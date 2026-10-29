@@ -6,7 +6,7 @@ import { DatabaseEntityUniqueConstraintError } from 'src/common/errors/database-
 import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { AppointmentService } from 'src/domain/appointment/appointment.service';
 import { AppointmentType } from 'src/domain/appointment/dto/appointment-query.dto';
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 import { DoctorCategoryType } from 'src/entities/doctor-category.entity';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
 import { Doctor } from 'src/entities/doctor.entity';

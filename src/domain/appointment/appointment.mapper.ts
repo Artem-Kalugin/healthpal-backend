@@ -1,4 +1,4 @@
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 
 export function mapAppointmentWithRaw(payload: {
   entities: Appointment[];

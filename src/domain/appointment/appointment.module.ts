@@ -5,7 +5,7 @@ import { Doctor } from 'src/entities/doctor.entity';
 import { AppointmentService } from './appointment.service';
 import { AppointmentController } from './appointment.controller';
 import { createSafeRepositoryProviders } from '../../common/helpers/safe-repository.provider';
-import { Appointment } from '../../entities/appointment';
+import { Appointment } from '../../entities/appointment.entity';
 import { DoctorModule } from '../doctor/doctor.module';
 
 @Module({

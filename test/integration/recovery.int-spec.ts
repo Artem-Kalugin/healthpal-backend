@@ -19,7 +19,6 @@ import { createTestRedis } from './redis';
 const OTP_TTL = 300;
 const RECOVERY_TTL = 600;
 const PHONE = '+79001234567';
-const USER_AGENT = 'jest';
 
 describe('RecoveryService (integration, Redis)', () => {
   let redis: Redis;
@@ -223,25 +222,21 @@ describe('RecoveryService (integration, Redis)', () => {
       const tokens = { accessToken: 'a', refreshToken: 'r', user };
       authService.generateTokens.mockResolvedValue(tokens);
 
-      const result = await service.resetPassword(
-        recoveryToken,
-        'NewPassword1',
-        USER_AGENT,
-      );
+      const result = await service.resetPassword(recoveryToken, 'NewPassword1');
 
       expect(passwordService.hash).toHaveBeenCalledWith('NewPassword1');
       expect(usersService.changeUserPassword).toHaveBeenCalledWith(
         user.id,
         'new-hash',
       );
-      expect(authService.generateTokens).toHaveBeenCalledWith(user, USER_AGENT);
+      expect(authService.generateTokens).toHaveBeenCalledWith(user);
       expect(result).toBe(tokens);
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
     });
 
     it('неизвестный или истёкший токен → AuthError, пароль не меняется', async () => {
       const error = await rejection(
-        service.resetPassword('unknown', 'NewPassword1', USER_AGENT),
+        service.resetPassword('unknown', 'NewPassword1'),
       );
 
       expect(error).toBeInstanceOf(AuthError);

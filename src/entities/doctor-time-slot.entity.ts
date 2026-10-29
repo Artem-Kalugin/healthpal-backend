@@ -7,7 +7,7 @@ import {
   OneToOne,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
-import { Appointment } from './appointment';
+import { Appointment } from './appointment.entity';
 
 @Entity()
 export class DoctorTimeSlot {

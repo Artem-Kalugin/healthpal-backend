@@ -39,12 +39,10 @@ export class AuthController {
   @SerializeOptions({ type: LoginResponseDto })
   async register(
     @Body() createUserDto: CreateUserDto,
-    @Req() request: Request,
   ): Promise<LoginResponseDto> {
-    const userAgent = request.headers['user-agent'] || 'unknown';
     const user = await this.usersService.create(createUserDto);
 
-    return this.authService.generateTokens(user, userAgent);
+    return this.authService.generateTokens(user);
   }
 
   @Post('login')
@@ -53,13 +51,8 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
-  async login(
-    @Body() loginDto: LoginDto,
-    @Req() request: Request,
-  ): Promise<LoginResponseDto> {
-    const userAgent = request.headers['user-agent'] || 'unknown';
-
-    return this.authService.login(loginDto, userAgent);
+  async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
+    return this.authService.login(loginDto);
   }
 
   @Post('complete-registration')
@@ -83,10 +76,7 @@ export class AuthController {
       avatar?.buffer,
     );
 
-    return this.authService.generateTokens(
-      updatedUser,
-      request.headers['user-agent'] || 'unknown',
-    );
+    return this.authService.generateTokens(updatedUser);
   }
 
   @Public()
@@ -97,12 +87,7 @@ export class AuthController {
   @SerializeOptions({ type: LoginResponseDto })
   async refresh(
     @Body() { userId, refreshToken }: RefreshDto,
-    @Req() request: Request,
   ): Promise<LoginResponseDto> {
-    return this.authService.refresh(
-      userId,
-      request.headers['user-agent'] || 'unknown',
-      refreshToken,
-    );
+    return this.authService.refresh(userId, refreshToken);
   }
 }

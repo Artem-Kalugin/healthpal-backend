@@ -112,11 +112,7 @@ export class RecoveryService {
     return { recoveryToken: token };
   }
 
-  async resetPassword(
-    recoveryToken: string,
-    newPassword: string,
-    userAgent: string,
-  ) {
+  async resetPassword(recoveryToken: string, newPassword: string) {
     const phone = await this.redis.get(`recovery:${recoveryToken}`);
 
     if (!phone)
@@ -130,6 +126,6 @@ export class RecoveryService {
 
     await this.redis.del(`recovery:${recoveryToken}`);
 
-    return this.authService.generateTokens(user, userAgent);
+    return this.authService.generateTokens(user);
   }
 }

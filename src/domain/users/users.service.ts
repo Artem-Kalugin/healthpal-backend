@@ -32,23 +32,19 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    return await this.dataSource.transaction(async manager => {
-      const userRepository = manager.withRepository(this.repository);
+    const { password, name, surname, ...rest } = createUserDto;
 
-      const { password, name, surname, ...rest } = createUserDto;
+    const hashedPassword = await this.passwordService.hash(password);
 
-      const hashedPassword = await this.passwordService.hash(password);
-
-      const user = userRepository.create({
-        ...rest,
-        name: this.normalizeNameOrSurname(name),
-        surname: this.normalizeNameOrSurname(surname),
-        password: hashedPassword,
-        registrationComplete: false,
-      });
-
-      return await userRepository.safeSave(user);
+    const user = this.repository.create({
+      ...rest,
+      name: this.normalizeNameOrSurname(name),
+      surname: this.normalizeNameOrSurname(surname),
+      password: hashedPassword,
+      registrationComplete: false,
     });
+
+    return await this.repository.safeSave(user);
   }
 
   async update(

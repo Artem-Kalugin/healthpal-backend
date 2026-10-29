@@ -21,7 +21,7 @@ import {
   assertBookingWindow,
   assertSlotBookable,
 } from './helpers/booking-rules';
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 import { WithDoctorMedicalCenterNameAndAddress } from '../doctor/specification/with-medical-center-name-and-address.specification';
 import { WithDoctorCategoryType } from '../doctor/specification/with-category-type.specification';
 import { SelectQueryBuilder } from 'typeorm';

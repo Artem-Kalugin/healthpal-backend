@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
 import { Doctor } from 'src/entities/doctor.entity';
 import { AppointmentService } from './appointment.service';

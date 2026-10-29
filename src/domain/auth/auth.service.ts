@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -32,10 +33,7 @@ export class AuthService {
     @Inject(REDIS_PROVIDER_KEY) private readonly redis: Redis,
   ) {}
 
-  async login(
-    loginDto: LoginDto,
-    userAgent: string,
-  ): Promise<{
+  async login(loginDto: LoginDto): Promise<{
     accessToken: string;
     refreshToken: string;
     user: UserResponseDto;
@@ -57,7 +55,7 @@ export class AuthService {
       throw new AuthError('Неверный телефон или пароль');
     }
 
-    return this.generateTokens(user, userAgent);
+    return this.generateTokens(user);
   }
 
   private getJwtPayload(user: User) {
@@ -67,16 +65,21 @@ export class AuthService {
     };
   }
 
-  async generateTokens(user: User, userAgent: string) {
+  // sid идентифицирует сессию (устройство): новый логин создаёт новую,
+  // refresh продлевает существующую.
+  async generateTokens(user: User, sid: string = randomUUID()) {
     const payload = this.getJwtPayload(user);
 
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET')!,
-      expiresIn: this.config.get('JWT_REFRESH_TTL')!,
-    });
+    const refreshToken = this.jwtService.sign(
+      { ...payload, sid },
+      {
+        secret: this.config.get('JWT_REFRESH_SECRET')!,
+        expiresIn: this.config.get('JWT_REFRESH_TTL')!,
+      },
+    );
 
-    const redisKey = `refresh:${user.id}:${userAgent}`;
+    const redisKey = `refresh:${user.id}:${sid}`;
     await this.redis.set(
       redisKey,
       refreshToken,
@@ -91,8 +94,25 @@ export class AuthService {
     };
   }
 
-  async refresh(userId: string, userAgent: string, refreshToken: string) {
-    const redisKey = `refresh:${userId}:${userAgent}`;
+  async refresh(userId: string, refreshToken: string) {
+    const invalid = () =>
+      new AuthError('Refresh токен недействителен или истек');
+
+    let payload: { id: string; sid?: string };
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.config.get('JWT_REFRESH_SECRET')!,
+      });
+    } catch {
+      throw invalid();
+    }
+
+    if (payload.id !== userId || !payload.sid) {
+      throw invalid();
+    }
+
+    const sid = payload.sid;
+    const redisKey = `refresh:${userId}:${sid}`;
     const consumed = await this.redis.eval(
       CONSUME_REFRESH_TOKEN_SCRIPT,
       1,
@@ -101,16 +121,14 @@ export class AuthService {
     );
 
     if (consumed !== 1) {
-      throw new AuthError('Refresh токен недействителен или истек');
+      throw invalid();
     }
 
     const user = await this.usersService.findOne(userId).catch(error => {
       // публичный эндпоинт не должен раскрывать, существует ли пользователь
-      throw error instanceof UserNotFoundException
-        ? new AuthError('Refresh токен недействителен или истек')
-        : error;
+      throw error instanceof UserNotFoundException ? invalid() : error;
     });
 
-    return this.generateTokens(user, userAgent);
+    return this.generateTokens(user, sid);
   }
 }

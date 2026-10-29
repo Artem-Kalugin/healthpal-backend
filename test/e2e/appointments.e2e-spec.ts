@@ -8,7 +8,7 @@ import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 import { clearDatabase } from '../integration/db';
 import { createFactories } from '../integration/factories';
 import { freezeDate } from '../integration/time';

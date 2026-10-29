@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Appointment } from 'src/entities/appointment';
+import { Appointment } from 'src/entities/appointment.entity';
 import { DoctorCategory } from 'src/entities/doctor-category.entity';
 import { DoctorSchedule } from 'src/entities/doctor-schedule.entity';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
