@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 export enum MedicalCenterType {
   HOSPITAL = 'hospital',
-  CLINIC = 'clinc',
+  CLINIC = 'clinic',
   CABINET = 'cabinet',
 }
 

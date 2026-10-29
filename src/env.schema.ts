@@ -8,6 +8,15 @@ const validationSchemaRaw: { [x in keyof EnvironmentVariables]: any } = {
     'any.required': 'JWT_SECRET is required',
     'string.min': 'JWT_SECRET should be at least 32 characters long',
   }),
+  JWT_REFRESH_SECRET: Joi.string()
+    .min(32)
+    .invalid(Joi.ref('JWT_SECRET'))
+    .required()
+    .messages({
+      'any.required': 'JWT_REFRESH_SECRET is required',
+      'string.min': 'JWT_REFRESH_SECRET should be at least 32 characters long',
+      'any.invalid': 'JWT_REFRESH_SECRET must differ from JWT_SECRET',
+    }),
   JWT_REFRESH_TTL: Joi.number().required().messages({
     'any.required': 'JWT_REFRESH_TTL is required',
   }),

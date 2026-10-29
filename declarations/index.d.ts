@@ -33,6 +33,7 @@ type AliasedSlugs<
 > = `${Alias}.${keyof T}`;
 export interface EnvironmentVariables {
   JWT_SECRET: string;
+  JWT_REFRESH_SECRET: string;
   JWT_EXPIRES_IN: string;
   JWT_REFRESH_TTL: string;
 

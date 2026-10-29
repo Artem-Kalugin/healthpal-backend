@@ -19,6 +19,7 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
       
       JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
       
