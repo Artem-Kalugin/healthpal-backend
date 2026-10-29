@@ -4,6 +4,10 @@ import {
   DoctorCategory,
   DoctorCategoryType,
 } from 'src/entities/doctor-category.entity';
+import {
+  DoctorSchedule,
+  ScheduleDay,
+} from 'src/entities/doctor-schedule.entity';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
 import { Doctor } from 'src/entities/doctor.entity';
 import {
@@ -76,6 +80,18 @@ export const createFactories = (dataSource: DataSource) => {
       ...overrides,
     });
 
+  const schedule = (
+    doctorId: string,
+    overrides: Partial<DoctorSchedule> = {},
+  ) =>
+    dataSource.getRepository(DoctorSchedule).save({
+      doctorId,
+      weekday: ScheduleDay.MONDAY,
+      startTime: '09:00:00',
+      endTime: '13:00:00',
+      ...overrides,
+    });
+
   /** Запись на слот; время копируется из слота, как делает сервис. */
   const appointment = (
     userId: string,
@@ -92,5 +108,13 @@ export const createFactories = (dataSource: DataSource) => {
       ...overrides,
     });
 
-  return { medicalCenter, category, user, doctor, timeSlot, appointment };
+  return {
+    medicalCenter,
+    category,
+    user,
+    doctor,
+    timeSlot,
+    schedule,
+    appointment,
+  };
 };

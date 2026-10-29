@@ -1,5 +1,5 @@
 // src/domain/doctor-schedule/doctor-schedule.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -7,6 +7,7 @@ import {
   DoctorSchedule,
   ScheduleDay,
 } from 'src/entities/doctor-schedule.entity';
+import { DoctorService } from '../../doctor.service';
 import { ScheduleRecord } from './dto/doctor-schedule-response.dto';
 
 @Injectable()
@@ -14,9 +15,14 @@ export class DoctorScheduleService {
   constructor(
     @InjectRepository(DoctorSchedule)
     private readonly scheduleRepo: Repository<DoctorSchedule>,
+    private readonly doctorService: DoctorService,
   ) {}
 
   async getScheduleByDoctorId(doctorId: string) {
+    if (!(await this.doctorService.existsById(doctorId))) {
+      throw new NotFoundException('Врач не найден');
+    }
+
     const schedules = await this.scheduleRepo.find({
       where: { doctorId },
       order: { weekday: 'ASC', startTime: 'ASC' },

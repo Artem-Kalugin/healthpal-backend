@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
+import { ScheduleDay } from 'src/entities/doctor-schedule.entity';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { clearDatabase } from '../integration/db';
@@ -174,6 +175,25 @@ describe('Doctors (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual([]);
+    });
+  });
+
+  describe('GET /doctors/:id/schedule', () => {
+    it('отдаёт расписание врача по дням недели', async () => {
+      const { token } = await newUser();
+      const doctor = await factories.doctor();
+      await factories.schedule(doctor.id);
+
+      const { status, body } = await send(
+        `/doctors/${doctor.id}/schedule`,
+        undefined,
+        token,
+      );
+
+      expect(status).toBe(200);
+      expect(body[ScheduleDay.MONDAY]).toEqual([
+        { start: '09:00', end: '13:00' },
+      ]);
     });
   });
 });
