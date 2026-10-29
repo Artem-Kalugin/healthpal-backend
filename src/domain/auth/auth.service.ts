@@ -11,6 +11,16 @@ import { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
+import { UserNotFoundException } from '../users/exceptions/user-not-found.exception';
+
+// Сверка и удаление атомарны: неверный токен не сжигает чужой ключ,
+// а параллельные запросы с одним токеном не пройдут оба.
+const CONSUME_REFRESH_TOKEN_SCRIPT = `
+  if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+  end
+  return 0
+`;
 
 @Injectable()
 export class AuthService {
@@ -43,8 +53,7 @@ export class AuthService {
       if (!isPasswordCorrect) throw new AuthError('Неверный пароль');
 
       return this.generateTokens(user, userAgent);
-    } catch (error) {
-      console.log('Error finding by phone', error);
+    } catch {
       throw new AuthError('Неверный телефон или пароль');
     }
   }
@@ -64,7 +73,6 @@ export class AuthService {
       expiresIn: this.config.get('JWT_REFRESH_TTL')!,
     });
 
-    console.log('got env', this.config.get('JWT_REFRESH_TTL'));
     const redisKey = `refresh:${user.id}:${userAgent}`;
     await this.redis.set(
       redisKey,
@@ -82,13 +90,23 @@ export class AuthService {
 
   async refresh(userId: string, userAgent: string, refreshToken: string) {
     const redisKey = `refresh:${userId}:${userAgent}`;
-    const storedToken = await this.redis.getdel(redisKey);
+    const consumed = await this.redis.eval(
+      CONSUME_REFRESH_TOKEN_SCRIPT,
+      1,
+      redisKey,
+      refreshToken,
+    );
 
-    if (!storedToken || storedToken !== refreshToken) {
+    if (consumed !== 1) {
       throw new AuthError('Refresh токен недействителен или истек');
     }
 
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findOne(userId).catch(error => {
+      // публичный эндпоинт не должен раскрывать, существует ли пользователь
+      throw error instanceof UserNotFoundException
+        ? new AuthError('Refresh токен недействителен или истек')
+        : error;
+    });
 
     return this.generateTokens(user, userAgent);
   }

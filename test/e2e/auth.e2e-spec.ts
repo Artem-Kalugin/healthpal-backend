@@ -1,0 +1,128 @@
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import type { Redis } from 'ioredis';
+import request from 'supertest';
+import { DataSource } from 'typeorm';
+import { App } from 'supertest/types';
+import { AppModule } from 'src/app.module';
+import { configureApp } from 'src/app.setup';
+import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
+import { clearDatabase } from '../integration/db';
+import { freezeDate } from '../integration/time';
+
+/* eslint-disable sonarjs/no-hardcoded-passwords */
+const PASSWORD = 'Password1';
+/* eslint-enable sonarjs/no-hardcoded-passwords */
+const PHONE = '+79001234567';
+
+interface AuthBody {
+  accessToken: string;
+  refreshToken: string;
+  user: { id: string; phone: string };
+}
+
+describe('Auth (e2e)', () => {
+  let app: INestApplication<App>;
+  let dataSource: DataSource;
+  let redis: Redis;
+
+  beforeAll(async () => {
+    const testingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = testingModule.createNestApplication();
+    configureApp(app);
+    await app.init();
+
+    dataSource = app.get(DataSource);
+    redis = app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false });
+  });
+
+  afterAll(async () => {
+    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    await redis.quit();
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    jest.useRealTimers();
+    await clearDatabase(dataSource);
+    await redis.flushdb();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const post = (path: string, body: object, userAgent?: string) => {
+    const agent = request(app.getHttpServer()).post(path);
+
+    // supertest сам подставляет User-Agent, пустое значение убирает заголовок
+    return (
+      userAgent === undefined
+        ? agent.set('User-Agent', '')
+        : agent.set('User-Agent', userAgent)
+    ).send(body);
+  };
+
+  it('register → login → refresh: токены рабочие, пароль не отдаётся', async () => {
+    freezeDate(new Date('2026-10-29T12:00:00Z'));
+    const registered = await post(
+      '/auth/register',
+      {
+        phone: PHONE,
+        password: PASSWORD,
+        name: 'Иван',
+        surname: 'Иванов',
+      },
+      'e2e',
+    );
+    const loggedIn = await post(
+      '/auth/login',
+      { phone: PHONE, password: PASSWORD },
+      'e2e',
+    );
+    freezeDate(new Date('2026-10-29T12:00:10Z'));
+    const loggedInBody = loggedIn.body as AuthBody;
+    const refreshed = await post(
+      '/auth/refresh',
+      {
+        userId: loggedInBody.user.id,
+        refreshToken: loggedInBody.refreshToken,
+      },
+      'e2e',
+    );
+    const refreshedBody = refreshed.body as AuthBody;
+    const me = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${refreshedBody.accessToken}`);
+
+    expect([registered.status, loggedIn.status, refreshed.status]).toEqual([
+      201, 201, 201,
+    ]);
+    expect(loggedInBody.user).not.toHaveProperty('password');
+    expect(refreshedBody.user).not.toHaveProperty('password');
+    expect(me.status).toBe(200);
+    expect((me.body as { id: string }).id).toBe(loggedInBody.user.id);
+  });
+
+  it('без заголовка User-Agent login и refresh используют одну сессию', async () => {
+    await post('/auth/register', {
+      phone: PHONE,
+      password: PASSWORD,
+      name: 'Иван',
+      surname: 'Иванов',
+    });
+    const loggedIn = (
+      await post('/auth/login', { phone: PHONE, password: PASSWORD })
+    ).body as AuthBody;
+
+    const { status } = await post('/auth/refresh', {
+      userId: loggedIn.user.id,
+      refreshToken: loggedIn.refreshToken,
+    });
+
+    expect(status).toBe(201);
+  });
+});
