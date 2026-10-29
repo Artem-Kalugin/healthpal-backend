@@ -4,6 +4,7 @@ import {
   Query,
   Param,
   SerializeOptions,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { DoctorTimeSlotService } from './doctor-time-slot.service';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
@@ -11,6 +12,7 @@ import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-re
 import { AuthGuardsByRegistration } from 'src/common/config';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { DateWithTimeSlots } from './dto/date-with-time-slots-response.dto';
+import { TimeSlotsQueryDto } from './dto/time-slots-query.dto';
 import { TimeSlotsRangeResponseDto } from './dto/time-slots-range-response.dto';
 
 @ApiTags('Doctors')
@@ -24,9 +26,8 @@ export class DoctorTimeSlotController {
   @ApiOkResponse({ type: DateWithTimeSlots, isArray: true })
   @SerializeOptions({ type: DateWithTimeSlots })
   async getSlots(
-    @Param('doctorId') doctorId: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @Param('doctorId', ParseUUIDPipe) doctorId: string,
+    @Query() { startDate, endDate }: TimeSlotsQueryDto,
   ) {
     return this.service.getSlotsForDoctor(doctorId, startDate, endDate);
   }
@@ -34,7 +35,7 @@ export class DoctorTimeSlotController {
   @Get('/range')
   @ApiOkResponse({ type: TimeSlotsRangeResponseDto })
   @SerializeOptions({ type: TimeSlotsRangeResponseDto })
-  async getSlotsRange(@Param('doctorId') doctorId: string) {
+  async getSlotsRange(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
     return this.service.getSlotsRange(doctorId);
   }
 }

@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import { DoctorService } from '../doctor/doctor.service';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
@@ -22,6 +23,21 @@ export class FavoritesService {
     private readonly medicalCenterService: MedicalCentersService,
   ) {}
 
+  // Параллельные запросы проходят проверку existsBy оба, второй упирается в PK
+  private async saveOrConflict(save: () => Promise<unknown>, message: string) {
+    try {
+      await save();
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException(message);
+      }
+      throw error;
+    }
+  }
+
   async addDoctorToFavorites(userId: string, doctorId: string) {
     const isDoctorExists = await this.doctorService.existsById(doctorId);
 
@@ -35,7 +51,10 @@ export class FavoritesService {
     if (isAlreadyFavorited)
       throw new ConflictException('Доктор уже в избранном');
 
-    await this.favoriteDoctorRepo.save({ userId, doctorId });
+    await this.saveOrConflict(
+      () => this.favoriteDoctorRepo.save({ userId, doctorId }),
+      'Доктор уже в избранном',
+    );
     return { success: true, doctorId };
   }
 
@@ -43,17 +62,23 @@ export class FavoritesService {
     const isMedicalCenterExists =
       await this.medicalCenterService.existsById(medicalCenterId);
 
-    if (!isMedicalCenterExists) throw new NotFoundException('Доктор не найден');
+    if (!isMedicalCenterExists) {
+      throw new NotFoundException('Медицинский центр не найден');
+    }
 
     const isAlreadyFavorited = await this.favoriteMedicalCenterRepo.existsBy({
       userId,
       medicalCenterId,
     });
 
-    if (isAlreadyFavorited)
-      throw new ConflictException('Доктор уже в избранном');
+    if (isAlreadyFavorited) {
+      throw new ConflictException('Медицинский центр уже в избранном');
+    }
 
-    await this.favoriteMedicalCenterRepo.save({ userId, medicalCenterId });
+    await this.saveOrConflict(
+      () => this.favoriteMedicalCenterRepo.save({ userId, medicalCenterId }),
+      'Медицинский центр уже в избранном',
+    );
     return { success: true, medicalCenterId };
   }
 

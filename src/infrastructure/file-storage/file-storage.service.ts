@@ -80,8 +80,7 @@ export class FileStorageService {
 
   getFilePath(fileName: string, isProtected = true): string {
     const targetDirectory = isProtected ? this.protectedDir : this.publicDir;
-    const filepath = path.join(targetDirectory, fileName);
-    return filepath.toLocaleLowerCase();
+    return path.join(targetDirectory, path.basename(fileName));
   }
 
   getPublicDir(): string {

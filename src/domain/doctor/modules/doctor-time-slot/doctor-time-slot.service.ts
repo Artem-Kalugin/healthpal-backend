@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
@@ -17,6 +21,10 @@ export class DoctorTimeSlotService {
     mayBeOverridedStartDate: string,
     endDate: string,
   ) {
+    if (mayBeOverridedStartDate > endDate) {
+      throw new BadRequestException('startDate не может быть позже endDate');
+    }
+
     const { date: nowDate, time: nowTime } = getZonedNowParts(
       await this.getDoctorTimezone(doctorId),
     );

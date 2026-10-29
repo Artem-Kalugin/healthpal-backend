@@ -8,6 +8,7 @@ import {
   Param,
   Req,
   SerializeOptions,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -78,7 +79,10 @@ export class AppointmentController {
   @SerializeOptions({
     type: AppointmentResponseDto,
   })
-  async cancelAppointment(@Req() request: Request, @Param('id') id: string) {
+  async cancelAppointment(
+    @Req() request: Request,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return await this.appointmentService.cancelAppointment(
       id,
       request.user!.id,
@@ -91,7 +95,7 @@ export class AppointmentController {
     type: AppointmentResponseDto,
   })
   async rescheduleAppointment(
-    @Param('id') appointmentId: string,
+    @Param('id', ParseUUIDPipe) appointmentId: string,
     @Body() dto: RescheduleAppointmentDto,
     @Req() request: Request,
   ) {

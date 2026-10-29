@@ -8,6 +8,7 @@ import { configureApp } from './app.setup';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   configureApp(app);
+  app.enableShutdownHooks();
   const config = new DocumentBuilder()
     .setTitle('HealthPal API')
     .setDescription('Demo API for RN showcase')

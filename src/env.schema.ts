@@ -20,6 +20,11 @@ const validationSchemaRaw: { [x in keyof EnvironmentVariables]: any } = {
         'JWT_EXPIRES_IN must be in format 60s, 1h, 1d etc.',
     }),
 
+  DATABASE_HOST: Joi.string().default('localhost'),
+  DATABASE_PORT: Joi.number().port().default(5432),
+  DATABASE_NAME: Joi.string().default('healthpal'),
+  PORT: Joi.number().port().default(3000),
+
   DATABASE_USER: Joi.string().required().messages({
     'any.required': 'DATABASE_USER is required',
   }),

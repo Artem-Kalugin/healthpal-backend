@@ -42,20 +42,22 @@ export class AuthService {
   }> {
     const { phone, password } = loginDto;
 
-    try {
-      const user = await this.usersService.findOneByPhone(phone);
+    const user = await this.usersService.findOneByPhone(phone).catch(error => {
+      throw error instanceof UserNotFoundException
+        ? new AuthError('Неверный телефон или пароль')
+        : error;
+    });
 
-      const isPasswordCorrect = await this.passwordService.compare(
-        password,
-        user.password,
-      );
+    const isPasswordCorrect = await this.passwordService.compare(
+      password,
+      user.password,
+    );
 
-      if (!isPasswordCorrect) throw new AuthError('Неверный пароль');
-
-      return this.generateTokens(user, userAgent);
-    } catch {
+    if (!isPasswordCorrect) {
       throw new AuthError('Неверный телефон или пароль');
     }
+
+    return this.generateTokens(user, userAgent);
   }
 
   private getJwtPayload(user: User) {

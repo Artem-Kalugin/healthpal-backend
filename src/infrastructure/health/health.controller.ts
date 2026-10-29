@@ -67,6 +67,14 @@ export class HealthController {
     const used = process.memoryUsage();
     const format = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 
+    let databaseStatus = '';
+    try {
+      await this.database.pingCheck('database');
+      databaseStatus = 'connected';
+    } catch {
+      databaseStatus = 'disconnected';
+    }
+
     let redisStatus = '';
     try {
       await this.redisClient.ping();
@@ -85,7 +93,7 @@ export class HealthController {
         heapUsed: format(used.heapUsed),
         external: format(used.external),
       },
-      database: 'connected', // Можешь добавить проверку если нужно
+      database: databaseStatus,
       redis: redisStatus,
     };
   }

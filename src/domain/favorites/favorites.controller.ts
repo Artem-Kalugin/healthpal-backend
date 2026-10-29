@@ -1,4 +1,11 @@
-import { Controller, Post, Delete, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Param,
+  Req,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { FavoritesService } from './favorites.service';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import {
@@ -26,7 +33,7 @@ export class FavoritesController {
   @ApiNotFoundResponse({ description: 'Доктор не найден' })
   async addDoctor(
     @Req() request: Request,
-    @Param('doctorId') doctorId: string,
+    @Param('doctorId', ParseUUIDPipe) doctorId: string,
   ) {
     return this.favoritesService.addDoctorToFavorites(
       request.user!.id,
@@ -39,7 +46,7 @@ export class FavoritesController {
   @ApiOkResponse({ description: 'Доктор удалён из избранного' })
   async removeDoctor(
     @Req() request: Request,
-    @Param('doctorId') doctorId: string,
+    @Param('doctorId', ParseUUIDPipe) doctorId: string,
   ) {
     return this.favoritesService.removeDoctorFromFavorites(
       request.user!.id,
@@ -54,7 +61,7 @@ export class FavoritesController {
   @ApiNotFoundResponse({ description: 'Медицинский центр не найден' })
   async addMedicalCenter(
     @Req() request: Request,
-    @Param('medicalCenterId') medicalCenterId: string,
+    @Param('medicalCenterId', ParseUUIDPipe) medicalCenterId: string,
   ) {
     return this.favoritesService.addMedicalCenterToFavorites(
       request.user!.id,
@@ -67,7 +74,7 @@ export class FavoritesController {
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
   async removeMedicalCenter(
     @Req() request: Request,
-    @Param('medicalCenterId') medicalCenterId: string,
+    @Param('medicalCenterId', ParseUUIDPipe) medicalCenterId: string,
   ) {
     return this.favoritesService.removeMedicalCenterFromFavorites(
       request.user!.id,

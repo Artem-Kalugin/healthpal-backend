@@ -5,6 +5,7 @@ import {
   Query,
   Req,
   SerializeOptions,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { DoctorService } from './doctor.service';
@@ -71,7 +72,7 @@ export class DoctorController {
   })
   async getDoctorById(
     @Req() request: Request,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DoctorResponseDto> {
     return await this.doctorService.findOneForUser(request.user!.id, id);
   }

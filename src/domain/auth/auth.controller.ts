@@ -5,6 +5,7 @@ import {
   Req,
   SerializeOptions,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
@@ -22,6 +23,7 @@ import { Public } from 'src/common/helpers/decorators/public.decorator';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -47,6 +49,8 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })
   async login(
@@ -86,6 +90,8 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
   @ApiOkResponse({ type: LoginResponseDto })
   @SerializeOptions({ type: LoginResponseDto })

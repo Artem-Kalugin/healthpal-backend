@@ -1,6 +1,6 @@
 import { DoctorScheduleResponseDto } from './dto/doctor-schedule-response.dto';
 // src/domain/doctor-schedule/doctor-schedule.controller.ts
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { DoctorScheduleService } from './doctor-schedule.service';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
@@ -16,7 +16,7 @@ export class DoctorScheduleController {
 
   @Get()
   @ApiOkResponse({ type: DoctorScheduleResponseDto })
-  getDoctorSchedule(@Param('doctorId') doctorId: string) {
+  getDoctorSchedule(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
     return this.service.getScheduleByDoctorId(doctorId);
   }
 }

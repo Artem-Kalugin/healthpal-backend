@@ -6,6 +6,7 @@ import {
   IsIn,
   MinLength,
   IsEnum,
+  IsUUID,
 } from 'class-validator';
 import { SortOrder } from 'src/common/config';
 import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
@@ -23,12 +24,14 @@ export class DoctorSearchQueryDto extends PaginatedQueryDto {
 
   @ApiPropertyOptional({ description: 'Фильтр по категории врача' })
   @IsOptional()
+  @IsUUID()
   categoryId?: string;
 
   @ApiPropertyOptional({
     description: 'Фильтр по медицинскому центру',
   })
   @IsOptional()
+  @IsUUID()
   medicalCenterId?: string;
 
   @ApiPropertyOptional({
