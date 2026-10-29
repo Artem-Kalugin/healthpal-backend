@@ -9,6 +9,7 @@ import { IS_PUBLIC_KEY } from 'src/common/helpers/decorators/public.decorator';
 import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtContent } from 'declarations';
+import type { Request } from 'express';
 
 @Injectable()
 export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
@@ -48,8 +49,6 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
         return this.checkComplete(user);
       case AuthGuardsByRegistration.INCOMPLETE_REGISTRATION:
         return this.checkIncomplete(user);
-      case AuthGuardsByRegistration.PENDING_REGISTRATION:
-        return this.checkPending(user);
       case AuthGuardsByRegistration.ANY:
         return true;
     }
@@ -64,13 +63,6 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
 
   private checkIncomplete(user: JwtContent) {
     if (user.registrationComplete !== false) {
-      throw new ForbiddenException('Регистрация уже завершена');
-    }
-    return true;
-  }
-
-  private checkPending(user: JwtContent) {
-    if (user.registrationComplete) {
       throw new ForbiddenException('Регистрация уже завершена');
     }
     return true;
