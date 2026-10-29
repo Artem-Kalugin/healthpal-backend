@@ -34,7 +34,14 @@ async function bootstrap() {
     ui: false,
     jsonDocumentUrl: 'api-json',
   });
-  app.use('/api', apiReference({ content: document }));
+  app.use(
+    '/api',
+    apiReference({
+      content: document,
+      // Версия закреплена, чтобы UI не менялся без нашего ведома
+      cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.2',
+    }),
+  );
 
   await app.listen(process.env.PORT ?? 3000);
 }

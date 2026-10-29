@@ -18,7 +18,10 @@ import {
 } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { AppointmentResponseDto } from './dto/appointment-response.dto';
+import {
+  AppointmentMutationResponseDto,
+  AppointmentResponseDto,
+} from './dto/appointment-response.dto';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
 import {
   PaginatedResponseDto,
@@ -42,14 +45,14 @@ export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) {}
 
   @Post()
-  @ApiCreatedResponse({ type: AppointmentResponseDto })
+  @ApiCreatedResponse({ type: AppointmentMutationResponseDto })
   @SerializeOptions({
-    type: AppointmentResponseDto,
+    type: AppointmentMutationResponseDto,
   })
   async createAppointment(
     @Req() request: Request,
     @Body() dto: CreateAppointmentDto,
-  ): Promise<AppointmentResponseDto> {
+  ): Promise<AppointmentMutationResponseDto> {
     return await this.appointmentService.createAppointment(
       request.user!.id,
       dto,
@@ -75,9 +78,9 @@ export class AppointmentController {
 
   @Patch(':id/cancel')
   @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ type: AppointmentResponseDto })
+  @ApiOkResponse({ type: AppointmentMutationResponseDto })
   @SerializeOptions({
-    type: AppointmentResponseDto,
+    type: AppointmentMutationResponseDto,
   })
   async cancelAppointment(
     @Req() request: Request,
@@ -90,9 +93,9 @@ export class AppointmentController {
   }
 
   @Patch(':id/reschedule')
-  @ApiOkResponse({ type: AppointmentResponseDto })
+  @ApiOkResponse({ type: AppointmentMutationResponseDto })
   @SerializeOptions({
-    type: AppointmentResponseDto,
+    type: AppointmentMutationResponseDto,
   })
   async rescheduleAppointment(
     @Param('id', ParseUUIDPipe) appointmentId: string,
