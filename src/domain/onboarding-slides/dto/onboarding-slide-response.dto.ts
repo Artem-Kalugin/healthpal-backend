@@ -11,10 +11,8 @@ export class OnboardingSlideResponseDto {
   image: Image;
 
   @Expose()
-  @ApiProperty()
   title: string;
 
   @Expose()
-  @ApiProperty()
   text: string;
 }

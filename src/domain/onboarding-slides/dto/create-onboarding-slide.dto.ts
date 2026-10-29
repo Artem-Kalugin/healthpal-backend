@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   MaxLength,
@@ -11,17 +11,14 @@ import {
 export class CreateOnboardingSlideDto {
   @IsString()
   @MaxLength(128)
-  @ApiProperty()
   title: string;
 
   @IsString()
-  @ApiProperty()
   text: string;
 
   @IsOptional()
   @Min(0)
   @Max(10)
-  @ApiPropertyOptional()
   order?: number;
 
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
@@ -30,6 +27,5 @@ export class CreateOnboardingSlideDto {
   image?: string;
 
   @IsOptional()
-  @ApiPropertyOptional()
   isActive?: boolean;
 }

@@ -4,7 +4,6 @@ import { Image } from 'src/common/helpers/image.dto';
 import { Expose } from 'class-transformer';
 
 export class UserResponseDto {
-  @ApiProperty()
   @Expose()
   id: string;
 

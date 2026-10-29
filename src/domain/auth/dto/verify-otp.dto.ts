@@ -14,6 +14,5 @@ export class VerifyOtpDto {
   @Matches(/^\d{5}$/, {
     message: 'OTP должен содержать ровно 5 цифр',
   })
-  @ApiProperty()
   otp: string;
 }

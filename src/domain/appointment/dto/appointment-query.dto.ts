@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
@@ -10,7 +10,6 @@ export enum AppointmentType {
 }
 export class AppointmentQueryDto extends PaginatedQueryDto {
   @Expose()
-  @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => {
     if (value === 'true') return true;

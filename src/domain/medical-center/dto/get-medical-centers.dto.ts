@@ -1,10 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
 
 export class GetMedicalCentersDto {
   @IsBoolean()
-  @ApiProperty()
   @Transform(({ value }) => value === 'true')
   shouldTake5Only: boolean;
 
@@ -13,7 +11,6 @@ export class GetMedicalCentersDto {
   @Matches(/^[-+]?(?:\d+(\.\d+)?|\.\d+)$/, {
     message: 'lat должно быть числом',
   })
-  @ApiPropertyOptional()
   lat?: string;
 
   @IsOptional()
@@ -21,6 +18,5 @@ export class GetMedicalCentersDto {
   @Matches(/^[-+]?(?:\d+(\.\d+)?|\.\d+)$/, {
     message: 'lat должно быть числом',
   })
-  @ApiPropertyOptional()
   lon?: string;
 }

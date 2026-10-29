@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsPositive, Min, Max } from 'class-validator';
+import { IsInt, Min, Max } from 'class-validator';
 
 export class PaginatedQueryDto {
   @ApiPropertyOptional({
@@ -14,13 +14,12 @@ export class PaginatedQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: 'Размер страницы (1–100)',
+    description: 'Размер страницы (10–40)',
     example: 10,
     type: 'number',
   })
   @Type(() => Number)
   @IsInt()
-  @IsPositive()
   @Min(10)
   @Max(40)
   size = 10;
