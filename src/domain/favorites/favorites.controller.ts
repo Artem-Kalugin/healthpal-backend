@@ -4,6 +4,7 @@ import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.
 import {
   ApiTags,
   ApiConflictResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
 } from '@nestjs/swagger';
@@ -22,6 +23,7 @@ export class FavoritesController {
   @ApiOkResponse({ description: 'Доктор добавлен в избранное' })
   @ApiParam({ name: 'doctorId', type: 'string' })
   @ApiConflictResponse({ description: 'Доктор уже в избранном' })
+  @ApiNotFoundResponse({ description: 'Доктор не найден' })
   async addDoctor(
     @Req() request: Request,
     @Param('doctorId') doctorId: string,
@@ -49,6 +51,7 @@ export class FavoritesController {
   @ApiOkResponse({ description: 'Медицинский центр добавлен в избранное' })
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
   @ApiConflictResponse({ description: 'Медицинский центр уже в избранном' })
+  @ApiNotFoundResponse({ description: 'Медицинский центр не найден' })
   async addMedicalCenter(
     @Req() request: Request,
     @Param('medicalCenterId') medicalCenterId: string,

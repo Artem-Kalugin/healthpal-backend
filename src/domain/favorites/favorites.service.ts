@@ -1,4 +1,9 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import { DoctorService } from '../doctor/doctor.service';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
@@ -20,7 +25,7 @@ export class FavoritesService {
   async addDoctorToFavorites(userId: string, doctorId: string) {
     const isDoctorExists = await this.doctorService.existsById(doctorId);
 
-    if (!isDoctorExists) throw new ConflictException('Доктор не найден');
+    if (!isDoctorExists) throw new NotFoundException('Доктор не найден');
 
     const isAlreadyFavorited = await this.favoriteDoctorRepo.existsBy({
       userId,
@@ -38,7 +43,7 @@ export class FavoritesService {
     const isMedicalCenterExists =
       await this.medicalCenterService.existsById(medicalCenterId);
 
-    if (!isMedicalCenterExists) throw new ConflictException('Доктор не найден');
+    if (!isMedicalCenterExists) throw new NotFoundException('Доктор не найден');
 
     const isAlreadyFavorited = await this.favoriteMedicalCenterRepo.existsBy({
       userId,
@@ -53,13 +58,13 @@ export class FavoritesService {
   }
 
   async removeDoctorFromFavorites(userId: string, doctorId: string) {
-    return this.favoriteDoctorRepo.delete({ userId, doctorId });
+    await this.favoriteDoctorRepo.delete({ userId, doctorId });
   }
 
   async removeMedicalCenterFromFavorites(
     userId: string,
     medicalCenterId: string,
   ) {
-    return this.favoriteMedicalCenterRepo.delete({ userId, medicalCenterId });
+    await this.favoriteMedicalCenterRepo.delete({ userId, medicalCenterId });
   }
 }
