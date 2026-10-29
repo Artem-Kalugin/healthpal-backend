@@ -11,12 +11,8 @@ export class PaginatedResponseDto<T> {
   size: number;
 
   @Expose()
-  @ApiProperty({ description: 'Общее количество записей' })
-  count: number;
-
-  @Expose()
-  @ApiProperty({ description: 'Последняя страница' })
-  lastPage: number;
+  @ApiProperty({ description: 'Есть ли следующая страница' })
+  hasMore: boolean;
 
   @Expose()
   @ApiProperty({ isArray: true, description: 'Массив данных' })

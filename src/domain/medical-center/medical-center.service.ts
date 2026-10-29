@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, count, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
@@ -57,18 +57,12 @@ export class MedicalCentersService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
 
-    return paginate(
-      { page, size },
-      ({ limit, offset }) =>
-        selectCenters(this.db, userId)
-          .where(userFavorites)
-          .orderBy(desc(favoritedAt), asc(medicalCenter.id))
-          .limit(limit)
-          .offset(offset),
-      this.db
-        .select({ total: count() })
-        .from(userFavoriteMedicalCenter)
-        .where(userFavorites),
+    return paginate({ page, size }, ({ limit, offset }) =>
+      selectCenters(this.db, userId)
+        .where(userFavorites)
+        .orderBy(desc(favoritedAt), asc(medicalCenter.id))
+        .limit(limit)
+        .offset(offset),
     );
   }
 

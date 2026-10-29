@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -14,17 +14,7 @@ export const centerOfDoctor = eq(medicalCenter.id, doctor.medicalCenterId);
 export const selectDoctors = (db: Database, userId: string) =>
   db
     .select({
-      id: doctor.id,
-      name: doctor.name,
-      surname: doctor.surname,
-      practiceStartYear: doctor.practiceStartYear,
-      patientsCount: doctor.patientsCount,
-      reviewsCount: doctor.reviewsCount,
-      image: doctor.image,
-      rating: doctor.rating,
-      description: doctor.description,
-      categoryId: doctor.categoryId,
-      medicalCenterId: doctor.medicalCenterId,
+      ...getTableColumns(doctor),
       category: { type: doctorCategory.type },
       medicalCenter: {
         name: medicalCenter.name,

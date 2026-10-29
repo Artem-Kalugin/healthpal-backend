@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
@@ -10,7 +10,7 @@ import { existsById } from 'src/db/exists';
 import { doctor, medicalCenter, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
-import { centerOfDoctor, selectDoctors } from './doctor.queries';
+import { selectDoctors } from './doctor.queries';
 
 const sortColumns = {
   rating: doctor.rating,
@@ -50,22 +50,15 @@ export class DoctorService {
     );
     const direction = order === SortOrder.ASC ? asc : desc;
 
-    return paginate(
-      { page, size },
-      ({ limit, offset }) =>
-        selectDoctors(this.db, userId)
-          .where(where)
-          .orderBy(
-            ...(sort ? [direction(sortColumns[sort])] : []),
-            asc(doctor.id),
-          )
-          .limit(limit)
-          .offset(offset),
-      this.db
-        .select({ total: count() })
-        .from(doctor)
-        .innerJoin(medicalCenter, centerOfDoctor)
-        .where(where),
+    return paginate({ page, size }, ({ limit, offset }) =>
+      selectDoctors(this.db, userId)
+        .where(where)
+        .orderBy(
+          ...(sort ? [direction(sortColumns[sort])] : []),
+          asc(doctor.id),
+        )
+        .limit(limit)
+        .offset(offset),
     );
   }
 
@@ -75,18 +68,12 @@ export class DoctorService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteDoctor.userId, userId);
 
-    return paginate(
-      { page, size },
-      ({ limit, offset }) =>
-        selectDoctors(this.db, userId)
-          .where(userFavorites)
-          .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id))
-          .limit(limit)
-          .offset(offset),
-      this.db
-        .select({ total: count() })
-        .from(userFavoriteDoctor)
-        .where(userFavorites),
+    return paginate({ page, size }, ({ limit, offset }) =>
+      selectDoctors(this.db, userId)
+        .where(userFavorites)
+        .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id))
+        .limit(limit)
+        .offset(offset),
     );
   }
 

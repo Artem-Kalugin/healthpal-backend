@@ -214,7 +214,7 @@ describe('Appointments (e2e)', () => {
       });
 
       expect(status).toBe(200);
-      expect(body.count).toBe(1);
+      expect(body.hasMore).toBe(false);
       expectAppointmentShape((body.data as Body[])[0]);
     });
   });

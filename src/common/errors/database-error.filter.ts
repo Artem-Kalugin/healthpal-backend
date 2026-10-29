@@ -8,6 +8,7 @@ import {
 import { DrizzleQueryError } from 'drizzle-orm';
 import { Request, Response } from 'express';
 import { CONSTRAINT_ERROR_CODES } from 'src/db/constraint-codes';
+import { getPgError } from 'src/db/errors';
 
 const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
@@ -38,8 +39,7 @@ export class DatabaseErrorFilter implements ExceptionFilter {
     const response = context.getResponse<Response>();
     const request = context.getRequest<Request>();
 
-    const cause = exception.cause as
-      { code?: string; constraint?: string } | undefined;
+    const cause = getPgError(exception);
     const mapped = cause?.code ? STATUS_BY_PG_CODE[cause.code] : undefined;
 
     this.logger.error(

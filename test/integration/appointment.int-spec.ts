@@ -482,10 +482,10 @@ describe('AppointmentService (integration)', () => {
       const own = [await bookFuture(user.id, 3), await bookFuture(user.id, 4)];
       await bookFuture(other.id, 5);
 
-      const { data, count } = await listFuture(user.id);
+      const { data, hasMore } = await listFuture(user.id);
 
       expect(data.map(a => a.id)).toEqual(own.map(a => a.id));
-      expect(count).toBe(2);
+      expect(hasMore).toBe(false);
     });
 
     // I8
@@ -505,7 +505,7 @@ describe('AppointmentService (integration)', () => {
       ];
 
       expect(pages.map(p => p.data.length)).toEqual([2, 2, 1]);
-      expect(pages.map(p => p.count)).toEqual([5, 5, 5]);
+      expect(pages.map(p => p.hasMore)).toEqual([true, true, false]);
       expect(pages.flatMap(p => p.data.map(a => a.id))).toEqual(
         own.map(a => a.id),
       );

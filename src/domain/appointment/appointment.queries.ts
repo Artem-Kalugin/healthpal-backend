@@ -1,4 +1,5 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, getTableColumns, sql } from 'drizzle-orm';
+import { getTableColumnsExcluding } from 'src/db/columns';
 import type { Database } from 'src/db/db.module';
 import { centerOfDoctor } from '../doctor/doctor.queries';
 import {
@@ -18,25 +19,11 @@ export const appointmentStartAt = sql<Date>`((${appointment.date} + ${appointmen
 export const selectAppointments = (db: Database) =>
   db
     .select({
-      id: appointment.id,
-      userId: appointment.userId,
-      doctorId: appointment.doctorId,
-      timeSlotId: appointment.timeSlotId,
-      date: appointment.date,
-      startTime: appointment.startTime,
-      endTime: appointment.endTime,
-      isCancelled: appointment.isCancelled,
-      doctor: {
-        id: doctor.id,
-        name: doctor.name,
-        surname: doctor.surname,
-        image: doctor.image,
-        rating: doctor.rating,
-        reviewsCount: doctor.reviewsCount,
-        patientsCount: doctor.patientsCount,
-        practiceStartYear: doctor.practiceStartYear,
-        description: doctor.description,
-      },
+      ...getTableColumns(appointment),
+      doctor: getTableColumnsExcluding(doctor, [
+        'categoryId',
+        'medicalCenterId',
+      ]),
       category: { type: doctorCategory.type },
       medicalCenter: {
         name: medicalCenter.name,

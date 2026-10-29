@@ -12,6 +12,7 @@ import {
   medicalCenter,
   userFavoriteMedicalCenter,
 } from 'src/db/schema';
+import { centerOfDoctor } from '../doctor/doctor.queries';
 
 export type Point = { lat: number; lon: number };
 
@@ -60,7 +61,7 @@ export const selectCenters = <Extra extends Record<string, SQL> = {}>(
       ...extra,
     })
     .from(medicalCenter)
-    .leftJoin(doctor, eq(doctor.medicalCenterId, medicalCenter.id))
+    .leftJoin(doctor, centerOfDoctor)
     .leftJoin(
       userFavoriteMedicalCenter,
       and(

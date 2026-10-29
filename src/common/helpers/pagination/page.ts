@@ -1,26 +1,17 @@
-/** Обёртка страницы для запросов на Drizzle: `data` уже вырезан `limit/offset`, `count` — общее число записей. */
-export const toPage = <T>(
-  data: T[],
-  count: number,
-  page: number,
-  size: number,
-) => ({ data, count, page, size, lastPage: Math.ceil(count / size) });
-
 export const offsetOf = (page: number, size: number) => (page - 1) * size;
 
 /**
- * Страница из двух запросов: данные (получают `limit/offset`) и общее число записей (`total`).
- * Запросы идут параллельно.
+ * Страница одним запросом: просит у `selectData` на строку больше `size`, лишняя строка говорит, что дальше есть данные.
+ * Общее число записей не считается: клиенту нужен только `hasMore`.
  */
 export const paginate = async <T>(
   { page, size }: { page: number; size: number },
   selectData: (window: { limit: number; offset: number }) => PromiseLike<T[]>,
-  selectTotal: PromiseLike<{ total: number }[]>,
 ) => {
-  const [data, [{ total }]] = await Promise.all([
-    selectData({ limit: size, offset: offsetOf(page, size) }),
-    selectTotal,
-  ]);
+  const rows = await selectData({
+    limit: size + 1,
+    offset: offsetOf(page, size),
+  });
 
-  return toPage(data, total, page, size);
+  return { data: rows.slice(0, size), page, size, hasMore: rows.length > size };
 };

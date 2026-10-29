@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, count, desc, eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, sql } from 'drizzle-orm';
 import { getSlotStart } from 'src/common/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { paginate } from 'src/common/helpers/pagination/page';
@@ -71,20 +71,12 @@ export class AppointmentService {
 
     const where = and(eq(appointment.userId, userId), byType.where);
 
-    const result = await paginate(
-      { page, size },
-      ({ limit, offset }) =>
-        selectAppointments(this.db)
-          .where(where)
-          .orderBy(byType.order, asc(appointment.id))
-          .limit(limit)
-          .offset(offset),
-      this.db
-        .select({ total: count() })
-        .from(appointment)
-        .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
-        .innerJoin(medicalCenter, centerOfDoctor)
-        .where(where),
+    const result = await paginate({ page, size }, ({ limit, offset }) =>
+      selectAppointments(this.db)
+        .where(where)
+        .orderBy(byType.order, asc(appointment.id))
+        .limit(limit)
+        .offset(offset),
     );
 
     return { ...result, data: result.data.map(nestDoctor) };

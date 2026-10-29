@@ -1,12 +1,19 @@
 import { DrizzleQueryError } from 'drizzle-orm';
+import { DatabaseError } from 'pg';
 
 const UNIQUE_VIOLATION = '23505';
 
-/** Нарушение именно этого unique/pk: код Postgres и `constraint` лежат в `cause` ошибки драйвера. */
+/** Ошибка Postgres (код, `constraint`, `table`) из `cause` ошибки запроса Drizzle; `undefined`, если это не она. */
+export const getPgError = (error: unknown) =>
+  error instanceof DrizzleQueryError && error.cause instanceof DatabaseError
+    ? error.cause
+    : undefined;
+
+/** Нарушение именно этого unique/pk. */
 export const isUniqueViolation = (error: unknown, constraint: string) => {
-  if (!(error instanceof DrizzleQueryError)) return false;
+  const pgError = getPgError(error);
 
-  const cause = error.cause as { code?: string; constraint?: string };
-
-  return cause.code === UNIQUE_VIOLATION && cause.constraint === constraint;
+  return (
+    pgError?.code === UNIQUE_VIOLATION && pgError.constraint === constraint
+  );
 };

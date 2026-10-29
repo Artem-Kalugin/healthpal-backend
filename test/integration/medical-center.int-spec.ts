@@ -226,7 +226,7 @@ describe('MedicalCentersService (integration)', () => {
       expect((await favoritesFor(userWithoutFavorites)).data).toEqual([]);
     });
 
-    it('страницы не пересекаются, count верен при группировке', async () => {
+    it('страницы не пересекаются, hasMore верен при группировке', async () => {
       const first = await favoritesFor(userA, 1, 2);
       const second = await favoritesFor(userA, 2, 2);
       const third = await favoritesFor(userA, 3, 2);
@@ -234,7 +234,11 @@ describe('MedicalCentersService (integration)', () => {
       expect(
         [first, second, third].map(page => page.data.map(c => c.id)),
       ).toEqual([[C6, C1], [C3], []]);
-      expect(first.count).toBe(3);
+      expect([first, second, third].map(page => page.hasMore)).toEqual([
+        true,
+        false,
+        false,
+      ]);
     });
   });
 });

@@ -145,7 +145,7 @@ describe('Medical centers (e2e)', () => {
       );
 
       expect(status).toBe(200);
-      expect(body).toMatchObject({ page: 1, lastPage: 1 });
+      expect(body).toMatchObject({ page: 1, hasMore: false });
       const data = body.data as Body[];
       expect(data.map(item => item.id as string)).toEqual([favorite.id]);
       expect(data[0]).toMatchObject({ isFavorite: true });
