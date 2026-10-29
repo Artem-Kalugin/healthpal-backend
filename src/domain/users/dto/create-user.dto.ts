@@ -1,9 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Matches, MaxLength, MinLength } from 'class-validator';
 import { LoginDto } from 'src/domain/auth/dto/login.dto';
 
 export class CreateUserDto extends LoginDto {
-  @ApiProperty()
   @MaxLength(16, {
     message: 'Имя не может быть длинее 16 символов',
   })
@@ -15,7 +13,6 @@ export class CreateUserDto extends LoginDto {
   })
   name: string;
 
-  @ApiProperty()
   @MaxLength(16, {
     message: 'Фамилия не может быть длинее 16 символов',
   })

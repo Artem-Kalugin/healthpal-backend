@@ -17,39 +17,30 @@ class DoctorResponseMedicalCenterDto extends PickType(
 
 export class DoctorResponseDto {
   @Expose()
-  @ApiProperty()
   id: string;
 
   @Expose()
-  @ApiProperty()
   name: string;
 
   @Expose()
-  @ApiProperty()
   surname: string;
 
-  @ApiProperty()
   @Expose()
   image: Image;
 
   @Expose()
-  @ApiProperty()
   rating: number;
 
   @Expose()
-  @ApiProperty()
   reviewsCount: number;
 
   @Expose()
-  @ApiProperty()
   patientsCount: number;
 
   @Expose()
-  @ApiProperty()
   practiceStartYear: number;
 
   @Expose()
-  @ApiProperty()
   description: string;
 
   @Expose()

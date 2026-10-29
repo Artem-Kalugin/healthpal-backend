@@ -3,10 +3,8 @@ import { Expose } from 'class-transformer';
 import { ScheduleDay } from 'src/entities/doctor-schedule.entity';
 
 export class ScheduleRecord {
-  @ApiProperty()
   @Expose()
   start: string;
-  @ApiProperty()
   @Expose()
   end: string;
 }
