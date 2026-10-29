@@ -10,6 +10,12 @@ import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 
+/** Неверных вводов на один OTP, после чего он сгорает и нужен новый запрос. */
+export const OTP_MAX_ATTEMPTS = 5;
+/** Запросов OTP на телефон в окне `OTP_REQUESTS_WINDOW_SECONDS`. */
+export const OTP_MAX_REQUESTS = 10;
+export const OTP_REQUESTS_WINDOW_SECONDS = 3600;
+
 @Injectable()
 export class RecoveryService {
   constructor(
@@ -47,12 +53,35 @@ export class RecoveryService {
       );
     }
 
+    const requestsKey = `otp_requests:${phone}`;
+    const requests = await this.redis.incr(requestsKey);
+    if (requests === 1) {
+      await this.redis.expire(requestsKey, OTP_REQUESTS_WINDOW_SECONDS);
+    }
+    if (requests > OTP_MAX_REQUESTS) {
+      throw new AuthError('Слишком много запросов OTP, попробуйте позже');
+    }
+
     const otp = this.generateOtp();
     const otpHash = this.hmac(otp);
 
     await this.redis.set(otpKey, otpHash, 'EX', this.config.get('OTP_TTL')!);
+    await this.redis.del(`otp_attempts:${phone}`);
 
     return { smsDemoOnly: otp };
+  }
+
+  private async registerFailedAttempt(phone: string) {
+    const attemptsKey = `otp_attempts:${phone}`;
+    const attempts = await this.redis.incr(attemptsKey);
+
+    if (attempts === 1) {
+      await this.redis.expire(attemptsKey, this.config.get('OTP_TTL')!);
+    }
+
+    if (attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redis.del(`otp:${phone}`, attemptsKey);
+    }
   }
 
   async verifyOtp(phone: string, otp: string) {
@@ -65,9 +94,12 @@ export class RecoveryService {
       Buffer.from(inputHash),
     );
 
-    if (!isValid) throw new AuthError('Срок действия временного пароля истек');
+    if (!isValid) {
+      await this.registerFailedAttempt(phone);
+      throw new AuthError('Срок действия временного пароля истек');
+    }
 
-    await this.redis.del(`otp:${phone}`);
+    await this.redis.del(`otp:${phone}`, `otp_attempts:${phone}`);
 
     const token = crypto.randomBytes(24).toString('hex');
     await this.redis.set(

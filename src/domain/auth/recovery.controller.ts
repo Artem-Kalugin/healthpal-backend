@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Req, SerializeOptions } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Req,
+  SerializeOptions,
+  UseGuards,
+} from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { RecoveryService } from './recovery.service';
 import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { AuthError } from 'src/common/errors/auth.error';
@@ -18,6 +26,8 @@ class DemoOnly_SMSResponse {
 }
 @ApiTags('Auth')
 @Public()
+@UseGuards(ThrottlerGuard)
+@Throttle({ default: { limit: 10, ttl: 60_000 } })
 @Controller('auth/recovery')
 export class RecoveryController {
   constructor(private readonly recoveryService: RecoveryService) {}
