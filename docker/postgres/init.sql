@@ -5,8 +5,3 @@ CREATE COLLATION IF NOT EXISTS "ru_RU.UTF-8" (
     LOCALE = 'ru_RU.UTF-8',
     PROVIDER = 'libc'
 );
-
-CREATE COLLATION IF NOT EXISTS "ru_RU.UTF-8_ci" (
-    LOCALE = 'ru_RU.UTF-8',
-    PROVIDER = 'libc'
-);

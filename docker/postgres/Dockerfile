@@ -6,8 +6,4 @@ RUN apt-get update && \
     locale-gen && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
 ENV LANG=ru_RU.UTF-8
-ENV LC_ALL=ru_RU.UTF-8
-ENV LC_COLLATE=ru_RU.UTF-8
-ENV LC_CTYPE=ru_RU.UTF-8

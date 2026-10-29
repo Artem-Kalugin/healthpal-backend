@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { configureApp } from './app.setup';
 
@@ -28,7 +29,12 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('api', app, document);
+  // Swagger UI отключён: отдаём только JSON, интерфейс рисует Scalar
+  SwaggerModule.setup('api', app, document, {
+    ui: false,
+    jsonDocumentUrl: 'api-json',
+  });
+  app.use('/api', apiReference({ content: document }));
 
   await app.listen(process.env.PORT ?? 3000);
 }

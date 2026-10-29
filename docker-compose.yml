@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   app:
     build:
@@ -5,6 +11,10 @@ services:
       dockerfile: Dockerfile
     container_name: healthpal-app
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       NODE_ENV: production
       DATABASE_HOST: postgres
@@ -18,14 +28,14 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
       
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
       
       OTP_TTL: ${OTP_TTL:-600}
       RECOVERY_TTL: ${RECOVERY_TTL:-3600}
-      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET}
+      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:?OTP_HMAC_SECRET is required}
     
     depends_on:
       postgres:
@@ -37,16 +47,12 @@ services:
       - healthpal-network
 
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     
     volumes:
       - uploads_data:/app/uploads
     
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
 
   postgres:
@@ -56,18 +62,20 @@ services:
     container_name: healthpal-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_USER: ${DATABASE_USER:-healthpal}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       POSTGRES_DB: ${DATABASE_NAME:-healthpal}
-      POSTGRES_INITDB_ARGS: >
-        -c shared_buffers=256MB
-        -c effective_cache_size=1GB
-        -c maintenance_work_mem=64MB
-        --locale=ru_RU.UTF-8
-        --encoding=UTF8
-        --lc-collate=ru_RU.UTF-8
-        --lc-ctype=ru_RU.UTF-8
-    
+      POSTGRES_INITDB_ARGS: --locale=ru_RU.UTF-8 --encoding=UTF8
+
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=64MB
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -82,19 +90,21 @@ services:
     networks:
       - healthpal-network
     
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
     container_name: healthpal-redis
     restart: unless-stopped
-    
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+
+    volumes:
+      - redis_data:/data
+
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change_me}", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,23 +113,16 @@ services:
     networks:
       - healthpal-network
     
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
   ngrok:
     image: ngrok/ngrok:3
     container_name: healthpal-ngrok
     restart: unless-stopped
-    command: 
-      http app:3000 
-      --authtoken=${NGROK_AUTH_TOKEN}
-      --log=stdout
-    
+    command: http app:3000 --log=stdout
+
     environment:
-      NGROK_AUTH_TOKEN: ${NGROK_AUTH_TOKEN}
+      NGROK_AUTHTOKEN: ${NGROK_AUTH_TOKEN:?NGROK_AUTH_TOKEN is required}
     
     depends_on:
       - app
@@ -128,13 +131,9 @@ services:
       - healthpal-network
     
     ports:
-      - "4040:4040"  
+      - "127.0.0.1:4040:4040"
     
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
   seed:
     build:
@@ -144,8 +143,8 @@ services:
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_USER: ${DATABASE_USER}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_USER: ${DATABASE_USER:-healthpal}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       DATABASE_NAME: ${DATABASE_NAME:-healthpal}
       
       REDIS_HOST: redis
@@ -170,10 +169,8 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   uploads_data:
-    driver: local
+  redis_data:
 
 networks:
   healthpal-network:
-    driver: bridge

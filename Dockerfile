@@ -20,14 +20,13 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache tini curl
+RUN apk add --no-cache tini
 
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
+    adduser -S nestjs -u 1001 -G nodejs
 
 RUN mkdir -p /app/uploads/public /app/uploads/protected && \
-    chown -R nestjs:nodejs /app/uploads && \
-    chmod -R 755 /app/uploads
+    chown -R nestjs:nodejs /app/uploads
 
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
@@ -38,7 +37,7 @@ USER nestjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD wget -q --spider http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
