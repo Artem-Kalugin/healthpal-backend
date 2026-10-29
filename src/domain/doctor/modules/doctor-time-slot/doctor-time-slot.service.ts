@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { and, asc, between, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { getZonedNowParts } from 'src/common/helpers/clinic-time';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { toHourMinute } from 'src/common/helpers/to-hour-minute';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import {
@@ -14,6 +16,7 @@ import {
   doctorTimeSlot,
   medicalCenter,
 } from 'src/db/schema';
+import { centerOfDoctor } from '../../doctor.queries';
 
 @Injectable()
 export class DoctorTimeSlotService {
@@ -64,8 +67,8 @@ export class DoctorTimeSlotService {
     return [...grouped].map(([date, daySlots]) => ({
       date,
       slots: daySlots.map(s => ({
-        startTime: s.startTime.slice(0, 5),
-        endTime: s.endTime.slice(0, 5),
+        startTime: toHourMinute(s.startTime),
+        endTime: toHourMinute(s.endTime),
         id: s.id,
       })),
     }));
@@ -98,15 +101,14 @@ export class DoctorTimeSlotService {
   }
 
   private async getDoctorTimezone(doctorId: string) {
-    const [row] = await this.db
-      .select({ timezone: medicalCenter.timezone })
-      .from(doctor)
-      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
-      .where(eq(doctor.id, doctorId));
-
-    if (!row) {
-      throw new NotFoundException('Врач не найден');
-    }
+    const row = firstOrThrow(
+      await this.db
+        .select({ timezone: medicalCenter.timezone })
+        .from(doctor)
+        .innerJoin(medicalCenter, centerOfDoctor)
+        .where(eq(doctor.id, doctorId)),
+      () => new NotFoundException('Врач не найден'),
+    );
 
     return row.timezone;
   }

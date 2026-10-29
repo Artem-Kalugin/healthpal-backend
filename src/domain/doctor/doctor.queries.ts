@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -6,6 +6,9 @@ import {
   medicalCenter,
   userFavoriteDoctor,
 } from 'src/db/schema';
+
+/** Условие join'а врача с его центром: `.innerJoin(medicalCenter, centerOfDoctor)`. */
+export const centerOfDoctor = eq(medicalCenter.id, doctor.medicalCenterId);
 
 /** Врач с категорией, центром (имя, адрес) и флагом избранного; `where`, сортировку и пагинацию добавляет вызывающий. */
 export const selectDoctors = (db: Database, userId: string) =>
@@ -31,9 +34,12 @@ export const selectDoctors = (db: Database, userId: string) =>
     })
     .from(doctor)
     .innerJoin(doctorCategory, eq(doctorCategory.id, doctor.categoryId))
-    .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+    .innerJoin(medicalCenter, centerOfDoctor)
     .leftJoin(
       userFavoriteDoctor,
-      sql`${userFavoriteDoctor.doctorId} = ${doctor.id} and ${userFavoriteDoctor.userId} = ${userId}`,
+      and(
+        eq(userFavoriteDoctor.doctorId, doctor.id),
+        eq(userFavoriteDoctor.userId, userId),
+      ),
     )
     .$dynamic();

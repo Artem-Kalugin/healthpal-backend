@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { and, asc, count, desc, eq, getTableColumns, sql } from 'drizzle-orm';
 import { getSlotStart } from 'src/common/helpers/clinic-time';
-import { offsetOf, toPage } from 'src/common/helpers/pagination/page';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { isUniqueViolation } from 'src/db/errors';
@@ -17,6 +18,7 @@ import {
   doctorTimeSlot,
   medicalCenter,
 } from 'src/db/schema';
+import { centerOfDoctor } from '../doctor/doctor.queries';
 import { DoctorService } from '../doctor/doctor.service';
 import {
   appointmentStartAt,
@@ -69,21 +71,23 @@ export class AppointmentService {
 
     const where = and(eq(appointment.userId, userId), byType.where);
 
-    const [data, [total]] = await Promise.all([
-      selectAppointments(this.db)
-        .where(where)
-        .orderBy(byType.order, asc(appointment.id))
-        .limit(size)
-        .offset(offsetOf(page, size)),
+    const result = await paginate(
+      { page, size },
+      ({ limit, offset }) =>
+        selectAppointments(this.db)
+          .where(where)
+          .orderBy(byType.order, asc(appointment.id))
+          .limit(limit)
+          .offset(offset),
       this.db
-        .select({ value: count() })
+        .select({ total: count() })
         .from(appointment)
         .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
-        .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+        .innerJoin(medicalCenter, centerOfDoctor)
         .where(where),
-    ]);
+    );
 
-    return toPage(data.map(nestDoctor), total.value, page, size);
+    return { ...result, data: result.data.map(nestDoctor) };
   }
 
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
@@ -93,19 +97,18 @@ export class AppointmentService {
       throw new NotFoundException('Врач не найден');
     }
 
-    const [slot] = await this.db
-      .select({
-        ...getTableColumns(doctorTimeSlot),
-        timezone: medicalCenter.timezone,
-      })
-      .from(doctorTimeSlot)
-      .innerJoin(doctor, eq(doctor.id, doctorTimeSlot.doctorId))
-      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
-      .where(eq(doctorTimeSlot.id, timeSlotId));
-
-    if (!slot) {
-      throw new NotFoundException('Тайм слот недоступен');
-    }
+    const slot = firstOrThrow(
+      await this.db
+        .select({
+          ...getTableColumns(doctorTimeSlot),
+          timezone: medicalCenter.timezone,
+        })
+        .from(doctorTimeSlot)
+        .innerJoin(doctor, eq(doctor.id, doctorTimeSlot.doctorId))
+        .innerJoin(medicalCenter, centerOfDoctor)
+        .where(eq(doctorTimeSlot.id, timeSlotId)),
+      () => new NotFoundException('Тайм слот недоступен'),
+    );
 
     assertSlotBookable(slot, doctorId, slot.timezone);
 
@@ -163,14 +166,13 @@ export class AppointmentService {
       'Запись нельзя перенести: слишком мало времени до начала приёма',
     );
 
-    const [newSlot] = await this.db
-      .select()
-      .from(doctorTimeSlot)
-      .where(eq(doctorTimeSlot.id, newTimeSlotId));
-
-    if (!newSlot) {
-      throw new NotFoundException('Новый тайм слот не найден');
-    }
+    const newSlot = firstOrThrow(
+      await this.db
+        .select()
+        .from(doctorTimeSlot)
+        .where(eq(doctorTimeSlot.id, newTimeSlotId)),
+      () => new NotFoundException('Новый тайм слот не найден'),
+    );
 
     if (newSlot.id === target.timeSlotId) {
       throw new BadRequestException('Запись уже назначена на это время');
@@ -194,33 +196,32 @@ export class AppointmentService {
 
   /** Запись пользователя вместе с поясом центра; чужая запись считается ненайденной. */
   private async findOwned(appointmentId: string, userId: string) {
-    const [row] = await this.db
-      .select({
-        ...getTableColumns(appointment),
-        timezone: medicalCenter.timezone,
-      })
-      .from(appointment)
-      .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
-      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
-      .where(
-        and(eq(appointment.id, appointmentId), eq(appointment.userId, userId)),
-      );
-
-    if (!row) {
-      throw new NotFoundException('Запись не найдена');
-    }
-
-    return row;
+    return firstOrThrow(
+      await this.db
+        .select({
+          ...getTableColumns(appointment),
+          timezone: medicalCenter.timezone,
+        })
+        .from(appointment)
+        .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
+        .innerJoin(medicalCenter, centerOfDoctor)
+        .where(
+          and(
+            eq(appointment.id, appointmentId),
+            eq(appointment.userId, userId),
+          ),
+        ),
+      () => new NotFoundException('Запись не найдена'),
+    );
   }
 
   private async findDetailed(appointmentId: string) {
-    const [row] = await selectAppointments(this.db).where(
-      eq(appointment.id, appointmentId),
+    const row = firstOrThrow(
+      await selectAppointments(this.db).where(
+        eq(appointment.id, appointmentId),
+      ),
+      () => new NotFoundException('Запись не найдена'),
     );
-
-    if (!row) {
-      throw new NotFoundException('Запись не найдена');
-    }
 
     return nestDoctor(row);
   }

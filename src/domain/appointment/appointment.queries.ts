@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
+import { centerOfDoctor } from '../doctor/doctor.queries';
 import {
   appointment,
   doctor,
@@ -45,7 +46,7 @@ export const selectAppointments = (db: Database) =>
     .from(appointment)
     .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
     .innerJoin(doctorCategory, eq(doctorCategory.id, doctor.categoryId))
-    .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+    .innerJoin(medicalCenter, centerOfDoctor)
     .$dynamic();
 
 type Row = Awaited<ReturnType<typeof selectAppointments>>[number];

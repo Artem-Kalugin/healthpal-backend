@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, count, desc, eq } from 'drizzle-orm';
-import { offsetOf, toPage } from 'src/common/helpers/pagination/page';
+import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 import {
@@ -56,28 +57,22 @@ export class MedicalCentersService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
 
-    const [data, [{ total }]] = await Promise.all([
-      selectCenters(this.db, userId)
-        .where(userFavorites)
-        .orderBy(desc(favoritedAt), asc(medicalCenter.id))
-        .limit(size)
-        .offset(offsetOf(page, size)),
+    return paginate(
+      { page, size },
+      ({ limit, offset }) =>
+        selectCenters(this.db, userId)
+          .where(userFavorites)
+          .orderBy(desc(favoritedAt), asc(medicalCenter.id))
+          .limit(limit)
+          .offset(offset),
       this.db
         .select({ total: count() })
         .from(userFavoriteMedicalCenter)
         .where(userFavorites),
-    ]);
-
-    return toPage(data, total, page, size);
+    );
   }
 
   async existsById(medicalCenterId: string) {
-    const found = await this.db
-      .select({ id: medicalCenter.id })
-      .from(medicalCenter)
-      .where(eq(medicalCenter.id, medicalCenterId))
-      .limit(1);
-
-    return found.length > 0;
+    return existsById(this.db, medicalCenter, medicalCenterId);
   }
 }

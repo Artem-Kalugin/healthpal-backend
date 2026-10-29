@@ -2,13 +2,15 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
-import { offsetOf, toPage } from 'src/common/helpers/pagination/page';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
 import { doctor, medicalCenter, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
-import { selectDoctors } from './doctor.queries';
+import { centerOfDoctor, selectDoctors } from './doctor.queries';
 
 const sortColumns = {
   rating: doctor.rating,
@@ -48,23 +50,23 @@ export class DoctorService {
     );
     const direction = order === SortOrder.ASC ? asc : desc;
 
-    const [data, [{ total }]] = await Promise.all([
-      selectDoctors(this.db, userId)
-        .where(where)
-        .orderBy(
-          ...(sort ? [direction(sortColumns[sort])] : []),
-          asc(doctor.id),
-        )
-        .limit(size)
-        .offset(offsetOf(page, size)),
+    return paginate(
+      { page, size },
+      ({ limit, offset }) =>
+        selectDoctors(this.db, userId)
+          .where(where)
+          .orderBy(
+            ...(sort ? [direction(sortColumns[sort])] : []),
+            asc(doctor.id),
+          )
+          .limit(limit)
+          .offset(offset),
       this.db
         .select({ total: count() })
         .from(doctor)
-        .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+        .innerJoin(medicalCenter, centerOfDoctor)
         .where(where),
-    ]);
-
-    return toPage(data, total, page, size);
+    );
   }
 
   async findFavoritesForUser(
@@ -73,37 +75,29 @@ export class DoctorService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteDoctor.userId, userId);
 
-    const [data, [{ total }]] = await Promise.all([
-      selectDoctors(this.db, userId)
-        .where(userFavorites)
-        .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id))
-        .limit(size)
-        .offset(offsetOf(page, size)),
+    return paginate(
+      { page, size },
+      ({ limit, offset }) =>
+        selectDoctors(this.db, userId)
+          .where(userFavorites)
+          .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id))
+          .limit(limit)
+          .offset(offset),
       this.db
         .select({ total: count() })
         .from(userFavoriteDoctor)
         .where(userFavorites),
-    ]);
-
-    return toPage(data, total, page, size);
+    );
   }
 
   async existsById(doctorId: string) {
-    const found = await this.db
-      .select({ id: doctor.id })
-      .from(doctor)
-      .where(eq(doctor.id, doctorId))
-      .limit(1);
-
-    return found.length > 0;
+    return existsById(this.db, doctor, doctorId);
   }
 
   async findOneForUser(userId: string, doctorId: string) {
-    const [found] = await selectDoctors(this.db, userId).where(
-      eq(doctor.id, doctorId),
+    return firstOrThrow(
+      await selectDoctors(this.db, userId).where(eq(doctor.id, doctorId)),
+      () => new NotFoundException(),
     );
-    if (!found) throw new NotFoundException();
-
-    return found;
   }
 }

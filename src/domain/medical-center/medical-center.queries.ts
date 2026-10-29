@@ -1,4 +1,5 @@
 import {
+  and,
   getTableColumns,
   eq,
   sql,
@@ -62,7 +63,10 @@ export const selectCenters = <Extra extends Record<string, SQL> = {}>(
     .leftJoin(doctor, eq(doctor.medicalCenterId, medicalCenter.id))
     .leftJoin(
       userFavoriteMedicalCenter,
-      sql`${userFavoriteMedicalCenter.medicalCenterId} = ${medicalCenter.id} and ${userFavoriteMedicalCenter.userId} = ${userId}`,
+      and(
+        eq(userFavoriteMedicalCenter.medicalCenterId, medicalCenter.id),
+        eq(userFavoriteMedicalCenter.userId, userId),
+      ),
     )
     .groupBy(medicalCenter.id)
     .$dynamic();

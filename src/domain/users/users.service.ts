@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq, type SQL } from 'drizzle-orm';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { user } from 'src/db/schema';
@@ -125,9 +126,9 @@ export class UsersService {
   }
 
   private async findOneBy(condition: SQL) {
-    const [found] = await this.db.select().from(user).where(condition);
-    if (!found) throw new UserNotFoundException();
-
-    return found;
+    return firstOrThrow(
+      await this.db.select().from(user).where(condition),
+      () => new UserNotFoundException(),
+    );
   }
 }

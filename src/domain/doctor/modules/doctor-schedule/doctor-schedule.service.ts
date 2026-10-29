@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
+import { toHourMinute } from 'src/common/helpers/to-hour-minute';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { ScheduleDay } from 'src/db/enums';
@@ -43,8 +44,8 @@ export class DoctorScheduleService {
 
     for (const s of schedules) {
       result[s.weekday].push({
-        start: s.startTime.slice(0, 5),
-        end: s.endTime.slice(0, 5),
+        start: toHourMinute(s.startTime),
+        end: toHourMinute(s.endTime),
       });
     }
 

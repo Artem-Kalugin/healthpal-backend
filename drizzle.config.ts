@@ -6,8 +6,11 @@ export default defineConfig({
   out: './drizzle',
   casing: 'snake_case',
   dbCredentials: {
-    url:
-      process.env.DATABASE_URL ??
-      'postgres://test:test@localhost:5433/healthpal_test',
+    host: process.env.DATABASE_HOST ?? 'localhost',
+    port: Number(process.env.DATABASE_PORT ?? 5432),
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME ?? 'healthpal',
+    ssl: false,
   },
 });
