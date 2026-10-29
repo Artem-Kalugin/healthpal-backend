@@ -3,8 +3,6 @@ import { User } from '../../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
-import { DataSource } from 'typeorm';
-import { InjectDataSource } from '@nestjs/typeorm';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { UserNotFoundException } from './exceptions/user-not-found.exception';
@@ -17,7 +15,6 @@ export class UsersService {
     private readonly repository: SafeRepository<User>,
     private readonly imageFileStorageService: ImageFileStorageService,
     private readonly passwordService: PasswordService,
-    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   private normalizeNameOrSurname(value: string): string {
@@ -52,59 +49,52 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     avatar?: Buffer<ArrayBufferLike>,
   ): Promise<User> {
+    const existingUser = await this.repository.findOne({ where: { id } });
+
+    if (!existingUser) {
+      throw new UserNotFoundException();
+    }
+
     let avatarSaved: User['avatar'];
-    let savedFilePath: string | undefined;
-    let oldAvatarPath: string | undefined;
 
-    return await this.dataSource
-      .transaction(async manager => {
-        const userRepository = manager.withRepository(this.repository);
+    if (avatar) {
+      avatarSaved = await this.imageFileStorageService.processAndSave(
+        avatar,
+        'avatar',
+        false,
+      );
+    }
 
-        const existingUser = await userRepository.findOne({ where: { id } });
+    let updatedUser: User;
 
-        if (!existingUser) {
-          throw new UserNotFoundException();
-        }
-
-        if (avatar) {
-          oldAvatarPath = existingUser.avatar?.image;
-          avatarSaved = await this.imageFileStorageService.processAndSave(
-            avatar,
-            'avatar',
-            false,
-          );
-          savedFilePath = avatarSaved.image;
-        }
-
-        try {
-          return await userRepository.safeUpdate(id, {
-            ...updateUserDto,
-            name: updateUserDto.name
-              ? this.normalizeNameOrSurname(updateUserDto.name)
-              : undefined,
-            surname: updateUserDto.surname
-              ? this.normalizeNameOrSurname(updateUserDto.surname)
-              : undefined,
-            nickname: this.normalizeNickname(updateUserDto.nickname),
-            avatar: avatarSaved,
-            registrationComplete: !!(
-              (updateUserDto.birthday ?? existingUser.birthday) &&
-              (updateUserDto.gender ?? existingUser.gender)
-            ),
-          });
-        } catch (error) {
-          if (savedFilePath) {
-            this.imageFileStorageService.deleteImage(savedFilePath);
-          }
-          throw error;
-        }
-      })
-      .then(updatedUser => {
-        if (oldAvatarPath && avatar) {
-          this.imageFileStorageService.deleteImage(oldAvatarPath);
-        }
-        return updatedUser;
+    try {
+      updatedUser = await this.repository.safeUpdate(id, {
+        ...updateUserDto,
+        name: updateUserDto.name
+          ? this.normalizeNameOrSurname(updateUserDto.name)
+          : undefined,
+        surname: updateUserDto.surname
+          ? this.normalizeNameOrSurname(updateUserDto.surname)
+          : undefined,
+        nickname: this.normalizeNickname(updateUserDto.nickname),
+        avatar: avatarSaved,
+        registrationComplete: !!(
+          (updateUserDto.birthday ?? existingUser.birthday) &&
+          (updateUserDto.gender ?? existingUser.gender)
+        ),
       });
+    } catch (error) {
+      if (avatarSaved) {
+        this.imageFileStorageService.deleteImage(avatarSaved.image);
+      }
+      throw error;
+    }
+
+    if (avatar && existingUser.avatar?.image) {
+      this.imageFileStorageService.deleteImage(existingUser.avatar.image);
+    }
+
+    return updatedUser;
   }
 
   async findOne(id: string): Promise<User> {

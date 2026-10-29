@@ -4,7 +4,6 @@ minimumReleaseAge: 4320
 allowBuilds:
   '@scarf/scarf': false
   '@nestjs/core': false
-  bcrypt: true
   sharp: true
   unrs-resolver: true
   '@parcel/watcher': false

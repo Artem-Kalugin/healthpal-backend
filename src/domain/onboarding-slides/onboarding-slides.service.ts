@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { OnboardingSlide } from 'src/entities/onboarding-slide.entity';
-import { DataSource, FindManyOptions } from 'typeorm';
+import { FindManyOptions } from 'typeorm';
 import { CreateOnboardingSlideDto } from 'src/domain/onboarding-slides/dto/create-onboarding-slide.dto';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 @Injectable()
@@ -11,7 +11,6 @@ export class OnboardingSlidesService {
     @InjectRepository(OnboardingSlide)
     private readonly repo: SafeRepository<OnboardingSlide>,
     private readonly imageFileStorageService: ImageFileStorageService,
-    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -23,35 +22,24 @@ export class OnboardingSlidesService {
       throw new BadRequestException('Max 10 slides allowed');
     }
 
-    let savedImagePath: string | undefined;
-    let processedImage: OnboardingSlide['image'] | undefined;
-
-    return this.dataSource.transaction(async manager => {
-      const slideRepo = manager.withRepository(this.repo);
-
-      if (imageBuffer) {
-        processedImage = await this.imageFileStorageService.processAndSave(
+    const processedImage = imageBuffer
+      ? await this.imageFileStorageService.processAndSave(
           imageBuffer,
           'onboarding',
           false,
-        );
-        savedImagePath = processedImage.image;
-      }
+        )
+      : undefined;
 
-      const slide = slideRepo.create({
-        ...dto,
-        image: processedImage,
-      });
-
-      try {
-        return await slideRepo.safeSave(slide);
-      } catch (error) {
-        if (savedImagePath) {
-          this.imageFileStorageService.deleteImage(savedImagePath);
-        }
-        throw error;
+    try {
+      return await this.repo.safeSave(
+        this.repo.create({ ...dto, image: processedImage }),
+      );
+    } catch (error) {
+      if (processedImage) {
+        this.imageFileStorageService.deleteImage(processedImage.image);
       }
-    });
+      throw error;
+    }
   }
 
   async findAll(

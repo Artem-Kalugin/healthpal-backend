@@ -585,6 +585,78 @@ describe('AppointmentService (integration)', () => {
           [canceled2, canceled1, canceled0].map(a => a.id),
         );
       });
+
+      // Сейчас 15:00 в Москве (UTC+3) и 13:00 в Берлине (UTC+1).
+      it('orders by the absolute start across time zones, not by the local clock', async () => {
+        const user = await factories.user();
+        const moscow = await factories.doctor({
+          medicalCenter: await factories.medicalCenter({ timezone: MOSCOW }),
+        });
+        const berlin = await factories.doctor({
+          medicalCenter: await factories.medicalCenter({ timezone: BERLIN }),
+        });
+        const cancelled = { isCancelled: true, timeSlotId: null };
+
+        // 07:00Z, 08:00Z и 09:00Z (стык суток: 23:30 Москвы позже 21:30 Берлина)
+        const berlinLater = await bookAt(
+          user.id,
+          berlin.id,
+          '2026-11-03',
+          '09:00:00',
+        );
+        const moscowEarlier = await bookAt(
+          user.id,
+          moscow.id,
+          '2026-11-03',
+          '10:00:00',
+        );
+        const moscowLast = await bookAt(
+          user.id,
+          moscow.id,
+          '2026-11-03',
+          '12:00:00',
+        );
+        const moscowNight = await bookAt(
+          user.id,
+          moscow.id,
+          '2026-11-04',
+          '00:30:00',
+        );
+        const berlinNight = await bookAt(
+          user.id,
+          berlin.id,
+          '2026-11-03',
+          '23:30:00',
+        );
+        const berlinCancelled = await bookAt(
+          user.id,
+          berlin.id,
+          '2026-11-03',
+          '09:00:00',
+          cancelled,
+        );
+        const moscowCancelled = await bookAt(
+          user.id,
+          moscow.id,
+          '2026-11-03',
+          '10:00:00',
+          cancelled,
+        );
+
+        expect(await list(user.id, AppointmentType.FUTURE)).toEqual(
+          [
+            moscowEarlier,
+            berlinLater,
+            moscowLast,
+            moscowNight,
+            berlinNight,
+          ].map(a => a.id),
+        );
+        // CANCELED по убыванию: берлинский 09:00 (08:00Z) позже московского 10:00 (07:00Z)
+        expect(await list(user.id, AppointmentType.CANCELED)).toEqual(
+          [berlinCancelled, moscowCancelled].map(a => a.id),
+        );
+      });
     });
   });
 });

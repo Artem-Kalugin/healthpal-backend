@@ -25,7 +25,6 @@ describe('UsersService (integration)', () => {
       {
         hash: jest.fn().mockResolvedValue('hash'),
       } as unknown as PasswordService,
-      dataSource,
     );
   });
 
@@ -50,7 +49,6 @@ describe('UsersService (integration)', () => {
     const error: unknown = await service
       .create({
         phone: existing.phone,
-        // eslint-disable-next-line sonarjs/no-hardcoded-passwords
         password: 'secret',
         name: 'Анна',
         surname: 'Орлова',

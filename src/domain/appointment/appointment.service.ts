@@ -34,6 +34,9 @@ const DOCTOR_CENTER_RELATIONS = ['doctor', 'doctor.medicalCenter'];
 
 // Момент начала записи: колонки date + startTime заданы в поясе центра.
 const START_LOCAL = `(${ALIAS}.date + ${ALIAS}.startTime)`;
+// Тот же момент в абсолютном времени: по нему сортируем записи из центров разных поясов.
+const START_AT = `(${START_LOCAL} AT TIME ZONE ${CENTER_ALIAS}.timezone)`;
+const START_AT_ALIAS = 'appointment_start_at';
 const NOW_LOCAL = `(CAST(:now AS timestamptz) AT TIME ZONE ${CENTER_ALIAS}.timezone)`;
 
 @Injectable()
@@ -63,32 +66,30 @@ export class AppointmentService {
 
     qb.where(`${ALIAS}.userId = :userId`, { userId });
 
+    qb.addSelect(START_AT, START_AT_ALIAS);
+
     const now = new Date();
 
     switch (type) {
       case AppointmentType.CANCELED:
         qb.andWhere(`${ALIAS}.isCancelled = true`);
-        qb.orderBy(`${ALIAS}.date`, SortOrder.DESC);
-        qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.DESC);
+        qb.orderBy(START_AT_ALIAS, SortOrder.DESC);
         break;
 
       case AppointmentType.FUTURE:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
         qb.andWhere(`${START_LOCAL} > ${NOW_LOCAL}`, { now });
-        qb.orderBy(`${ALIAS}.date`, SortOrder.ASC);
-        qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.ASC);
+        qb.orderBy(START_AT_ALIAS, SortOrder.ASC);
         break;
 
       case AppointmentType.PAST:
         qb.andWhere(`${ALIAS}.isCancelled = false`);
         qb.andWhere(`${START_LOCAL} <= ${NOW_LOCAL}`, { now });
-        qb.orderBy(`${ALIAS}.date`, SortOrder.DESC);
-        qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.DESC);
+        qb.orderBy(START_AT_ALIAS, SortOrder.DESC);
         break;
 
       default:
-        qb.orderBy(`${ALIAS}.date`, SortOrder.ASC);
-        qb.addOrderBy(`${ALIAS}.startTime`, SortOrder.ASC);
+        qb.orderBy(START_AT_ALIAS, SortOrder.ASC);
         break;
     }
 

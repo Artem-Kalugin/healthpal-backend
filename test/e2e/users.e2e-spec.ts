@@ -92,13 +92,13 @@ describe('Users (e2e)', () => {
     expect(body).not.toHaveProperty('password');
   });
 
-  it('GET /users/me для удалённого пользователя → 404', async () => {
+  it('GET /users/me для удалённого пользователя → 401', async () => {
     const user = await factories.user({ registrationComplete: true });
     const token = await tokenFor(user);
     await dataSource.getRepository(User).delete(user.id);
 
     const { status } = await me('get', token);
 
-    expect(status).toBe(404);
+    expect(status).toBe(401);
   });
 });

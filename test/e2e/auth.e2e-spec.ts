@@ -10,9 +10,7 @@ import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { clearDatabase } from '../integration/db';
 import { freezeDate } from '../integration/time';
 
-/* eslint-disable sonarjs/no-hardcoded-passwords */
 const PASSWORD = 'Password1';
-/* eslint-enable sonarjs/no-hardcoded-passwords */
 const PHONE = '+79001234567';
 
 interface AuthBody {

@@ -1,5 +1,4 @@
 import { ConflictException } from '@nestjs/common';
-import type { DataSource } from 'typeorm';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import type { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import type { PasswordService } from 'src/infrastructure/password/password.service';
@@ -17,7 +16,6 @@ const AVATAR = Buffer.from('avatar');
 
 const createDto: CreateUserDto = {
   phone: '+79001234567',
-  // eslint-disable-next-line sonarjs/no-hardcoded-passwords
   password: 'secret',
   name: 'иВАН-пЕТРОВ',
   surname: 'сИДОРОВ',
@@ -35,13 +33,6 @@ describe('UsersService', () => {
     deleteImage: jest.fn(),
   };
   const passwordService = { hash: jest.fn() };
-  // транзакция выполняет колбэк сразу, репозиторий из менеджера — тот же мок
-  const dataSource = {
-    transaction: jest.fn((callback: (manager: unknown) => unknown) =>
-      callback({ withRepository: () => repo }),
-    ),
-  };
-
   let service: UsersService;
 
   beforeEach(() => {
@@ -55,7 +46,6 @@ describe('UsersService', () => {
       repo as unknown as SafeRepository<User>,
       storage as unknown as ImageFileStorageService,
       passwordService as unknown as PasswordService,
-      dataSource as unknown as DataSource,
     );
   });
 

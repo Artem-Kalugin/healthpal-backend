@@ -37,6 +37,15 @@ export default tseslint.config(
   },
   eslintNestJs.configs.flatRecommended,
   {
+    files: [
+      '**/*.spec.ts',
+      '**/*.int-spec.ts',
+      '**/*.e2e-spec.ts',
+      'test/**/*.ts',
+    ],
+    rules: { 'sonarjs/no-hardcoded-passwords': 'off' },
+  },
+  {
     files: ['**/*.ts'],
     rules: {
       '@typescript-eslint/no-extraneous-class': 'off',

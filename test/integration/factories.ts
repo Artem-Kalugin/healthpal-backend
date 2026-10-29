@@ -47,7 +47,6 @@ export const createFactories = (dataSource: DataSource) => {
       name: 'Иван',
       surname: 'Иванов',
       phone: `+7900${String(next()).padStart(7, '0')}`,
-      // eslint-disable-next-line sonarjs/no-hardcoded-passwords
       password: 'hash',
       ...overrides,
     });

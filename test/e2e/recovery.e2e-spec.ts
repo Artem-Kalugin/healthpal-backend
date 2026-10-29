@@ -11,10 +11,8 @@ import { PasswordService } from 'src/infrastructure/password/password.service';
 import { clearDatabase } from '../integration/db';
 import { createFactories } from '../integration/factories';
 
-/* eslint-disable sonarjs/no-hardcoded-passwords */
 const OLD_PASSWORD = 'OldPassword1';
 const NEW_PASSWORD = 'NewPassword1';
-/* eslint-enable sonarjs/no-hardcoded-passwords */
 
 describe('Recovery (e2e)', () => {
   let app: INestApplication<App>;
@@ -88,7 +86,6 @@ describe('Recovery (e2e)', () => {
     const reset = await post('/auth/recovery/reset-password', {
       token,
       password: NEW_PASSWORD,
-      // eslint-disable-next-line sonarjs/no-hardcoded-passwords
       confirmPassword: 'Different123',
     });
 

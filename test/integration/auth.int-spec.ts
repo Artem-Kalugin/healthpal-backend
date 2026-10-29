@@ -16,10 +16,8 @@ import { createFactories } from './factories';
 import { createTestRedis } from './redis';
 import { freezeDate } from './time';
 
-/* eslint-disable sonarjs/no-hardcoded-passwords */
 const PASSWORD = 'Password1';
 const WRONG_PASSWORD = 'Password2';
-/* eslint-enable sonarjs/no-hardcoded-passwords */
 const SID = 'session-1';
 const ACCESS_TTL = 3600;
 // отличается от ACCESS_TTL, чтобы тест различал, какой токен получил какой срок
@@ -57,7 +55,6 @@ describe('AuthService (integration)', () => {
       createSafeRepository(dataSource.getRepository(User)),
       {} as ImageFileStorageService,
       passwordService,
-      dataSource,
     );
     /* eslint-disable @typescript-eslint/naming-convention */
     const config = {

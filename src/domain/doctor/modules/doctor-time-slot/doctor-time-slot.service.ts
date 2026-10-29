@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
 import { Doctor } from 'src/entities/doctor.entity';
 import { getZonedNowParts } from 'src/common/helpers/clinic-time';
@@ -29,17 +29,18 @@ export class DoctorTimeSlotService {
       await this.getDoctorTimezone(doctorId),
     );
 
-    const slots = await this.repo.find({
-      where: {
-        doctor: { id: doctorId },
-        date: Between(mayBeOverridedStartDate, endDate),
-        appointment: IsNull(),
-      },
-      order: {
-        date: 'ASC',
-        startTime: 'ASC',
-      },
-    });
+    const slots = await this.repo
+      .createQueryBuilder('slot')
+      .leftJoin('slot.appointment', 'appointment')
+      .where('slot.doctorId = :doctorId', { doctorId })
+      .andWhere('slot.date BETWEEN :startDate AND :endDate', {
+        startDate: mayBeOverridedStartDate,
+        endDate,
+      })
+      .andWhere('appointment.id IS NULL')
+      .orderBy('slot.date', 'ASC')
+      .addOrderBy('slot.startTime', 'ASC')
+      .getMany();
 
     const slotsFiltered = slots.filter(slot => {
       if (slot.date > nowDate) return true;
