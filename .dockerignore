@@ -10,3 +10,5 @@ coverage
 .vscode
 .idea
 .git
+.env
+.env.*

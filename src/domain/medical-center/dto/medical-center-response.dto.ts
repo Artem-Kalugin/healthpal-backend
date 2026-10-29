@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 import { Image } from 'src/common/helpers/image.dto';
-import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specifiaction';
+import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specification';
 import { MedicalCenterType } from 'src/entities/medical-center.entity';
 
 export class MedicalCenterResponseDto {

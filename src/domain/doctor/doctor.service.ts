@@ -6,17 +6,17 @@ import {
 } from 'src/entities/doctor.entity';
 import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import { WithDoctorMedicalCenterNameAndAdress } from './specification/with-medical-center-name-and-adress.specification';
+import { WithDoctorMedicalCenterNameAndAddress } from './specification/with-medical-center-name-and-address.specification';
 import { WithDoctorCategoryType } from './specification/with-category-type.specification';
 import {
   favoritedByUserAtPropertyName,
   WithIsUserFavorite,
-} from '../users/specification/with-user-favorite.specifiaction';
+} from '../users/specification/with-user-favorite.specification';
 import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
 import { FilterByRelation } from './specification/filter-by-relation.specification';
 import { AliasedSlugs } from 'declarations';
 import {
-  getPaginatedUsingLimitOffest,
+  getPaginatedUsingLimitOffset,
   getPaginatedUsingSkipTake,
 } from 'src/common/helpers/pagination/paginate';
 import { SortOrder } from 'src/common/config';
@@ -106,7 +106,7 @@ export class DoctorService {
 
     qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
 
-    const res = await getPaginatedUsingLimitOffest(qb, page, size);
+    const res = await getPaginatedUsingLimitOffset(qb, page, size);
 
     return { ...res, data: mapDoctorWithRaw(res.data) };
   }
@@ -129,7 +129,7 @@ export class DoctorService {
   baseQueryBuilderForUser(userId: string) {
     const qb = this.repo.createQueryBuilder(ALIAS);
 
-    new WithDoctorMedicalCenterNameAndAdress(ALIAS).apply(qb);
+    new WithDoctorMedicalCenterNameAndAddress(ALIAS).apply(qb);
     new WithDoctorCategoryType(ALIAS).apply(qb);
     const qbWithFavorite = new WithIsUserFavorite<
       Doctor & { isFavorite: boolean }

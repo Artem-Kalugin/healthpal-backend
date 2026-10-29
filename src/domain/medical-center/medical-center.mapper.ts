@@ -1,5 +1,5 @@
 import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { favoritedByUserPropertyName } from '../users/specification/with-user-favorite.specifiaction';
+import { favoritedByUserPropertyName } from '../users/specification/with-user-favorite.specification';
 
 export function mapMedicalCenterWithRaw<T extends MedicalCenter>(payload: {
   entities: T[];

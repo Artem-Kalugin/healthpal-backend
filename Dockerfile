@@ -33,7 +33,6 @@ RUN mkdir -p /app/uploads/public /app/uploads/protected && \
 
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --chown=nestjs:nodejs .env ./
 COPY --chown=nestjs:nodejs package.json ./
 
 USER nestjs

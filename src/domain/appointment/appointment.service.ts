@@ -22,7 +22,7 @@ import {
   assertSlotBookable,
 } from './helpers/booking-rules';
 import { Appointment } from 'src/entities/appointment';
-import { WithDoctorMedicalCenterNameAndAdress } from '../doctor/specification/with-medical-center-name-and-adress.specification';
+import { WithDoctorMedicalCenterNameAndAddress } from '../doctor/specification/with-medical-center-name-and-address.specification';
 import { WithDoctorCategoryType } from '../doctor/specification/with-category-type.specification';
 import { SelectQueryBuilder } from 'typeorm';
 import { mapAppointmentWithRaw } from './appointment.mapper';
@@ -54,7 +54,7 @@ export class AppointmentService {
       .createQueryBuilder(ALIAS)
       .leftJoinAndSelect(`${ALIAS}.doctor`, DOCTOR_ALIAS);
 
-    new WithDoctorMedicalCenterNameAndAdress(DOCTOR_ALIAS).apply(
+    new WithDoctorMedicalCenterNameAndAddress(DOCTOR_ALIAS).apply(
       qb as unknown as SelectQueryBuilder<Doctor>,
     );
     new WithDoctorCategoryType(DOCTOR_ALIAS).apply(

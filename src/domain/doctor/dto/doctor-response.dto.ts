@@ -3,7 +3,7 @@ import { Expose, Type } from 'class-transformer';
 import { DoctorCategoryResponseDto } from '../modules/doctor-category/dto/doctor-category-response.dto';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
 import { Image } from 'src/common/helpers/image.dto';
-import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specifiaction';
+import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specification';
 
 class DoctorResponseDoctorCategoryDto extends PickType(
   DoctorCategoryResponseDto,

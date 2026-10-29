@@ -31,13 +31,7 @@ export class UsersService {
     return nickname?.toLowerCase();
   }
 
-  async create(
-    createUserDto: CreateUserDto,
-    avatar?: Buffer<ArrayBufferLike>,
-  ): Promise<User> {
-    let avatarSaved: User['avatar'];
-    let savedFilePath: string | undefined;
-
+  async create(createUserDto: CreateUserDto): Promise<User> {
     return await this.dataSource.transaction(async manager => {
       const userRepository = manager.withRepository(this.repository);
 
@@ -45,32 +39,15 @@ export class UsersService {
 
       const hashedPassword = await this.passwordService.hash(password);
 
-      if (avatar) {
-        avatarSaved = await this.imageFileStorageService.processAndSave(
-          avatar,
-          'avatar',
-          true,
-        );
-        savedFilePath = avatarSaved.image;
-      }
-
       const user = userRepository.create({
         ...rest,
         name: this.normalizeNameOrSurname(name),
         surname: this.normalizeNameOrSurname(surname),
         password: hashedPassword,
-        avatar: avatarSaved,
         registrationComplete: false,
       });
 
-      try {
-        return await userRepository.safeSave(user);
-      } catch (error) {
-        if (savedFilePath) {
-          this.imageFileStorageService.deleteImage(savedFilePath);
-        }
-        throw error;
-      }
+      return await userRepository.safeSave(user);
     });
   }
 

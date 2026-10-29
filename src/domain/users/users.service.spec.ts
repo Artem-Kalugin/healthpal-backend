@@ -77,34 +77,12 @@ describe('UsersService', () => {
       );
     });
 
-    it('с аватаром сохраняет защищённое изображение в пользователя', async () => {
-      await service.create(createDto, AVATAR);
-
-      expect(storage.processAndSave).toHaveBeenCalledWith(
-        AVATAR,
-        'avatar',
-        true,
-      );
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ avatar: NEW_IMAGE }),
-      );
-    });
-
-    it('при ошибке сохранения удаляет загруженный файл и пробрасывает ошибку', async () => {
-      const error = new ConflictException();
-      repo.safeSave.mockRejectedValue(error);
-
-      await expect(service.create(createDto, AVATAR)).rejects.toBe(error);
-      expect(storage.deleteImage).toHaveBeenCalledWith(NEW_IMAGE.image);
-    });
-
-    it('при ошибке сохранения без аватара ничего не удаляет', async () => {
+    it('при ошибке сохранения пробрасывает ошибку', async () => {
       repo.safeSave.mockRejectedValue(new ConflictException());
 
       await expect(service.create(createDto)).rejects.toBeInstanceOf(
         ConflictException,
       );
-      expect(storage.deleteImage).not.toHaveBeenCalled();
     });
   });
 

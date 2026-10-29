@@ -1,5 +1,5 @@
 import { Doctor } from 'src/entities/doctor.entity';
-import { favoritedByUserPropertyName } from '../users/specification/with-user-favorite.specifiaction';
+import { favoritedByUserPropertyName } from '../users/specification/with-user-favorite.specification';
 
 export function mapDoctorWithRaw(payload: {
   entities: Doctor[];

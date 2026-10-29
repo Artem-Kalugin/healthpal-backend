@@ -20,6 +20,7 @@ services:
       
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
       
       OTP_TTL: ${OTP_TTL:-600}
       RECOVERY_TTL: ${RECOVERY_TTL:-3600}
@@ -108,7 +109,7 @@ services:
         max-file: "3"
 
   ngrok:
-    image: ngrok/ngrok:latest
+    image: ngrok/ngrok:3
     container_name: healthpal-ngrok
     restart: unless-stopped
     command: 

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export const FILE_STORAGE_BASE_DIR = 'FILE_STORAGE_BASE_DIR';
 
@@ -36,7 +36,7 @@ export class FileStorageService {
   }
 
   saveFile(buffer: Buffer, extension: string, isProtected = true): string {
-    const filename = `file-${uuidv4()}.${extension}`;
+    const filename = `file-${randomUUID()}.${extension}`;
     const targetDirectory = isProtected ? this.protectedDir : this.publicDir;
     const filepath = path.join(targetDirectory, filename);
 

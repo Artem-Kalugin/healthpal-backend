@@ -18,7 +18,7 @@ export const getPaginatedUsingSkipTake = async <T extends ObjectLiteral>(
   return { data, count, page, size, lastPage };
 };
 
-export const getPaginatedUsingLimitOffest = async <T extends ObjectLiteral>(
+export const getPaginatedUsingLimitOffset = async <T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   page: number,
   size: number,

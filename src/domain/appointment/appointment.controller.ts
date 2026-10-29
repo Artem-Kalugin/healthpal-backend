@@ -28,7 +28,7 @@ import type { Request } from 'express';
 import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { AuthGuardsByRegistration } from 'src/common/config';
 import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
-import { RescheduleAppointmentDto } from './dto/reshedule-appointment.dto';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 const PaginatedAppointmentResponse = PaginatedResponseOf(
   AppointmentResponseDto,

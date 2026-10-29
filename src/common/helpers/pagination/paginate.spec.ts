@@ -1,6 +1,6 @@
 import { SelectQueryBuilder } from 'typeorm';
 import {
-  getPaginatedUsingLimitOffest,
+  getPaginatedUsingLimitOffset,
   getPaginatedUsingSkipTake,
 } from './paginate';
 
@@ -35,8 +35,8 @@ describe.each([
     takeMethod: 'take',
   },
   {
-    name: 'getPaginatedUsingLimitOffest',
-    paginate: getPaginatedUsingLimitOffest,
+    name: 'getPaginatedUsingLimitOffset',
+    paginate: getPaginatedUsingLimitOffset,
     skipMethod: 'offset',
     takeMethod: 'limit',
   },

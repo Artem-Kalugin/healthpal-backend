@@ -7,6 +7,7 @@ import { configureApp } from './app.setup';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set('trust proxy', 1);
   configureApp(app);
   app.enableShutdownHooks();
   const config = new DocumentBuilder()

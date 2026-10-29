@@ -19,7 +19,7 @@ export class LoggerMiddleware implements NestMiddleware {
 
       this.logger.log(
         `${method} ${originalUrl} ${statusCode} ${contentLength || 0} - token: ${
-          token?.slice(0, 8) ?? 'none'
+          token ? 'present' : 'none'
         } - ${userAgent} ${ip}`,
       );
     });

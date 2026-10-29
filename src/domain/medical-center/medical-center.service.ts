@@ -6,14 +6,14 @@ import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
 import {
   favoritedByUserAtPropertyName,
   WithIsUserFavorite,
-} from '../users/specification/with-user-favorite.specifiaction';
+} from '../users/specification/with-user-favorite.specification';
 import { WithDistance } from './specifications/with-distance.specification';
 import { WithOrderBy } from './specifications/with-order-by.specification';
 import { mapMedicalCenterWithRaw } from './medical-center.mapper';
-import { WithDoctorsAggregates } from './specifications/with-doctors-aggregates.specifiaction';
+import { WithDoctorsAggregates } from './specifications/with-doctors-aggregates.specification';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 import { SortOrder } from 'src/common/config';
-import { getPaginatedUsingLimitOffest } from 'src/common/helpers/pagination/paginate';
+import { getPaginatedUsingLimitOffset } from 'src/common/helpers/pagination/paginate';
 
 type BaseQueryEntity = MedicalCenter & {
   isFavorite: boolean;
@@ -88,13 +88,13 @@ export class MedicalCentersService {
     qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
     qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
 
-    const res = await getPaginatedUsingLimitOffest(qb, page, size);
+    const res = await getPaginatedUsingLimitOffset(qb, page, size);
 
     return { ...res, data: mapMedicalCenterWithRaw(res.data) };
   }
 
-  async existsById(doctorId: string) {
-    return this.repo.existsBy({ id: doctorId });
+  async existsById(medicalCenterId: string) {
+    return this.repo.existsBy({ id: medicalCenterId });
   }
 
   private buildBaseQueryForUser(userId: string) {
