@@ -1,111 +1,153 @@
-import { DataSource } from 'typeorm';
-import { Appointment } from 'src/entities/appointment.entity';
+import type { Database } from 'src/db/db.module';
 import {
-  DoctorCategory,
   DoctorCategoryType,
-} from 'src/entities/doctor-category.entity';
-import {
-  DoctorSchedule,
-  ScheduleDay,
-} from 'src/entities/doctor-schedule.entity';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import {
-  MedicalCenter,
   MedicalCenterType,
-} from 'src/entities/medical-center.entity';
-import { User } from 'src/entities/user.entity';
+  ScheduleDay,
+} from 'src/db/enums';
+import {
+  appointment as appointmentTable,
+  doctor as doctorTable,
+  doctorCategory,
+  doctorSchedule,
+  doctorTimeSlot,
+  medicalCenter as medicalCenterTable,
+  user as userTable,
+} from 'src/db/schema';
 
 const IMAGE = { image: 'image.jpg', thumbhash: 'thumbhash' };
 
 let sequence = 0;
 const next = () => ++sequence;
 
-export const createFactories = (dataSource: DataSource) => {
-  const medicalCenter = (overrides: Partial<MedicalCenter> = {}) =>
-    dataSource.getRepository(MedicalCenter).save({
-      name: `Center ${next()}`,
-      address: 'ул. Тверская, д. 1',
-      city: 'Москва',
-      image: IMAGE,
-      lat: 55.75,
-      lon: 37.61,
-      type: MedicalCenterType.CLINIC,
-      timezone: 'Europe/Moscow',
-      ...overrides,
-    });
+type Insert<T extends { $inferInsert: object }> = Partial<T['$inferInsert']>;
+type DoctorOverrides = Omit<Insert<typeof doctorTable>, 'rating'> & {
+  /** `numeric` в Drizzle строка, для удобства тестов принимаем и число. */
+  rating?: number | string;
+};
 
-  const category = (overrides: Partial<DoctorCategory> = {}) =>
-    dataSource.getRepository(DoctorCategory).save({
-      type: DoctorCategoryType.GENERAL,
-      icon: 'icon',
-      ...overrides,
-    });
+export const createFactories = (db: Database) => {
+  const insert = async <T>(query: Promise<T[]>) => (await query)[0];
 
-  const user = (overrides: Partial<User> = {}) =>
-    dataSource.getRepository(User).save({
-      name: 'Иван',
-      surname: 'Иванов',
-      phone: `+7900${String(next()).padStart(7, '0')}`,
-      password: 'hash',
-      ...overrides,
-    });
+  const medicalCenter = (overrides: Insert<typeof medicalCenterTable> = {}) =>
+    insert(
+      db
+        .insert(medicalCenterTable)
+        .values({
+          name: `Center ${next()}`,
+          address: 'ул. Тверская, д. 1',
+          city: 'Москва',
+          image: IMAGE,
+          lat: 55.75,
+          lon: 37.61,
+          type: MedicalCenterType.CLINIC,
+          timezone: 'Europe/Moscow',
+          ...overrides,
+        })
+        .returning(),
+    );
 
-  /** Без явных `medicalCenter`/`category` создаёт их сам. */
-  const doctor = async (overrides: Partial<Doctor> = {}) =>
-    dataSource.getRepository(Doctor).save({
-      name: 'Пётр',
-      surname: 'Петров',
-      practiceStartYear: 2010,
-      patientsCount: 100,
-      reviewsCount: 10,
-      image: IMAGE,
-      rating: 4.5,
-      description: 'Врач',
-      medicalCenter: overrides.medicalCenter ?? (await medicalCenter()),
-      category: overrides.category ?? (await category()),
-      ...overrides,
-    });
+  const category = (overrides: Insert<typeof doctorCategory> = {}) =>
+    insert(
+      db
+        .insert(doctorCategory)
+        .values({
+          type: DoctorCategoryType.GENERAL,
+          icon: 'icon',
+          ...overrides,
+        })
+        .returning(),
+    );
+
+  const user = (overrides: Insert<typeof userTable> = {}) =>
+    insert(
+      db
+        .insert(userTable)
+        .values({
+          name: 'Иван',
+          surname: 'Иванов',
+          phone: `+7900${String(next()).padStart(7, '0')}`,
+          password: 'hash',
+          ...overrides,
+        })
+        .returning(),
+    );
+
+  /** Без явных `medicalCenterId`/`categoryId` создаёт их сам. */
+  const doctor = async (overrides: DoctorOverrides = {}) =>
+    insert(
+      db
+        .insert(doctorTable)
+        .values({
+          name: 'Пётр',
+          surname: 'Петров',
+          practiceStartYear: 2010,
+          patientsCount: 100,
+          reviewsCount: 10,
+          image: IMAGE,
+          description: 'Врач',
+          medicalCenterId:
+            overrides.medicalCenterId ?? (await medicalCenter()).id,
+          categoryId: overrides.categoryId ?? (await category()).id,
+          ...overrides,
+          rating: String(overrides.rating ?? 4.5),
+        })
+        .returning(),
+    );
 
   const timeSlot = (
     doctorId: string,
-    overrides: Partial<DoctorTimeSlot> = {},
+    overrides: Insert<typeof doctorTimeSlot> = {},
   ) =>
-    dataSource.getRepository(DoctorTimeSlot).save({
-      doctorId,
-      date: '2026-11-03',
-      startTime: '10:00:00',
-      endTime: '10:30:00',
-      ...overrides,
-    });
+    insert(
+      db
+        .insert(doctorTimeSlot)
+        .values({
+          doctorId,
+          date: '2026-11-03',
+          startTime: '10:00:00',
+          endTime: '10:30:00',
+          ...overrides,
+        })
+        .returning(),
+    );
 
   const schedule = (
     doctorId: string,
-    overrides: Partial<DoctorSchedule> = {},
+    overrides: Insert<typeof doctorSchedule> = {},
   ) =>
-    dataSource.getRepository(DoctorSchedule).save({
-      doctorId,
-      weekday: ScheduleDay.MONDAY,
-      startTime: '09:00:00',
-      endTime: '13:00:00',
-      ...overrides,
-    });
+    insert(
+      db
+        .insert(doctorSchedule)
+        .values({
+          doctorId,
+          weekday: ScheduleDay.MONDAY,
+          startTime: '09:00:00',
+          endTime: '13:00:00',
+          ...overrides,
+        })
+        .returning(),
+    );
 
   /** Запись на слот; время копируется из слота, как делает сервис. */
   const appointment = (
     userId: string,
-    slot: DoctorTimeSlot,
-    overrides: Partial<Appointment> = {},
+    slot: typeof doctorTimeSlot.$inferSelect,
+    overrides: Insert<typeof appointmentTable> = {},
   ) =>
-    dataSource.getRepository(Appointment).save({
-      userId,
-      doctorId: slot.doctorId,
-      timeSlotId: slot.id,
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      ...overrides,
-    });
+    insert(
+      db
+        .insert(appointmentTable)
+        .values({
+          userId,
+          doctorId: slot.doctorId,
+          timeSlotId: slot.id,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          ...overrides,
+        })
+        .returning(),
+    );
 
   return {
     medicalCenter,

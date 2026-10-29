@@ -23,6 +23,19 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 - Версия UI Scalar закреплена через `cdn` в `src/main.ts`, при обновлении менять вручную.
 - Сервер за ngrok перезапускать после смены зависимостей, иначе отдаёт старую версию.
 
+## База данных (Drizzle, идёт переезд с TypeORM)
+
+- Ветка `feat/drizzle-migration`. Drizzle `0.45.x` закреплён, rc/beta не берём. Схема в `src/db/schema.ts`, подключение через `DbModule` (токен `DB`), миграции в `drizzle/` (`drizzle-kit generate`, затем `drizzle-kit migrate`). `casing: 'snake_case'` стоит и в `drizzle()`, и в `drizzle.config.ts`.
+- Запросы пишутся в сервисе. Большой или переиспользуемый запрос выносится функцией в `*.queries.ts` рядом, не в класс. Классов-репозиториев по умолчанию нет, заводить только при реальной причине.
+- Сырой SQL только как ``sql`...` `` фрагмент внутри билдера, ссылаться на колонки через схему, не строками.
+- Имена ограничений (FK, unique, check, pk) задавать явно в схеме: на них будет опираться мапа `constraint → код ошибки`.
+- Ошибка драйвера: `DrizzleQueryError`, код Postgres, `constraint` и `table` лежат в `cause`. Ошибки БД в HTTP превращает один глобальный фильтр, не слой данных.
+- `numeric` читается строкой (`rating`), `date`/`time` строками. Не менять без правки DTO и тестов.
+- Переменные и параметры слоя данных называются `db` (исключение в `unicorn/prevent-abbreviations` в `eslint.config.mjs`), тип `Database`, токен DI `DB`.
+- TS-enum'ы доменов лежат в `src/db/enums.ts` (схема строит pgEnum из них), DTO импортируют оттуда, не из `src/entities`.
+- Пока идёт переезд, приложение между этапами может не собираться: TypeORM-код не дорабатываем.
+- `drizzle-kit push` интерактивен при конфликте с чужими типами в БД. Тестовую БД перед этим пересоздавать (`DROP SCHEMA public CASCADE` и заново `docker/postgres/init.sql`).
+
 ## Прочее
 
 - `agents/` в `.gitignore`: рабочие заметки и аудиты, в git не попадают. План переезда на Drizzle: `agents/orm-analysis.md` (идёт первым, TypeORM не дорабатываем); упрощения общей схемы: `agents/complexity-audit.md`, пункты, завязанные на TypeORM, не выполняются.

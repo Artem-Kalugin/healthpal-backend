@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
-import { User } from 'src/entities/user.entity';
+import type { User } from 'src/db/schema';
 import { AuthError } from 'src/common/errors/auth.error';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 import { ConfigService } from '@nestjs/config';

@@ -1,20 +1,23 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
+import { and, asc, between, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { getZonedNowParts } from 'src/common/helpers/clinic-time';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import {
+  appointment,
+  doctor,
+  doctorTimeSlot,
+  medicalCenter,
+} from 'src/db/schema';
 
 @Injectable()
 export class DoctorTimeSlotService {
-  constructor(
-    @InjectRepository(DoctorTimeSlot)
-    private readonly repo: Repository<DoctorTimeSlot>,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async getSlotsForDoctor(
     doctorId: string,
@@ -25,40 +28,42 @@ export class DoctorTimeSlotService {
       throw new BadRequestException('startDate не может быть позже endDate');
     }
 
-    const { date: nowDate, time: nowTime } = getZonedNowParts(
-      await this.getDoctorTimezone(doctorId),
-    );
+    const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
-    const slots = await this.repo
-      .createQueryBuilder('slot')
-      .leftJoin('slot.appointment', 'appointment')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('slot.date BETWEEN :startDate AND :endDate', {
-        startDate: mayBeOverridedStartDate,
-        endDate,
+    const slots = await this.db
+      .select({
+        id: doctorTimeSlot.id,
+        date: doctorTimeSlot.date,
+        startTime: doctorTimeSlot.startTime,
+        endTime: doctorTimeSlot.endTime,
       })
-      .andWhere('appointment.id IS NULL')
-      .orderBy('slot.date', 'ASC')
-      .addOrderBy('slot.startTime', 'ASC')
-      .getMany();
+      .from(doctorTimeSlot)
+      .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
+      .where(
+        and(
+          eq(doctorTimeSlot.doctorId, doctorId),
+          between(doctorTimeSlot.date, mayBeOverridedStartDate, endDate),
+          isNull(appointment.id),
+          isUpcoming(now),
+        ),
+      )
+      .orderBy(
+        asc(doctorTimeSlot.date),
+        asc(doctorTimeSlot.startTime),
+        asc(doctorTimeSlot.id),
+      );
 
-    const slotsFiltered = slots.filter(slot => {
-      if (slot.date > nowDate) return true;
-      if (slot.date === nowDate && slot.startTime > nowTime) return true;
+    const grouped = new Map<string, typeof slots>();
 
-      return false;
-    });
-
-    const grouped: Record<string, DoctorTimeSlot[]> = {};
-
-    for (const slot of slotsFiltered) {
-      if (!grouped[slot.date]) grouped[slot.date] = [];
-      grouped[slot.date].push(slot);
+    for (const slot of slots) {
+      const day = grouped.get(slot.date) ?? [];
+      day.push(slot);
+      grouped.set(slot.date, day);
     }
 
-    return Object.entries(grouped).map(([date, slots]) => ({
+    return [...grouped].map(([date, daySlots]) => ({
       date,
-      slots: slots.map(s => ({
+      slots: daySlots.map(s => ({
         startTime: s.startTime.slice(0, 5),
         endTime: s.endTime.slice(0, 5),
         id: s.id,
@@ -68,22 +73,22 @@ export class DoctorTimeSlotService {
 
   /** Диапазон дат, в котором у врача есть свободные будущие слоты (те же правила, что в `getSlotsForDoctor`). */
   async getSlotsRange(doctorId: string) {
-    const { date: nowDate, time: nowTime } = getZonedNowParts(
-      await this.getDoctorTimezone(doctorId),
-    );
+    const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
-    const range = await this.repo
-      .createQueryBuilder('slot')
-      .leftJoin('slot.appointment', 'appointment')
-      .select('MIN(slot.date)::text', 'minDate')
-      .addSelect('MAX(slot.date)::text', 'maxDate')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('appointment.id IS NULL')
-      .andWhere(
-        '(slot.date > :nowDate OR (slot.date = :nowDate AND slot.startTime > :nowTime))',
-        { nowDate, nowTime },
-      )
-      .getRawOne<{ minDate: string | null; maxDate: string | null }>();
+    const [range] = await this.db
+      .select({
+        minDate: sql<string | null>`min(${doctorTimeSlot.date})::text`,
+        maxDate: sql<string | null>`max(${doctorTimeSlot.date})::text`,
+      })
+      .from(doctorTimeSlot)
+      .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
+      .where(
+        and(
+          eq(doctorTimeSlot.doctorId, doctorId),
+          isNull(appointment.id),
+          isUpcoming(now),
+        ),
+      );
 
     if (!range?.minDate || !range?.maxDate) {
       throw new NotFoundException('Нет доступного времени записи');
@@ -93,13 +98,11 @@ export class DoctorTimeSlotService {
   }
 
   private async getDoctorTimezone(doctorId: string) {
-    const row = await this.repo.manager
-      .createQueryBuilder()
-      .select('center.timezone', 'timezone')
-      .from(Doctor, 'doctor')
-      .innerJoin('doctor.medicalCenter', 'center')
-      .where('doctor.id = :doctorId', { doctorId })
-      .getRawOne<{ timezone: string }>();
+    const [row] = await this.db
+      .select({ timezone: medicalCenter.timezone })
+      .from(doctor)
+      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+      .where(eq(doctor.id, doctorId));
 
     if (!row) {
       throw new NotFoundException('Врач не найден');
@@ -108,3 +111,10 @@ export class DoctorTimeSlotService {
     return row.timezone;
   }
 }
+
+/** Слот начинается строго позже «сейчас» (дата и время по часам центра). */
+const isUpcoming = ({ date, time }: { date: string; time: string }) =>
+  or(
+    gt(doctorTimeSlot.date, date),
+    and(eq(doctorTimeSlot.date, date), gt(doctorTimeSlot.startTime, time)),
+  );

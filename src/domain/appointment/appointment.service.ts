@@ -1,176 +1,149 @@
 import {
-  Injectable,
-  Inject,
   BadRequestException,
   ConflictException,
+  Inject,
+  Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor, DoctorRelationKeys } from 'src/entities/doctor.entity';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
+import { and, asc, count, desc, eq, getTableColumns, sql } from 'drizzle-orm';
+import { getSlotStart } from 'src/common/helpers/clinic-time';
+import { offsetOf, toPage } from 'src/common/helpers/pagination/page';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { isUniqueViolation } from 'src/db/errors';
+import {
+  appointment,
+  doctor,
+  doctorTimeSlot,
+  medicalCenter,
+} from 'src/db/schema';
+import { DoctorService } from '../doctor/doctor.service';
+import {
+  appointmentStartAt,
+  nestDoctor,
+  selectAppointments,
+} from './appointment.queries';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import {
   AppointmentQueryDto,
   AppointmentType,
 } from './dto/appointment-query.dto';
-import { getPaginatedUsingSkipTake } from 'src/common/helpers/pagination/paginate';
-import { SortOrder } from 'src/common/config';
-import { getSlotStart } from 'src/common/helpers/clinic-time';
 import {
   assertBookingWindow,
   assertSlotBookable,
 } from './helpers/booking-rules';
-import { Appointment } from 'src/entities/appointment.entity';
-import { WithDoctorMedicalCenterNameAndAddress } from '../doctor/specification/with-medical-center-name-and-address.specification';
-import { WithDoctorCategoryType } from '../doctor/specification/with-category-type.specification';
-import { SelectQueryBuilder } from 'typeorm';
-import { mapAppointmentWithRaw } from './appointment.mapper';
 
-const ALIAS = 'appointment' as const;
-const DOCTOR_ALIAS = 'doctor' as const;
-const CENTER_ALIAS = DoctorRelationKeys.MEDICAL_CENTER;
-const DOCTOR_CENTER_RELATIONS = ['doctor', 'doctor.medicalCenter'];
-
-// Момент начала записи: колонки date + startTime заданы в поясе центра.
-const START_LOCAL = `(${ALIAS}.date + ${ALIAS}.startTime)`;
-// Тот же момент в абсолютном времени: по нему сортируем записи из центров разных поясов.
-const START_AT = `(${START_LOCAL} AT TIME ZONE ${CENTER_ALIAS}.timezone)`;
-const START_AT_ALIAS = 'appointment_start_at';
-const NOW_LOCAL = `(CAST(:now AS timestamptz) AT TIME ZONE ${CENTER_ALIAS}.timezone)`;
+const SLOT_TAKEN_CONSTRAINT = 'appointment_time_slot_unique';
 
 @Injectable()
 export class AppointmentService {
   constructor(
-    @Inject(getEntityRepository(Appointment.name))
-    private readonly repo: SafeRepository<Appointment>,
-    @Inject(getEntityRepository(DoctorTimeSlot.name))
-    private readonly timeSlotRepo: SafeRepository<DoctorTimeSlot>,
-    @Inject(getEntityRepository(Doctor.name))
-    private readonly doctorRepo: SafeRepository<Doctor>,
+    @Inject(DB) private readonly db: Database,
+    private readonly doctorService: DoctorService,
   ) {}
 
   async getAppointmentsForUser(userId: string, query: AppointmentQueryDto) {
     const { page, size, type } = query;
+    const now = sql`${new Date().toISOString()}::timestamptz`;
 
-    const qb = this.repo
-      .createQueryBuilder(ALIAS)
-      .leftJoinAndSelect(`${ALIAS}.doctor`, DOCTOR_ALIAS);
+    const byType = {
+      [AppointmentType.CANCELED]: {
+        where: eq(appointment.isCancelled, true),
+        order: desc(appointmentStartAt),
+      },
+      [AppointmentType.FUTURE]: {
+        where: and(
+          eq(appointment.isCancelled, false),
+          sql`${appointmentStartAt} > ${now}`,
+        ),
+        order: asc(appointmentStartAt),
+      },
+      [AppointmentType.PAST]: {
+        where: and(
+          eq(appointment.isCancelled, false),
+          sql`${appointmentStartAt} <= ${now}`,
+        ),
+        order: desc(appointmentStartAt),
+      },
+    }[type];
 
-    new WithDoctorMedicalCenterNameAndAddress(DOCTOR_ALIAS).apply(
-      qb as unknown as SelectQueryBuilder<Doctor>,
-    );
-    new WithDoctorCategoryType(DOCTOR_ALIAS).apply(
-      qb as unknown as SelectQueryBuilder<Doctor>,
-    );
+    const where = and(eq(appointment.userId, userId), byType.where);
 
-    qb.where(`${ALIAS}.userId = :userId`, { userId });
+    const [data, [total]] = await Promise.all([
+      selectAppointments(this.db)
+        .where(where)
+        .orderBy(byType.order, asc(appointment.id))
+        .limit(size)
+        .offset(offsetOf(page, size)),
+      this.db
+        .select({ value: count() })
+        .from(appointment)
+        .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
+        .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+        .where(where),
+    ]);
 
-    qb.addSelect(START_AT, START_AT_ALIAS);
-
-    const now = new Date();
-
-    switch (type) {
-      case AppointmentType.CANCELED:
-        qb.andWhere(`${ALIAS}.isCancelled = true`);
-        qb.orderBy(START_AT_ALIAS, SortOrder.DESC);
-        break;
-
-      case AppointmentType.FUTURE:
-        qb.andWhere(`${ALIAS}.isCancelled = false`);
-        qb.andWhere(`${START_LOCAL} > ${NOW_LOCAL}`, { now });
-        qb.orderBy(START_AT_ALIAS, SortOrder.ASC);
-        break;
-
-      case AppointmentType.PAST:
-        qb.andWhere(`${ALIAS}.isCancelled = false`);
-        qb.andWhere(`${START_LOCAL} <= ${NOW_LOCAL}`, { now });
-        qb.orderBy(START_AT_ALIAS, SortOrder.DESC);
-        break;
-
-      default:
-        qb.orderBy(START_AT_ALIAS, SortOrder.ASC);
-        break;
-    }
-
-    const res = await getPaginatedUsingSkipTake(qb, page, size);
-
-    return { ...res, data: mapAppointmentWithRaw(res.data) };
+    return toPage(data.map(nestDoctor), total.value, page, size);
   }
+
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
     const { doctorId, timeSlotId } = dto;
 
-    const doctor = await this.doctorRepo.findOneBy({ id: doctorId });
-
-    if (!doctor) {
+    if (!(await this.doctorService.existsById(doctorId))) {
       throw new NotFoundException('Врач не найден');
     }
 
-    const timeSlot = await this.timeSlotRepo.findOne({
-      where: {
-        id: timeSlotId,
-      },
-      relations: DOCTOR_CENTER_RELATIONS,
-    });
+    const [slot] = await this.db
+      .select({
+        ...getTableColumns(doctorTimeSlot),
+        timezone: medicalCenter.timezone,
+      })
+      .from(doctorTimeSlot)
+      .innerJoin(doctor, eq(doctor.id, doctorTimeSlot.doctorId))
+      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+      .where(eq(doctorTimeSlot.id, timeSlotId));
 
-    if (!timeSlot) {
+    if (!slot) {
       throw new NotFoundException('Тайм слот недоступен');
     }
 
-    assertSlotBookable(
-      timeSlot,
-      doctorId,
-      timeSlot.doctor.medicalCenter.timezone,
-    );
-    await this.assertSlotFree(timeSlotId);
+    assertSlotBookable(slot, doctorId, slot.timezone);
 
-    const entity = this.repo.create({
-      user: { id: userId },
-      doctor: { id: doctorId },
-      timeSlot: { id: timeSlotId },
-      date: timeSlot.date,
-      startTime: timeSlot.startTime,
-      endTime: timeSlot.endTime,
-    });
+    const [created] = await this.db
+      .insert(appointment)
+      .values({
+        userId,
+        doctorId,
+        timeSlotId,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      })
+      .returning({ id: appointment.id })
+      .catch(rethrowSlotTaken);
 
-    return this.repo.safeSave(entity);
+    return this.findDetailed(created.id);
   }
 
   async cancelAppointment(appointmentId: string, userId: string) {
-    const appointment = await this.repo.findOne({
-      where: {
-        id: appointmentId,
-        user: { id: userId },
-      },
-      relations: DOCTOR_CENTER_RELATIONS,
-    });
+    const target = await this.findOwned(appointmentId, userId);
 
-    if (!appointment) {
-      throw new NotFoundException('Запись не найдена');
-    }
-
-    if (appointment.isCancelled) {
+    if (target.isCancelled) {
       throw new BadRequestException('Запись уже отменена');
     }
 
-    const { timezone } = appointment.doctor.medicalCenter;
-
     if (
-      getSlotStart(appointment.date, appointment.startTime, timezone) <=
-      new Date()
+      getSlotStart(target.date, target.startTime, target.timezone) <= new Date()
     ) {
       throw new BadRequestException('Прошедшую запись нельзя отменить');
     }
 
-    await this.repo.update(
-      { id: appointmentId },
-      {
-        isCancelled: true,
-        timeSlotId: null,
-      },
-    );
+    await this.db
+      .update(appointment)
+      .set({ isCancelled: true, timeSlotId: null })
+      .where(eq(appointment.id, appointmentId));
 
-    return { ...appointment, isCancelled: true, timeSlotId: null };
+    return this.findDetailed(appointmentId);
   }
 
   async rescheduleAppointment(
@@ -178,59 +151,86 @@ export class AppointmentService {
     userId: string,
     newTimeSlotId: string,
   ) {
-    const appointment = await this.repo.findOne({
-      where: { id: appointmentId, user: { id: userId } },
-      relations: [...DOCTOR_CENTER_RELATIONS, 'timeSlot'],
-    });
+    const target = await this.findOwned(appointmentId, userId);
 
-    if (!appointment) {
-      throw new NotFoundException('Запись не найдена');
-    }
-
-    if (appointment.isCancelled) {
+    if (target.isCancelled) {
       throw new BadRequestException('Отменённую запись нельзя перенести');
     }
 
-    const { timezone } = appointment.doctor.medicalCenter;
-
     assertBookingWindow(
-      appointment,
-      timezone,
+      target,
+      target.timezone,
       'Запись нельзя перенести: слишком мало времени до начала приёма',
     );
 
-    const newSlot = await this.timeSlotRepo.findOne({
-      where: { id: newTimeSlotId },
-      relations: ['doctor'],
-    });
+    const [newSlot] = await this.db
+      .select()
+      .from(doctorTimeSlot)
+      .where(eq(doctorTimeSlot.id, newTimeSlotId));
 
     if (!newSlot) {
       throw new NotFoundException('Новый тайм слот не найден');
     }
 
-    if (newSlot.id === appointment.timeSlotId) {
+    if (newSlot.id === target.timeSlotId) {
       throw new BadRequestException('Запись уже назначена на это время');
     }
 
-    assertSlotBookable(newSlot, appointment.doctorId, timezone);
-    await this.assertSlotFree(newTimeSlotId);
+    assertSlotBookable(newSlot, target.doctorId, target.timezone);
 
-    appointment.timeSlot = newSlot;
-    appointment.timeSlotId = newSlot.id;
-    appointment.date = newSlot.date;
-    appointment.startTime = newSlot.startTime;
-    appointment.endTime = newSlot.endTime;
+    await this.db
+      .update(appointment)
+      .set({
+        timeSlotId: newSlot.id,
+        date: newSlot.date,
+        startTime: newSlot.startTime,
+        endTime: newSlot.endTime,
+      })
+      .where(eq(appointment.id, appointmentId))
+      .catch(rethrowSlotTaken);
 
-    return this.repo.safeSave(appointment);
+    return this.findDetailed(appointmentId);
   }
 
-  private async assertSlotFree(timeSlotId: string) {
-    const existing = await this.repo.findOne({
-      where: { timeSlotId, isCancelled: false },
-    });
+  /** Запись пользователя вместе с поясом центра; чужая запись считается ненайденной. */
+  private async findOwned(appointmentId: string, userId: string) {
+    const [row] = await this.db
+      .select({
+        ...getTableColumns(appointment),
+        timezone: medicalCenter.timezone,
+      })
+      .from(appointment)
+      .innerJoin(doctor, eq(doctor.id, appointment.doctorId))
+      .innerJoin(medicalCenter, eq(medicalCenter.id, doctor.medicalCenterId))
+      .where(
+        and(eq(appointment.id, appointmentId), eq(appointment.userId, userId)),
+      );
 
-    if (existing) {
-      throw new ConflictException('Время записи уже занято');
+    if (!row) {
+      throw new NotFoundException('Запись не найдена');
     }
+
+    return row;
+  }
+
+  private async findDetailed(appointmentId: string) {
+    const [row] = await selectAppointments(this.db).where(
+      eq(appointment.id, appointmentId),
+    );
+
+    if (!row) {
+      throw new NotFoundException('Запись не найдена');
+    }
+
+    return nestDoctor(row);
   }
 }
+
+// Отмена освобождает слот (`timeSlotId = null`), поэтому занятость слота целиком держится на unique-ограничении
+const rethrowSlotTaken = (error: unknown): never => {
+  if (isUniqueViolation(error, SLOT_TAKEN_CONSTRAINT)) {
+    throw new ConflictException('Время записи уже занято');
+  }
+
+  throw error;
+};

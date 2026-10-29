@@ -2,20 +2,21 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { clearDatabase } from '../integration/db';
+import { userFavoriteMedicalCenter } from 'src/db/schema';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
 
 type Body = Record<string, any>;
 
 describe('Medical centers (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let factories: ReturnType<typeof createFactories>;
   let authService: AuthService;
 
@@ -28,8 +29,9 @@ describe('Medical centers (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
-    factories = createFactories(dataSource);
+    db = app.get<Database>(DB);
+    await resetSchema(db);
+    factories = createFactories(db);
     authService = app.get(AuthService, { strict: false });
   });
 
@@ -40,7 +42,7 @@ describe('Medical centers (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   const send = async (url: string, query?: object, token?: string) => {
@@ -132,9 +134,9 @@ describe('Medical centers (e2e)', () => {
     it('отдаёт страницу только избранных центров пользователя с метаданными', async () => {
       const { user, token } = await newUser();
       const [favorite] = await seedCenters(2);
-      await dataSource
-        .getRepository('UserFavoriteMedicalCenter')
-        .save({ userId: user.id, medicalCenterId: favorite.id });
+      await db
+        .insert(userFavoriteMedicalCenter)
+        .values({ userId: user.id, medicalCenterId: favorite.id });
 
       const { status, body } = await send(
         '/medical-centers/favorites',

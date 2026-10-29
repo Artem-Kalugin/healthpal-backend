@@ -4,92 +4,82 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { QueryFailedError } from 'typeorm';
-import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
+import { and, eq } from 'drizzle-orm';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { userFavoriteDoctor, userFavoriteMedicalCenter } from 'src/db/schema';
 import { DoctorService } from '../doctor/doctor.service';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { UserFavoriteDoctor } from 'src/entities/user-favorite-doctor.relation';
 import { MedicalCentersService } from '../medical-center/medical-center.service';
-import { UserFavoriteMedicalCenter } from 'src/entities/user-favorite-medical-center.relation';
 
 @Injectable()
 export class FavoritesService {
   constructor(
-    @Inject(getEntityRepository(UserFavoriteDoctor.name))
-    private readonly favoriteDoctorRepo: SafeRepository<UserFavoriteDoctor>,
-    @Inject(getEntityRepository(UserFavoriteMedicalCenter.name))
-    private readonly favoriteMedicalCenterRepo: SafeRepository<UserFavoriteMedicalCenter>,
+    @Inject(DB) private readonly db: Database,
     private readonly doctorService: DoctorService,
     private readonly medicalCenterService: MedicalCentersService,
   ) {}
 
-  // Параллельные запросы проходят проверку existsBy оба, второй упирается в PK
-  private async saveOrConflict(save: () => Promise<unknown>, message: string) {
-    try {
-      await save();
-    } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError as { code?: string }).code === '23505'
-      ) {
-        throw new ConflictException(message);
-      }
-      throw error;
-    }
-  }
-
   async addDoctorToFavorites(userId: string, doctorId: string) {
-    const isDoctorExists = await this.doctorService.existsById(doctorId);
+    if (!(await this.doctorService.existsById(doctorId))) {
+      throw new NotFoundException('Доктор не найден');
+    }
 
-    if (!isDoctorExists) throw new NotFoundException('Доктор не найден');
+    // Пустой результат значит, что связь уже была (в том числе при гонке запросов)
+    const inserted = await this.db
+      .insert(userFavoriteDoctor)
+      .values({ userId, doctorId })
+      .onConflictDoNothing()
+      .returning({ doctorId: userFavoriteDoctor.doctorId });
 
-    const isAlreadyFavorited = await this.favoriteDoctorRepo.existsBy({
-      userId,
-      doctorId,
-    });
-
-    if (isAlreadyFavorited)
+    if (inserted.length === 0) {
       throw new ConflictException('Доктор уже в избранном');
+    }
 
-    await this.saveOrConflict(
-      () => this.favoriteDoctorRepo.save({ userId, doctorId }),
-      'Доктор уже в избранном',
-    );
     return { success: true, doctorId };
   }
 
   async addMedicalCenterToFavorites(userId: string, medicalCenterId: string) {
-    const isMedicalCenterExists =
-      await this.medicalCenterService.existsById(medicalCenterId);
-
-    if (!isMedicalCenterExists) {
+    if (!(await this.medicalCenterService.existsById(medicalCenterId))) {
       throw new NotFoundException('Медицинский центр не найден');
     }
 
-    const isAlreadyFavorited = await this.favoriteMedicalCenterRepo.existsBy({
-      userId,
-      medicalCenterId,
-    });
+    const inserted = await this.db
+      .insert(userFavoriteMedicalCenter)
+      .values({ userId, medicalCenterId })
+      .onConflictDoNothing()
+      .returning({
+        medicalCenterId: userFavoriteMedicalCenter.medicalCenterId,
+      });
 
-    if (isAlreadyFavorited) {
+    if (inserted.length === 0) {
       throw new ConflictException('Медицинский центр уже в избранном');
     }
 
-    await this.saveOrConflict(
-      () => this.favoriteMedicalCenterRepo.save({ userId, medicalCenterId }),
-      'Медицинский центр уже в избранном',
-    );
     return { success: true, medicalCenterId };
   }
 
   async removeDoctorFromFavorites(userId: string, doctorId: string) {
-    await this.favoriteDoctorRepo.delete({ userId, doctorId });
+    await this.db
+      .delete(userFavoriteDoctor)
+      .where(
+        and(
+          eq(userFavoriteDoctor.userId, userId),
+          eq(userFavoriteDoctor.doctorId, doctorId),
+        ),
+      );
   }
 
   async removeMedicalCenterFromFavorites(
     userId: string,
     medicalCenterId: string,
   ) {
-    await this.favoriteMedicalCenterRepo.delete({ userId, medicalCenterId });
+    await this.db
+      .delete(userFavoriteMedicalCenter)
+      .where(
+        and(
+          eq(userFavoriteMedicalCenter.userId, userId),
+          eq(userFavoriteMedicalCenter.medicalCenterId, medicalCenterId),
+        ),
+      );
   }
 }

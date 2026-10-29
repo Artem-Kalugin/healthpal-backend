@@ -1,50 +1,44 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { userFavoriteDoctor, userFavoriteMedicalCenter } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { FavoritesService } from 'src/domain/favorites/favorites.service';
 import { MedicalCentersService } from 'src/domain/medical-center/medical-center.service';
-import { Doctor } from 'src/entities/doctor.entity';
-import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { UserFavoriteDoctor } from 'src/entities/user-favorite-doctor.relation';
-import { UserFavoriteMedicalCenter } from 'src/entities/user-favorite-medical-center.relation';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000999';
 
 describe('FavoritesService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: FavoritesService;
   let userId: string;
   let otherUserId: string;
 
-  const doctorLinks = () => dataSource.getRepository(UserFavoriteDoctor).find();
-  const centerLinks = () =>
-    dataSource.getRepository(UserFavoriteMedicalCenter).find();
+  const doctorLinks = () => db.select().from(userFavoriteDoctor);
+  const centerLinks = () => db.select().from(userFavoriteMedicalCenter);
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
     service = new FavoritesService(
-      createSafeRepository(dataSource.getRepository(UserFavoriteDoctor)),
-      createSafeRepository(dataSource.getRepository(UserFavoriteMedicalCenter)),
-      new DoctorService(createSafeRepository(dataSource.getRepository(Doctor))),
-      new MedicalCentersService(
-        createSafeRepository(dataSource.getRepository(MedicalCenter)),
-      ),
+      db,
+      new DoctorService(db),
+      new MedicalCentersService(db),
     );
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
     userId = (await factories.user()).id;
     otherUserId = (await factories.user()).id;
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   describe('addDoctorToFavorites', () => {

@@ -2,12 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { clearDatabase } from '../integration/db';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { freezeDate } from '../integration/time';
 
 const PASSWORD = 'Password1';
@@ -21,7 +21,7 @@ interface AuthBody {
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let redis: Redis;
 
   beforeAll(async () => {
@@ -33,7 +33,8 @@ describe('Auth (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
+    db = app.get<Database>(DB);
+    await resetSchema(db);
     redis = app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false });
   });
 
@@ -45,7 +46,7 @@ describe('Auth (e2e)', () => {
 
   beforeEach(async () => {
     jest.useRealTimers();
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
     await redis.flushdb();
   });
 

@@ -3,15 +3,17 @@ import type { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import type Redis from 'ioredis';
-import { DataSource } from 'typeorm';
+import { eq } from 'drizzle-orm';
+import type { Pool } from 'pg';
 import { AuthError } from 'src/common/errors/auth.error';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Database } from 'src/db/db.module';
+import { user as userTable } from 'src/db/schema';
+import type { User } from 'src/db/schema';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { UsersService } from 'src/domain/users/users.service';
-import { User } from 'src/entities/user.entity';
 import type { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { PasswordService } from 'src/infrastructure/password/password.service';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { createTestRedis } from './redis';
 import { freezeDate } from './time';
@@ -34,7 +36,8 @@ interface TokenClaims {
 }
 
 describe('AuthService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let redis: Redis;
   let jwtService: JwtService;
@@ -43,8 +46,8 @@ describe('AuthService (integration)', () => {
   let user: User;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
     redis = createTestRedis();
     jwtService = new JwtService({
       secret: 'int-secret-at-least-32-characters-long',
@@ -52,7 +55,7 @@ describe('AuthService (integration)', () => {
     });
     const passwordService = new PasswordService();
     const usersService = new UsersService(
-      createSafeRepository(dataSource.getRepository(User)),
+      db,
       {} as ImageFileStorageService,
       passwordService,
     );
@@ -73,7 +76,7 @@ describe('AuthService (integration)', () => {
 
   beforeEach(async () => {
     jest.useRealTimers();
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
     await redis.flushdb();
     const password = await new PasswordService().hash(PASSWORD);
 
@@ -87,7 +90,7 @@ describe('AuthService (integration)', () => {
 
   afterAll(async () => {
     await redis.quit();
-    await dataSource.destroy();
+    await pool.end();
   });
 
   const refreshKey = (userId = user.id, sid = SID) =>
@@ -267,7 +270,7 @@ describe('AuthService (integration)', () => {
 
     it('пользователь удалён → AuthError, а не 404', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
-      await dataSource.getRepository(User).delete(user.id);
+      await db.delete(userTable).where(eq(userTable.id, user.id));
 
       const error = await rejection(service.refresh(user.id, refreshToken));
 

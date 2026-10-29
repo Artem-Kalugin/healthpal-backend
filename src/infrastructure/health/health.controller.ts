@@ -8,13 +8,15 @@ import {
 import {
   HealthCheck,
   HealthCheckService,
-  TypeOrmHealthIndicator,
   MemoryHealthIndicator,
   HealthIndicatorResult,
 } from '@nestjs/terminus';
+import { sql } from 'drizzle-orm';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { REDIS_PROVIDER_KEY } from '../redis/redis.module';
 import { Redis } from 'ioredis';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
 import { Public } from 'src/common/helpers/decorators/public.decorator';
 
 @ApiExcludeController()
@@ -23,7 +25,7 @@ import { Public } from 'src/common/helpers/decorators/public.decorator';
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
-    private readonly database: TypeOrmHealthIndicator,
+    @Inject(DB) private readonly db: Database,
     private readonly memory: MemoryHealthIndicator,
     @Inject(REDIS_PROVIDER_KEY)
     private readonly redisClient: Redis,
@@ -39,7 +41,10 @@ export class HealthController {
 
     try {
       await this.health.check([
-        async () => this.database.pingCheck('database'),
+        async (): Promise<HealthIndicatorResult> => {
+          await this.db.execute(sql`select 1`);
+          return { database: { status: 'up' } };
+        },
         async () => this.memory.checkHeap('memory_heap', 512 * 1024 * 1024),
         async () => this.memory.checkRSS('memory_rss', 1024 * 1024 * 1024),
         redisCheck,
@@ -69,7 +74,7 @@ export class HealthController {
 
     let databaseStatus = '';
     try {
-      await this.database.pingCheck('database');
+      await this.db.execute(sql`select 1`);
       databaseStatus = 'connected';
     } catch {
       databaseStatus = 'disconnected';

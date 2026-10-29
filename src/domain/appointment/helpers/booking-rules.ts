@@ -1,9 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { APPOINTMENT_MIN_LEAD_MINUTES } from 'src/common/config';
 import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
-import type { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-
-type Startable = Pick<DoctorTimeSlot, 'date' | 'startTime'>;
+type Startable = { date: string; startTime: string };
 
 /** Приём должен начинаться не раньше `now + APPOINTMENT_MIN_LEAD_MINUTES` по часам центра. */
 export const assertBookingWindow = (
@@ -20,11 +18,11 @@ export const assertBookingWindow = (
 
 /** Слот принадлежит врачу и попадает в окно записи. */
 export const assertSlotBookable = (
-  slot: Startable & { doctor: { id: string } },
+  slot: Startable & { doctorId: string },
   doctorId: string,
   timezone: string,
 ) => {
-  if (slot.doctor.id !== doctorId) {
+  if (slot.doctorId !== doctorId) {
     throw new BadRequestException('Тайм слот не принадлежит этому врачу');
   }
 

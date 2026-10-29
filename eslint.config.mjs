@@ -103,6 +103,7 @@ export default tseslint.config(
             e: {},
             e2e: { checkFilenames: false },
             res: false,
+            db: false,
             cmd: { command: true },
             errCb: { handleError: true },
           },

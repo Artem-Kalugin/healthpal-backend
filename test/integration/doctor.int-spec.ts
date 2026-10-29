@@ -1,12 +1,11 @@
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { DoctorCategoryType } from 'src/db/enums';
+import { userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { DoctorSearchQueryDto } from 'src/domain/doctor/dto/doctor-search-query.dto';
 import { SortOrder } from 'src/common/config';
-import { DoctorCategoryType } from 'src/entities/doctor-category.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { UserFavoriteDoctor } from 'src/entities/user-favorite-doctor.relation';
-import { createTestDataSource } from './db';
+import { createTestDb } from './db';
 import { createFactories } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -23,7 +22,8 @@ const [D1, D2, D3, D4] = [id(1), id(2), id(3), id(4)];
  * | D4   | Юг    | cardiology | 3.0     | 20     | 2020 |
  */
 describe('DoctorService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let service: DoctorService;
   let userA: string;
   let userB: string;
@@ -34,11 +34,9 @@ describe('DoctorService (integration)', () => {
   let southId: string;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    const factories = createFactories(dataSource);
-    service = new DoctorService(
-      createSafeRepository(dataSource.getRepository(Doctor)),
-    );
+    ({ db, pool } = await createTestDb());
+    const factories = createFactories(db);
+    service = new DoctorService(db);
 
     const north = await factories.medicalCenter({
       name: 'Клиника Север',
@@ -61,8 +59,25 @@ describe('DoctorService (integration)', () => {
       doctorId: string,
       name: string,
       surname: string,
-      rest: Partial<Doctor>,
-    ) => factories.doctor({ id: doctorId, name, surname, ...rest });
+      rest: {
+        medicalCenter: { id: string };
+        category: { id: string };
+        rating: number;
+        reviewsCount: number;
+        practiceStartYear: number;
+      },
+    ) => {
+      const { medicalCenter, category, ...fields } = rest;
+
+      return factories.doctor({
+        id: doctorId,
+        name,
+        surname,
+        medicalCenterId: medicalCenter.id,
+        categoryId: category.id,
+        ...fields,
+      });
+    };
 
     await doctor(D1, 'Анна', 'Смирнова', {
       medicalCenter: north,
@@ -99,9 +114,9 @@ describe('DoctorService (integration)', () => {
 
     // Порядок добавления (D2, D1, D4) не совпадает ни с порядком id, ни с обратным
     const favorite = (userId: string, doctorId: string, createdAt: string) =>
-      dataSource
-        .getRepository(UserFavoriteDoctor)
-        .save({ userId, doctorId, createdAt: new Date(createdAt) });
+      db
+        .insert(userFavoriteDoctor)
+        .values({ userId, doctorId, createdAt: new Date(createdAt) });
     await favorite(userA, D2, '2026-01-01T00:00:00Z');
     await favorite(userA, D1, '2026-02-01T00:00:00Z');
     await favorite(userA, D4, '2026-03-01T00:00:00Z');
@@ -109,7 +124,7 @@ describe('DoctorService (integration)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   const search = async (

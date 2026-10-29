@@ -61,7 +61,7 @@ describe('booking-rules', () => {
 
   describe('assertSlotBookable', () => {
     const slot = (doctorId = DOCTOR_ID) => ({
-      doctor: { id: doctorId },
+      doctorId,
       date: '2026-11-03',
       startTime: '11:00:00',
     });

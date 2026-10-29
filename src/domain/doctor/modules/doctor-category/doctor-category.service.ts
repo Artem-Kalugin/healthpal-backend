@@ -1,27 +1,13 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { DoctorCategory } from 'src/entities/doctor-category.entity';
-import { CreateDoctorCategoryDto } from './dto/create-doctor-category.dto';
+import { Inject, Injectable } from '@nestjs/common';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { doctorCategory } from 'src/db/schema';
 
 @Injectable()
 export class DoctorCategoryService {
-  constructor(
-    @InjectRepository(DoctorCategory)
-    private readonly repo: SafeRepository<DoctorCategory>,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
-  async create(dto: CreateDoctorCategoryDto) {
-    const count = await this.repo.count();
-    if (count >= 20) {
-      throw new BadRequestException('Max 20 categories allowed');
-    }
-
-    const category = this.repo.create(dto);
-    return this.repo.safeSave(category);
-  }
-
-  async findAll(): Promise<DoctorCategory[]> {
-    return this.repo.find();
+  async findAll() {
+    return this.db.select().from(doctorCategory);
   }
 }

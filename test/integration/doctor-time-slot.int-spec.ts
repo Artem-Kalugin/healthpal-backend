@@ -1,8 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import type { doctorTimeSlot } from 'src/db/schema';
 import { DoctorTimeSlotService } from 'src/domain/doctor/modules/doctor-time-slot/doctor-time-slot.service';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { freezeDate } from './time';
 
@@ -17,25 +18,24 @@ const BERLIN = 'Europe/Berlin';
 const WIDE_RANGE = ['2026-10-01', '2026-12-31'] as const;
 
 describe('DoctorTimeSlotService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: DoctorTimeSlotService;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
-    service = new DoctorTimeSlotService(
-      dataSource.getRepository(DoctorTimeSlot),
-    );
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
+    service = new DoctorTimeSlotService(db);
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   beforeEach(async () => {
     freezeDate(NOW);
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('DoctorTimeSlotService (integration)', () => {
 
   const doctorIn = async (timezone = MOSCOW) =>
     factories.doctor({
-      medicalCenter: await factories.medicalCenter({ timezone }),
+      medicalCenterId: (await factories.medicalCenter({ timezone })).id,
     });
 
   const slot = (
@@ -54,7 +54,7 @@ describe('DoctorTimeSlotService (integration)', () => {
     endTime = startTime,
   ) => factories.timeSlot(doctorId, { date, startTime, endTime });
 
-  const book = async (timeSlot: DoctorTimeSlot) => {
+  const book = async (timeSlot: typeof doctorTimeSlot.$inferSelect) => {
     const user = await factories.user();
 
     return factories.appointment(user.id, timeSlot);

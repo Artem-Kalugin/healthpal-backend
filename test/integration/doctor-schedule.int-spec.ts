@@ -1,14 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { ScheduleDay } from 'src/db/enums';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { DoctorScheduleService } from 'src/domain/doctor/modules/doctor-schedule/doctor-schedule.service';
-import {
-  DoctorSchedule,
-  ScheduleDay,
-} from 'src/entities/doctor-schedule.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000999';
@@ -21,25 +17,23 @@ const emptyWeek = () =>
   );
 
 describe('DoctorScheduleService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: DoctorScheduleService;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
-    service = new DoctorScheduleService(
-      dataSource.getRepository(DoctorSchedule),
-      new DoctorService(createSafeRepository(dataSource.getRepository(Doctor))),
-    );
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
+    service = new DoctorScheduleService(db, new DoctorService(db));
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   it('врач без расписания → все семь дней с пустыми списками', async () => {

@@ -1,6 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './domain/users/users.module';
 import { AuthModule } from './domain/auth/auth.module';
 import { APP_GUARD } from '@nestjs/core';
@@ -15,6 +14,7 @@ import { FavoritesModule } from './domain/favorites/favorites.module';
 import { AppointmentModule } from './domain/appointment/appointment.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { TerminusModule } from '@nestjs/terminus';
+import { DbModule } from './db/db.module';
 
 @Module({
   imports: [
@@ -28,17 +28,7 @@ import { TerminusModule } from '@nestjs/terminus';
     TerminusModule.forRoot({
       gracefulShutdownTimeoutMs: 1000,
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST ?? 'localhost',
-      port: Number(process.env.DATABASE_PORT ?? 5432),
-      username: process.env.DATABASE_USER,
-      password: process.env.DATABASE_PASSWORD,
-      database: process.env.DATABASE_NAME ?? 'healthpal',
-      autoLoadEntities: true,
-      synchronize: process.env.NODE_ENV !== 'production',
-      logging: process.env.NODE_ENV !== 'production',
-    }),
+    DbModule,
     FavoritesModule,
     AppointmentModule,
     UsersModule,

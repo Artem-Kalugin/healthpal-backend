@@ -2,14 +2,15 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { Appointment } from 'src/entities/appointment.entity';
-import { clearDatabase } from '../integration/db';
+import { appointment as appointmentTable } from 'src/db/schema';
+import { eq } from 'drizzle-orm';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
 import { freezeDate } from '../integration/time';
 
@@ -20,7 +21,7 @@ type Body = Record<string, unknown>;
 
 describe('Appointments (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let factories: ReturnType<typeof createFactories>;
   let authService: AuthService;
 
@@ -33,8 +34,9 @@ describe('Appointments (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
-    factories = createFactories(dataSource);
+    db = app.get<Database>(DB);
+    await resetSchema(db);
+    factories = createFactories(db);
     authService = app.get(AuthService, { strict: false });
   });
 
@@ -46,7 +48,7 @@ describe('Appointments (e2e)', () => {
 
   beforeEach(async () => {
     freezeDate(NOW);
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterEach(() => {
@@ -263,10 +265,11 @@ describe('Appointments (e2e)', () => {
       );
 
       expect(status).toBe(404);
-      const stored = await dataSource
-        .getRepository(Appointment)
-        .findOneByOrFail({ id: appointment.id });
-      expect(stored.isCancelled).toBe(false);
+      const [stored] = await db
+        .select()
+        .from(appointmentTable)
+        .where(eq(appointmentTable.id, appointment.id));
+      expect(stored?.isCancelled).toBe(false);
     });
   });
 

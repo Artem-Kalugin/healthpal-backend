@@ -7,6 +7,7 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   '@parcel/watcher': false
+  esbuild: false
 
 overrides:
   multer: ^2.5.0

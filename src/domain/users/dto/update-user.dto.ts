@@ -13,7 +13,7 @@ import {
   OmitType,
   PartialType,
 } from '@nestjs/swagger';
-import { Gender } from 'src/entities/user.entity';
+import { Gender } from 'src/db/enums';
 
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['phone', 'password']),

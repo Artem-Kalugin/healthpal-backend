@@ -29,8 +29,7 @@ export class AppointmentResponseDto {
   doctor: DoctorResponseDto;
 }
 
-// create/cancel/reschedule не догружают врача целиком: POST отдаёт только `id`,
-// cancel и reschedule отдают врача без `category`
+// мутации отдают врача без `category`
 class AppointmentMutationDoctorDto extends IntersectionType(
   PickType(DoctorResponseDto, ['id'] as const),
   PartialType(OmitType(DoctorResponseDto, ['id', 'category'] as const)),

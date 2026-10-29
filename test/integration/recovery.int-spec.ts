@@ -13,7 +13,7 @@ import {
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
 import type { UsersService } from 'src/domain/users/users.service';
 import type { PasswordService } from 'src/infrastructure/password/password.service';
-import { User } from 'src/entities/user.entity';
+import type { User } from 'src/db/schema';
 import { createTestRedis } from './redis';
 
 const OTP_TTL = 300;

@@ -1,9 +1,8 @@
-import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 import { DoctorCategoryResponseDto } from '../modules/doctor-category/dto/doctor-category-response.dto';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
 import { Image } from 'src/common/helpers/image.dto';
-import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specification';
 
 class DoctorResponseDoctorCategoryDto extends PickType(
   DoctorCategoryResponseDto,
@@ -29,7 +28,7 @@ export class DoctorResponseDto {
   image: Image;
 
   @Expose()
-  rating: number;
+  rating: string;
 
   @Expose()
   reviewsCount: number;
@@ -44,8 +43,7 @@ export class DoctorResponseDto {
   description: string;
 
   @Expose()
-  @ApiPropertyOptional()
-  [favoritedByUserPropertyName]?: boolean;
+  isFavorite?: boolean;
 
   @Expose()
   @Type(() => DoctorResponseDoctorCategoryDto)

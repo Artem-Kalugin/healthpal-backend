@@ -1,9 +1,8 @@
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCentersService } from 'src/domain/medical-center/medical-center.service';
-import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { UserFavoriteMedicalCenter } from 'src/entities/user-favorite-medical-center.relation';
-import { createTestDataSource } from './db';
+import { createTestDb } from './db';
 import { createFactories } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -25,18 +24,17 @@ const EQUATOR_ORIGIN = { lat: 0, lon: 0 };
  * | C6    | 0.05  | 5.6          | 3.0 × 10                     | 3.00   | 10           |
  */
 describe('MedicalCentersService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let service: MedicalCentersService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    const factories = createFactories(dataSource);
-    service = new MedicalCentersService(
-      createSafeRepository(dataSource.getRepository(MedicalCenter)),
-    );
+    ({ db, pool } = await createTestDb());
+    const factories = createFactories(db);
+    service = new MedicalCentersService(db);
 
     const center = (centerId: string, lat: number, lon: number) =>
       factories.medicalCenter({ id: centerId, name: centerId, lat, lon });
@@ -48,10 +46,15 @@ describe('MedicalCentersService (integration)', () => {
     const c6 = await center(C6, 0, 0.05);
 
     const doctor = (
-      medicalCenter: MedicalCenter,
+      medicalCenter: { id: string },
       rating: number,
       reviewsCount: number,
-    ) => factories.doctor({ medicalCenter, rating, reviewsCount });
+    ) =>
+      factories.doctor({
+        medicalCenterId: medicalCenter.id,
+        rating,
+        reviewsCount,
+      });
     await doctor(c1, 5, 10);
     await doctor(c1, 4, 30);
     await doctor(c2, 4.6, 5);
@@ -66,7 +69,7 @@ describe('MedicalCentersService (integration)', () => {
 
     // Порядок добавления (C3, C1, C6) не совпадает ни с порядком id, ни с обратным
     const favorite = (userId: string, medicalCenterId: string, at: string) =>
-      dataSource.getRepository(UserFavoriteMedicalCenter).save({
+      db.insert(userFavoriteMedicalCenter).values({
         userId,
         medicalCenterId,
         createdAt: new Date(at),
@@ -78,27 +81,22 @@ describe('MedicalCentersService (integration)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   const byRating = async (userId = userWithoutFavorites, top5Only = false) =>
     service.findByRatingForUser(userId, top5Only);
 
-  // сервис подмешивает distance через @ts-expect-error, в его типе поля нет
-  type WithDistance = MedicalCenter & {
-    distance?: number;
-    walkingTimeMinutes?: number;
-  };
   const byDistance = async (
     point: { lat: number; lon: number } = EQUATOR_ORIGIN,
     top5Only = false,
   ) =>
-    (await service.findWithDistanceForUser(
+    service.findWithDistanceForUser(
       userWithoutFavorites,
       point.lat,
       point.lon,
       top5Only,
-    )) as WithDistance[];
+    );
 
   describe('findByRatingForUser', () => {
     it('rating — среднее, взвешенное по отзывам, reviewsCount — их сумма', async () => {
