@@ -33,7 +33,7 @@ import { ErrorCode } from 'src/common/errors/error-code';
 export class AppointmentService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async getAppointmentsForUser(userId: string, query: AppointmentQueryDto) {
+  async getForUser(userId: string, query: AppointmentQueryDto) {
     const { page, size, type } = query;
     const now = sql`${new Date().toISOString()}::timestamptz`;
 
@@ -70,7 +70,7 @@ export class AppointmentService {
     return { ...result, data: result.data.map(nestDoctor) };
   }
 
-  async createAppointment(userId: string, dto: CreateAppointmentDto) {
+  async bookForUser(userId: string, dto: CreateAppointmentDto) {
     const { timeSlotId } = dto;
 
     const slot = firstOrThrow(
@@ -106,8 +106,8 @@ export class AppointmentService {
     return this.findDetailed(created.id);
   }
 
-  async cancelAppointment(appointmentId: string, userId: string) {
-    const target = await this.findOwned(appointmentId, userId);
+  async cancelForUser(userId: string, appointmentId: string) {
+    const target = await this.findOwned(userId, appointmentId);
 
     if (target.isCancelled) {
       throw new AppException(ErrorCode.APPOINTMENT_ALREADY_CANCELLED);
@@ -127,12 +127,12 @@ export class AppointmentService {
     return this.findDetailed(appointmentId);
   }
 
-  async rescheduleAppointment(
-    appointmentId: string,
+  async rescheduleForUser(
     userId: string,
+    appointmentId: string,
     newTimeSlotId: string,
   ) {
-    const target = await this.findOwned(appointmentId, userId);
+    const target = await this.findOwned(userId, appointmentId);
 
     if (target.isCancelled) {
       throw new AppException(ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE);
@@ -186,7 +186,7 @@ export class AppointmentService {
   }
 
   /** Another user's appointment is reported as not found. */
-  private async findOwned(appointmentId: string, userId: string) {
+  private async findOwned(userId: string, appointmentId: string) {
     return firstOrThrow(
       await this.db
         .select({

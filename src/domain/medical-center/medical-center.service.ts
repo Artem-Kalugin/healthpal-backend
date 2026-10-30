@@ -18,7 +18,7 @@ const TOP_LIMIT = 5;
 const WALKING_SPEED = 5;
 
 @Injectable()
-export class MedicalCentersService {
+export class MedicalCenterService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async findWithDistanceForUser(
@@ -51,9 +51,10 @@ export class MedicalCentersService {
   }
 
   async findFavoritesForUser(
-    parameters: MedicalCenterFavoritesQueryDto & { userId: string },
+    userId: string,
+    query: MedicalCenterFavoritesQueryDto,
   ) {
-    const { userId, page, size } = parameters;
+    const { page, size } = query;
     const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
 
     return paginate(

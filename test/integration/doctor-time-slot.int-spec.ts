@@ -60,10 +60,10 @@ describe('DoctorTimeSlotService (integration)', () => {
     return factories.appointment(user.id, timeSlot);
   };
 
-  const dayOf = (days: Awaited<ReturnType<typeof service.getSlotsForDoctor>>) =>
+  const dayOf = (days: Awaited<ReturnType<typeof service.getAvailable>>) =>
     days.map(day => ({ date: day.date, ids: day.slots.map(s => s.id) }));
 
-  describe('getSlotsForDoctor', () => {
+  describe('getAvailable', () => {
     it('returns slots by date ascending, time in HH:mm', async () => {
       const doctor = await doctorIn();
       const later = await slot(doctor.id, '2026-11-04', '09:00:00', '09:30:00');
@@ -75,7 +75,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       );
       const early = await slot(doctor.id, '2026-11-03', '10:00:00', '10:30:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(result).toEqual([
         {
@@ -98,7 +98,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       const own = await slot(doctor.id, '2026-11-03', '10:00:00');
       await slot(other.id, '2026-11-03', '11:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [own.id] }]);
     });
@@ -110,7 +110,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       const last = await slot(doctor.id, '2026-11-05', '10:00:00');
       await slot(doctor.id, '2026-11-06', '10:00:00');
 
-      const result = await service.getSlotsForDoctor(
+      const result = await service.getAvailable(
         doctor.id,
         '2026-11-03',
         '2026-11-05',
@@ -130,7 +130,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await book(taken);
       await book(fullyBookedDay);
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [free.id] }]);
     });
@@ -140,7 +140,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-28', '23:00:00');
       const tomorrow = await slot(doctor.id, '2026-10-30', '08:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([
         { date: '2026-10-30', ids: [tomorrow.id] },
@@ -153,7 +153,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-29', '15:00:00');
       const after = await slot(doctor.id, '2026-10-29', '15:01:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-10-29', ids: [after.id] }]);
     });
@@ -165,14 +165,8 @@ describe('DoctorTimeSlotService (integration)', () => {
       const berlinSlot = await slot(berlin.id, '2026-10-29', '14:00:00');
       await slot(moscow.id, '2026-10-29', '14:00:00');
 
-      const inBerlin = await service.getSlotsForDoctor(
-        berlin.id,
-        ...WIDE_RANGE,
-      );
-      const inMoscow = await service.getSlotsForDoctor(
-        moscow.id,
-        ...WIDE_RANGE,
-      );
+      const inBerlin = await service.getAvailable(berlin.id, ...WIDE_RANGE);
+      const inMoscow = await service.getAvailable(moscow.id, ...WIDE_RANGE);
 
       expect(dayOf(inBerlin)).toEqual([
         { date: '2026-10-29', ids: [berlinSlot.id] },
@@ -187,7 +181,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-30', '01:00:00');
       const upcoming = await slot(doctor.id, '2026-10-30', '02:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([
         { date: '2026-10-30', ids: [upcoming.id] },
@@ -196,7 +190,7 @@ describe('DoctorTimeSlotService (integration)', () => {
 
     it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
       await expect(
-        service.getSlotsForDoctor(
+        service.getAvailable(
           '00000000-0000-4000-8000-000000000000',
           ...WIDE_RANGE,
         ),
@@ -204,7 +198,7 @@ describe('DoctorTimeSlotService (integration)', () => {
     });
   });
 
-  describe('getSlotsRange', () => {
+  describe('getAvailableRange', () => {
     it('takes min/max only over the slots of this doctor', async () => {
       const doctor = await doctorIn();
       const other = await doctorIn();
@@ -214,7 +208,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(other.id, '2026-11-01', '10:00:00');
       await slot(other.id, '2026-11-20', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-11-05',
         maxDate: '2026-11-09',
       });
@@ -227,7 +221,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-11-07', '10:00:00');
       await book(await slot(doctor.id, '2026-11-09', '10:00:00'));
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-11-05',
         maxDate: '2026-11-07',
       });
@@ -241,7 +235,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-30', '02:00:00');
       await slot(doctor.id, '2026-11-02', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-10-30',
         maxDate: '2026-11-02',
       });
@@ -252,7 +246,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-29', '15:00:00');
       await slot(doctor.id, '2026-10-30', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-10-30',
         maxDate: '2026-10-30',
       });
@@ -263,7 +257,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-10-28', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).rejects.toMatchObject({
+      await expect(service.getAvailableRange(doctor.id)).rejects.toMatchObject({
         code: ErrorCode.NO_AVAILABLE_SLOTS,
       });
     });

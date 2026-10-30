@@ -15,16 +15,16 @@ export class DoctorTimeSlotController {
 
   @Get()
   @ApiSerialized(DateWithTimeSlots, { isArray: true })
-  async getSlots(
+  async list(
     @Param('doctorId', ParseUUIDPipe) doctorId: string,
     @Query() { startDate, endDate }: TimeSlotsQueryDto,
   ) {
-    return this.service.getSlotsForDoctor(doctorId, startDate, endDate);
+    return this.service.getAvailable(doctorId, startDate, endDate);
   }
 
   @Get('/range')
   @ApiSerialized(TimeSlotsRangeResponseDto)
-  async getSlotsRange(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
-    return this.service.getSlotsRange(doctorId);
+  async getRange(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
+    return this.service.getAvailableRange(doctorId);
   }
 }

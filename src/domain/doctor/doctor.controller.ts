@@ -16,32 +16,26 @@ export class DoctorController {
 
   @Get('search')
   @ApiSerialized(DoctorResponseDto, { paginated: true })
-  async searchDoctors(
+  async search(
     @CurrentUserId() userId: string,
     @Query() query: DoctorSearchQueryDto,
   ) {
-    return await this.doctorService.searchDoctorsForUser({
-      ...query,
-      userId,
-    });
+    return await this.doctorService.searchForUser(userId, query);
   }
 
   @Get('/favorites')
   @ApiSerialized(DoctorResponseDto, { paginated: true })
-  async favoritesForUser(
+  async listFavorites(
     @CurrentUserId() userId: string,
     @Query() query: DoctorFavoritesQueryDto,
   ) {
-    return await this.doctorService.findFavoritesForUser({
-      ...query,
-      userId,
-    });
+    return await this.doctorService.findFavoritesForUser(userId, query);
   }
 
   @Get(':id')
   @ApiParam({ name: 'id', type: String })
   @ApiSerialized(DoctorResponseDto)
-  async getDoctorById(
+  async getById(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DoctorResponseDto> {

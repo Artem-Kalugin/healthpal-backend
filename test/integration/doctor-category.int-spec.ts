@@ -41,7 +41,7 @@ describe('DoctorCategoryService (integration)', () => {
       order: 1,
     });
 
-    const result = await service.findAll();
+    const result = await service.find();
 
     expect(result.map(item => item.id)).toEqual(
       [cardiology.id, general.id]

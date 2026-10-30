@@ -8,7 +8,7 @@ import { doctorCategory } from 'src/db/schema';
 export class DoctorCategoryService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async findAll() {
+  async find() {
     return this.db
       .select()
       .from(doctorCategory)

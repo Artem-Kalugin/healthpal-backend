@@ -238,29 +238,29 @@ describe('UsersService (integration)', () => {
       expect(storage.processAndSave).not.toHaveBeenCalled();
     });
 
-    it('findOne: UserNotFoundException', async () => {
-      await expect(service.findOne(MISSING_ID)).rejects.toBeInstanceOf(
+    it('findById: UserNotFoundException', async () => {
+      await expect(service.findById(MISSING_ID)).rejects.toBeInstanceOf(
         UserNotFoundException,
       );
     });
 
-    it('findOneByPhone: UserNotFoundException', async () => {
-      await expect(
-        service.findOneByPhone('+70000000000'),
-      ).rejects.toBeInstanceOf(UserNotFoundException);
+    it('findByPhone: UserNotFoundException', async () => {
+      await expect(service.findByPhone('+70000000000')).rejects.toBeInstanceOf(
+        UserNotFoundException,
+      );
     });
 
-    it('changeUserPassword: UserNotFoundException', async () => {
+    it('changePassword: UserNotFoundException', async () => {
       await expect(
-        service.changeUserPassword(MISSING_ID, 'x'),
+        service.changePassword(MISSING_ID, 'x'),
       ).rejects.toBeInstanceOf(UserNotFoundException);
     });
   });
 
-  it('changeUserPassword: saves the new hash', async () => {
+  it('changePassword: saves the new hash', async () => {
     const user = await factories.user();
 
-    await service.changeUserPassword(user.id, 'new-hash');
+    await service.changePassword(user.id, 'new-hash');
 
     expect((await reload(user.id)).password).toBe('new-hash');
   });

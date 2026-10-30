@@ -49,7 +49,7 @@ export class RecoveryService {
   }
 
   async requestOtp(phone: string) {
-    await this.usersService.findOneByPhone(phone);
+    await this.usersService.findByPhone(phone);
 
     const lockSet = await this.redis.set(
       redisKeys.otpLock(phone),
@@ -147,11 +147,11 @@ export class RecoveryService {
       });
     }
 
-    const user = await this.usersService.findOneByPhone(phone);
+    const user = await this.usersService.findByPhone(phone);
 
     const newUserPassword = await this.passwordService.hash(newPassword);
 
-    await this.usersService.changeUserPassword(user.id, newUserPassword);
+    await this.usersService.changePassword(user.id, newUserPassword);
 
     // a stolen refresh token must not outlive a password change
     await this.authService.revokeAllSessions(user.id);

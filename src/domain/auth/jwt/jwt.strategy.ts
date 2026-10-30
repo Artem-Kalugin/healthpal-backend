@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtContent): Promise<JwtContent> {
     try {
-      await this.usersService.findOne(payload.id);
+      await this.usersService.findById(payload.id);
     } catch (error) {
       if (error instanceof UserNotFoundException) {
         throw new AppException(ErrorCode.UNAUTHORIZED, {

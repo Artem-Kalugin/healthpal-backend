@@ -16,7 +16,7 @@ export class DoctorCategoryController {
     description: 'List of doctor categories',
     isArray: true,
   })
-  async getAll(): Promise<DoctorCategoryResponseDto[]> {
-    return await this.service.findAll();
+  async list() {
+    return await this.service.find();
   }
 }

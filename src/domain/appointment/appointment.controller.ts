@@ -26,42 +26,42 @@ export class AppointmentController {
 
   @Post()
   @ApiSerialized(AppointmentResponseDto, { created: true })
-  async createAppointment(
+  async create(
     @CurrentUserId() userId: string,
     @Body() dto: CreateAppointmentDto,
   ) {
-    return await this.appointmentService.createAppointment(userId, dto);
+    return await this.appointmentService.bookForUser(userId, dto);
   }
 
   @Get()
   @ApiSerialized(AppointmentResponseDto, { paginated: true })
-  async getAppointments(
+  async list(
     @CurrentUserId() userId: string,
     @Query() query: AppointmentQueryDto,
   ) {
-    return await this.appointmentService.getAppointmentsForUser(userId, query);
+    return await this.appointmentService.getForUser(userId, query);
   }
 
   @Patch(':id/cancel')
   @ApiParam({ name: 'id', type: String })
   @ApiSerialized(AppointmentResponseDto)
-  async cancelAppointment(
+  async cancel(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return await this.appointmentService.cancelAppointment(id, userId);
+    return await this.appointmentService.cancelForUser(userId, id);
   }
 
   @Patch(':id/reschedule')
   @ApiSerialized(AppointmentResponseDto)
-  async rescheduleAppointment(
+  async reschedule(
     @Param('id', ParseUUIDPipe) appointmentId: string,
     @Body() dto: RescheduleAppointmentDto,
     @CurrentUserId() userId: string,
   ) {
-    return await this.appointmentService.rescheduleAppointment(
-      appointmentId,
+    return await this.appointmentService.rescheduleForUser(
       userId,
+      appointmentId,
       dto.newTimeSlotId,
     );
   }

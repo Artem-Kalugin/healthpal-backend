@@ -39,7 +39,7 @@ describe('DoctorScheduleService (integration)', () => {
   it('doctor without a schedule → all seven days with empty lists', async () => {
     const doctor = await factories.doctor();
 
-    const result = await service.getScheduleByDoctorId(doctor.id);
+    const result = await service.get(doctor.id);
 
     expect(result).toEqual(emptyWeek());
   });
@@ -63,7 +63,7 @@ describe('DoctorScheduleService (integration)', () => {
       endTime: '12:00:00',
     });
 
-    const result = await service.getScheduleByDoctorId(doctor.id);
+    const result = await service.get(doctor.id);
 
     expect(result).toEqual({
       ...emptyWeek(),
@@ -76,8 +76,8 @@ describe('DoctorScheduleService (integration)', () => {
   });
 
   it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
-    await expect(
-      service.getScheduleByDoctorId(MISSING_ID),
-    ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
+    await expect(service.get(MISSING_ID)).rejects.toMatchObject({
+      code: ErrorCode.DOCTOR_NOT_FOUND,
+    });
   });
 });

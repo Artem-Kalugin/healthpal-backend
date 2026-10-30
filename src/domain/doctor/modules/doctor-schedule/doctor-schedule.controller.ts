@@ -13,7 +13,7 @@ export class DoctorScheduleController {
 
   @Get()
   @ApiSerialized(DoctorScheduleResponseDto)
-  getDoctorSchedule(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
-    return this.service.getScheduleByDoctorId(doctorId);
+  get(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
+    return this.service.get(doctorId);
   }
 }

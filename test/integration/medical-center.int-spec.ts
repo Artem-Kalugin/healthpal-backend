@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteMedicalCenter } from 'src/db/schema';
-import { MedicalCentersService } from 'src/domain/medical-center/medical-center.service';
+import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
 import { createTestDb } from './db';
 import { createFactories } from './factories';
 
@@ -11,10 +11,10 @@ const [C1, C2, C3, C4, C5, C6] = [id(1), id(2), id(3), id(4), id(5), id(6)];
 const SPB = { lat: 59.9343, lon: 30.3351 };
 const EQUATOR_ORIGIN = { lat: 0, lon: 0 };
 
-describe('MedicalCentersService (integration)', () => {
+describe('MedicalCenterService (integration)', () => {
   let db: Database;
   let pool: Pool;
-  let service: MedicalCentersService;
+  let service: MedicalCenterService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
@@ -22,7 +22,7 @@ describe('MedicalCentersService (integration)', () => {
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
     const factories = createFactories(db);
-    service = new MedicalCentersService(db);
+    service = new MedicalCenterService(db);
 
     const center = (centerId: string, lat: number, lon: number) =>
       factories.medicalCenter({ id: centerId, name: centerId, lat, lon });
@@ -185,7 +185,7 @@ describe('MedicalCentersService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) =>
-      service.findFavoritesForUser({ userId, page, size });
+      service.findFavoritesForUser(userId, { page, size });
 
     it('returns only the favorites of the user, most recently added first', async () => {
       const { data } = await favoritesFor(userA);

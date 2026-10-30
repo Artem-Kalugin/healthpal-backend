@@ -4,49 +4,42 @@ import { Authenticated } from 'src/common/helpers/decorators/authenticated.decor
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MedicalCenterResponseDto } from './dto/medical-center-response.dto';
-import { MedicalCentersService } from './medical-center.service';
+import { MedicalCenterService } from './medical-center.service';
 import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 
 @ApiTags('Medical Centers')
 @Authenticated()
 @Controller('medical-centers')
-export class MedicalCentersController {
-  constructor(private readonly service: MedicalCentersService) {}
+export class MedicalCenterController {
+  constructor(private readonly service: MedicalCenterService) {}
 
   @Get()
   @ApiSerialized(MedicalCenterResponseDto, { isArray: true })
-  async getMedicalCenters(
+  async list(
     @CurrentUserId() userId: string,
     @Query() query: GetMedicalCentersDto,
-  ): Promise<MedicalCenterResponseDto[]> {
+  ) {
     const { lat, lon, shouldTake5Only } = query;
 
     if (lat && lon) {
-      const res = await this.service.findWithDistanceForUser(
+      return await this.service.findWithDistanceForUser(
         userId,
         +lat,
         +lon,
         shouldTake5Only,
       );
-
-      return res;
     }
 
-    const res = await this.service.findByRatingForUser(userId, shouldTake5Only);
-
-    return res;
+    return await this.service.findByRatingForUser(userId, shouldTake5Only);
   }
 
   @Get('/favorites')
   @ApiSerialized(MedicalCenterResponseDto, { paginated: true })
-  async favoritesForUser(
+  async listFavorites(
     @CurrentUserId() userId: string,
     @Query() query: MedicalCenterFavoritesQueryDto,
   ) {
-    return await this.service.findFavoritesForUser({
-      ...query,
-      userId,
-    });
+    return await this.service.findFavoritesForUser(userId, query);
   }
 }

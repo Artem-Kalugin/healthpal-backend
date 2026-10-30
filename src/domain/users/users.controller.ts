@@ -37,6 +37,6 @@ export class UsersController {
   })
   @AuthRegistrationGuardType(AuthGuardsByRegistration.ANY)
   async getCurrent(@CurrentUserId() userId: string): Promise<UserResponseDto> {
-    return this.usersService.findOne(userId);
+    return this.usersService.findById(userId);
   }
 }

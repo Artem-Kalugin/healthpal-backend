@@ -135,22 +135,20 @@ describe('DoctorService (integration)', () => {
     query: Partial<DoctorSearchQueryDto> = {},
     userId = userA,
   ) => {
-    const result = await service.searchDoctorsForUser({
+    const result = await service.searchForUser(userId, {
       page: 1,
       size: 10,
       ...query,
-      userId,
     });
 
     return result.data.map(item => item.id);
   };
 
-  describe('searchDoctorsForUser', () => {
+  describe('searchForUser', () => {
     it('returns all doctors by id with center, category and isFavorite', async () => {
-      const { data } = await service.searchDoctorsForUser({
+      const { data } = await service.searchForUser(userA, {
         page: 1,
         size: 10,
-        userId: userA,
       });
 
       expect(data.map(item => item.id)).toEqual([D1, D2, D3, D4]);
@@ -162,10 +160,9 @@ describe('DoctorService (integration)', () => {
 
     it('isFavorite is computed for a specific user and does not duplicate rows', async () => {
       const favoritesOf = async (userId: string) => {
-        const { data } = await service.searchDoctorsForUser({
+        const { data } = await service.searchForUser(userId, {
           page: 1,
           size: 10,
-          userId,
         });
 
         return data.map(item => [item.id, item.isFavorite]);
@@ -254,8 +251,7 @@ describe('DoctorService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) => {
-      const { data } = await service.findFavoritesForUser({
-        userId,
+      const { data } = await service.findFavoritesForUser(userId, {
         page,
         size,
       });

@@ -109,7 +109,7 @@ describe('AppointmentService (integration)', () => {
   };
 
   const list = async (userId: string, type: AppointmentType, size = 100) => {
-    const { data } = await service.getAppointmentsForUser(userId, {
+    const { data } = await service.getForUser(userId, {
       type,
       page: 1,
       size,
@@ -119,13 +119,13 @@ describe('AppointmentService (integration)', () => {
   };
 
   const listFuture = (userId: string, page = 1, size = 10) =>
-    service.getAppointmentsForUser(userId, {
+    service.getForUser(userId, {
       type: AppointmentType.FUTURE,
       page,
       size,
     });
 
-  describe('createAppointment', () => {
+  describe('bookForUser', () => {
     it('saves the appointment with the time copied from the slot and returns it with the doctor', async () => {
       const user = await factories.user();
       const doctor = await factories.doctor();
@@ -135,7 +135,7 @@ describe('AppointmentService (integration)', () => {
         endTime: '11:30:00',
       });
 
-      const result = await service.createAppointment(user.id, {
+      const result = await service.bookForUser(user.id, {
         timeSlotId: slot.id,
       });
 
@@ -156,7 +156,7 @@ describe('AppointmentService (integration)', () => {
       const user = await factories.user();
 
       await expect(
-        service.createAppointment(user.id, {
+        service.bookForUser(user.id, {
           timeSlotId: MISSING_ID,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
@@ -172,21 +172,21 @@ describe('AppointmentService (integration)', () => {
       });
 
       await expect(
-        service.createAppointment(user.id, {
+        service.bookForUser(user.id, {
           timeSlotId: slot.id,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
     });
   });
 
-  describe('cancelAppointment', () => {
+  describe('cancelForUser', () => {
     it('rejects with APPOINTMENT_ALREADY_CANCELLED for a cancelled appointment', async () => {
       const user = await factories.user();
       const appointment = await bookFuture(user.id, 3);
-      await service.cancelAppointment(appointment.id, user.id);
+      await service.cancelForUser(user.id, appointment.id);
 
       await expect(
-        service.cancelAppointment(appointment.id, user.id),
+        service.cancelForUser(user.id, appointment.id),
       ).rejects.toMatchObject({
         code: ErrorCode.APPOINTMENT_ALREADY_CANCELLED,
       });
@@ -196,7 +196,7 @@ describe('AppointmentService (integration)', () => {
       const user = await factories.user();
 
       await expect(
-        service.cancelAppointment(MISSING_ID, user.id),
+        service.cancelForUser(user.id, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
     });
 
@@ -204,7 +204,7 @@ describe('AppointmentService (integration)', () => {
       const user = await factories.user();
       const appointment = await bookFuture(user.id, 3);
 
-      const result = await service.cancelAppointment(appointment.id, user.id);
+      const result = await service.cancelForUser(user.id, appointment.id);
 
       expect(result).toMatchObject({
         id: appointment.id,
@@ -243,10 +243,10 @@ describe('AppointmentService (integration)', () => {
       );
 
       await expect(
-        service.cancelAppointment(inBerlin.id, user.id),
+        service.cancelForUser(user.id, inBerlin.id),
       ).resolves.toMatchObject({ isCancelled: true });
       await expect(
-        service.cancelAppointment(inMoscow.id, user.id),
+        service.cancelForUser(user.id, inMoscow.id),
       ).rejects.toMatchObject({
         code: ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL,
       });
@@ -259,7 +259,7 @@ describe('AppointmentService (integration)', () => {
       const appointment = await bookFuture(owner.id, 3);
 
       await expect(
-        service.cancelAppointment(appointment.id, stranger.id),
+        service.cancelForUser(stranger.id, appointment.id),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
       const row = await stored(appointment.id);
@@ -272,9 +272,9 @@ describe('AppointmentService (integration)', () => {
       const other = await factories.user();
       const appointment = await bookFuture(owner.id, 3);
 
-      await service.cancelAppointment(appointment.id, owner.id);
+      await service.cancelForUser(owner.id, appointment.id);
 
-      const rebooked = await service.createAppointment(other.id, {
+      const rebooked = await service.bookForUser(other.id, {
         timeSlotId: appointment.timeSlotId!,
       });
       expect(rebooked.timeSlotId).toBe(appointment.timeSlotId);
@@ -284,16 +284,16 @@ describe('AppointmentService (integration)', () => {
     });
   });
 
-  describe('rescheduleAppointment', () => {
+  describe('rescheduleForUser', () => {
     it('rejects with APPOINTMENT_NOT_FOUND or TIME_SLOT_NOT_FOUND for a missing appointment or new slot', async () => {
       const user = await factories.user();
       const appointment = await bookFuture(user.id, 3);
 
       await expect(
-        service.rescheduleAppointment(MISSING_ID, user.id, MISSING_ID),
+        service.rescheduleForUser(user.id, MISSING_ID, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
       await expect(
-        service.rescheduleAppointment(appointment.id, user.id, MISSING_ID),
+        service.rescheduleForUser(user.id, appointment.id, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
     });
 
@@ -303,10 +303,10 @@ describe('AppointmentService (integration)', () => {
       const newSlot = await factories.timeSlot(appointment.doctorId, {
         date: '2026-11-05',
       });
-      await service.cancelAppointment(appointment.id, user.id);
+      await service.cancelForUser(user.id, appointment.id);
 
       await expect(
-        service.rescheduleAppointment(appointment.id, user.id, newSlot.id),
+        service.rescheduleForUser(user.id, appointment.id, newSlot.id),
       ).rejects.toMatchObject({
         code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
       });
@@ -329,7 +329,7 @@ describe('AppointmentService (integration)', () => {
           .set({ isCancelled: true, timeSlotId: null })
           .where(eq(appointmentTable.id, appointment.id));
         const outcome = expect(
-          service.rescheduleAppointment(appointment.id, user.id, newSlot.id),
+          service.rescheduleForUser(user.id, appointment.id, newSlot.id),
         ).rejects.toMatchObject({
           code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
         });
@@ -355,7 +355,7 @@ describe('AppointmentService (integration)', () => {
       });
 
       await expect(
-        service.rescheduleAppointment(soon.id, user.id, newSlot.id),
+        service.rescheduleForUser(user.id, soon.id, newSlot.id),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
       expect((await stored(soon.id)).timeSlotId).toBe(soon.timeSlotId);
     });
@@ -365,9 +365,9 @@ describe('AppointmentService (integration)', () => {
       const appointment = await bookFuture(user.id, 3);
 
       await expect(
-        service.rescheduleAppointment(
-          appointment.id,
+        service.rescheduleForUser(
           user.id,
+          appointment.id,
           appointment.timeSlotId!,
         ),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_SAME_SLOT });
@@ -382,7 +382,7 @@ describe('AppointmentService (integration)', () => {
       });
 
       await expect(
-        service.rescheduleAppointment(appointment.id, user.id, soonSlot.id),
+        service.rescheduleForUser(user.id, appointment.id, soonSlot.id),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
       expect((await stored(appointment.id)).timeSlotId).toBe(
         appointment.timeSlotId,
@@ -398,7 +398,7 @@ describe('AppointmentService (integration)', () => {
       );
 
       await expect(
-        service.rescheduleAppointment(appointment.id, user.id, otherSlot.id),
+        service.rescheduleForUser(user.id, appointment.id, otherSlot.id),
       ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_DOCTOR_MISMATCH });
     });
 
@@ -411,7 +411,7 @@ describe('AppointmentService (integration)', () => {
       });
 
       await expect(
-        service.rescheduleAppointment(appointment.id, stranger.id, newSlot.id),
+        service.rescheduleForUser(stranger.id, appointment.id, newSlot.id),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
       const row = await stored(appointment.id);
@@ -429,7 +429,7 @@ describe('AppointmentService (integration)', () => {
         endTime: '12:30:00',
       });
 
-      await service.rescheduleAppointment(appointment.id, owner.id, newSlot.id);
+      await service.rescheduleForUser(owner.id, appointment.id, newSlot.id);
 
       const moved = await stored(appointment.id);
       expect(moved).toMatchObject({
@@ -439,7 +439,7 @@ describe('AppointmentService (integration)', () => {
         isCancelled: false,
       });
       await expect(
-        service.createAppointment(other.id, {
+        service.bookForUser(other.id, {
           timeSlotId: appointment.timeSlotId!,
         }),
       ).resolves.toMatchObject({ timeSlotId: appointment.timeSlotId });
@@ -454,7 +454,7 @@ describe('AppointmentService (integration)', () => {
       const mover = await bookFuture(second.id, 4, taken.doctorId);
 
       await expect(
-        service.rescheduleAppointment(mover.id, second.id, taken.timeSlotId!),
+        service.rescheduleForUser(second.id, mover.id, taken.timeSlotId!),
       ).rejects.toMatchObject({
         cause: { constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE },
       });
@@ -470,8 +470,8 @@ describe('AppointmentService (integration)', () => {
       const dto = { timeSlotId: slot.id };
 
       const results = await Promise.allSettled([
-        service.createAppointment(first.id, dto),
-        service.createAppointment(second.id, dto),
+        service.bookForUser(first.id, dto),
+        service.bookForUser(second.id, dto),
       ]);
 
       const rejected = results.filter(r => r.status === 'rejected');
@@ -482,7 +482,7 @@ describe('AppointmentService (integration)', () => {
     });
   });
 
-  describe('getAppointmentsForUser', () => {
+  describe('getForUser', () => {
     it("paginates by appointments: every one of the user's appears on exactly one page and nobody else's", async () => {
       const user = await factories.user();
       const other = await factories.user();

@@ -21,7 +21,7 @@ export class DoctorScheduleService {
     private readonly doctorService: DoctorService,
   ) {}
 
-  async getScheduleByDoctorId(doctorId: string) {
+  async get(doctorId: string) {
     if (!(await this.doctorService.existsById(doctorId))) {
       throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }

@@ -54,7 +54,7 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     avatar?: Buffer<ArrayBufferLike>,
   ) {
-    const existingUser = await this.findOne(id);
+    const existingUser = await this.findById(id);
 
     const avatarSaved = avatar
       ? await this.imageFileStorageService.processAndSave(
@@ -108,15 +108,15 @@ export class UsersService {
     return updatedUser;
   }
 
-  async findOne(id: string) {
+  async findById(id: string) {
     return this.findOneBy(eq(user.id, id));
   }
 
-  async findOneByPhone(phone: string) {
+  async findByPhone(phone: string) {
     return this.findOneBy(eq(user.phone, phone));
   }
 
-  async changeUserPassword(userId: string, newPasswordHash: string) {
+  async changePassword(userId: string, newPasswordHash: string) {
     const updated = await this.db
       .update(user)
       .set({ password: newPasswordHash })

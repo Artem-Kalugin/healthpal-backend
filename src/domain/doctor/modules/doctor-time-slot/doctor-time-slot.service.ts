@@ -19,12 +19,8 @@ import { ErrorCode } from 'src/common/errors/error-code';
 export class DoctorTimeSlotService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async getSlotsForDoctor(
-    doctorId: string,
-    mayBeOverridedStartDate: string,
-    endDate: string,
-  ) {
-    if (mayBeOverridedStartDate > endDate) {
+  async getAvailable(doctorId: string, startDate: string, endDate: string) {
+    if (startDate > endDate) {
       throw new AppException(ErrorCode.INVALID_DATE_RANGE);
     }
 
@@ -42,7 +38,7 @@ export class DoctorTimeSlotService {
       .where(
         and(
           eq(doctorTimeSlot.doctorId, doctorId),
-          between(doctorTimeSlot.date, mayBeOverridedStartDate, endDate),
+          between(doctorTimeSlot.date, startDate, endDate),
           isNull(appointment.id),
           isUpcoming(now),
         ),
@@ -71,8 +67,8 @@ export class DoctorTimeSlotService {
     }));
   }
 
-  /** Date range in which the doctor has free future slots (same rules as in `getSlotsForDoctor`). */
-  async getSlotsRange(doctorId: string) {
+  /** Date range in which the doctor has free future slots (same rules as in `getAvailable`). */
+  async getAvailableRange(doctorId: string) {
     const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
     const [range] = await this.db

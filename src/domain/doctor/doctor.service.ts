@@ -28,9 +28,7 @@ const sortColumns: Record<DoctorSort, PgColumn> = {
 export class DoctorService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async searchDoctorsForUser(
-    parameters: DoctorSearchQueryDto & { userId: string },
-  ) {
+  async searchForUser(userId: string, query: DoctorSearchQueryDto) {
     const {
       page,
       size,
@@ -39,8 +37,7 @@ export class DoctorService {
       medicalCenterId,
       sort,
       order = SortOrder.DESC,
-      userId,
-    } = parameters;
+    } = query;
 
     const term = searchFor ? `%${escapeLike(searchFor)}%` : undefined;
     const where = and(
@@ -67,10 +64,8 @@ export class DoctorService {
     );
   }
 
-  async findFavoritesForUser(
-    parameters: DoctorFavoritesQueryDto & { userId: string },
-  ) {
-    const { userId, page, size } = parameters;
+  async findFavoritesForUser(userId: string, query: DoctorFavoritesQueryDto) {
+    const { page, size } = query;
     const userFavorites = eq(userFavoriteDoctor.userId, userId);
 
     return paginate(

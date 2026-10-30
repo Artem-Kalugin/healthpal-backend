@@ -61,7 +61,7 @@ export class AuthService {
   }> {
     const { phone, password } = loginDto;
 
-    const user = await this.usersService.findOneByPhone(phone).catch(error => {
+    const user = await this.usersService.findByPhone(phone).catch(error => {
       throw error instanceof UserNotFoundException
         ? new AppException(ErrorCode.INVALID_CREDENTIALS, {
             message: 'User not found',
@@ -164,7 +164,7 @@ export class AuthService {
       throw invalid();
     }
 
-    const user = await this.usersService.findOne(userId).catch(error => {
+    const user = await this.usersService.findById(userId).catch(error => {
       // a public endpoint must not reveal whether the user exists
       throw error instanceof UserNotFoundException ? invalid() : error;
     });

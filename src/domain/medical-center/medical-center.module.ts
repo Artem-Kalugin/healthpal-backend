@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MedicalCentersService } from './medical-center.service';
+import { MedicalCenterService } from './medical-center.service';
 import { UsersModule } from 'src/domain/users/users.module';
-import { MedicalCentersController } from './medical-center.controller';
+import { MedicalCenterController } from './medical-center.controller';
 
 @Module({
   imports: [UsersModule],
-  providers: [MedicalCentersService],
-  controllers: [MedicalCentersController],
-  exports: [MedicalCentersService],
+  providers: [MedicalCenterService],
+  controllers: [MedicalCenterController],
+  exports: [MedicalCenterService],
 })
-export class MedicalCentersModule {}
+export class MedicalCenterModule {}

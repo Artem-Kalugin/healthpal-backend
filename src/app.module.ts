@@ -7,7 +7,7 @@ import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-re
 import { environmentValidationSchema } from './env.schema';
 import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
 import { PasswordModule } from './infrastructure/password/password.module';
-import { MedicalCentersModule } from './domain/medical-center/medical-center.module';
+import { MedicalCenterModule } from './domain/medical-center/medical-center.module';
 import { LoggerMiddleware } from './common/middlewares/console.logger';
 import { DoctorModule } from './domain/doctor/doctor.module';
 import { FavoritesModule } from './domain/favorites/favorites.module';
@@ -35,7 +35,7 @@ import { DbModule } from './db/db.module';
     AuthModule,
     OnboardingSlidesModule,
     DoctorModule,
-    MedicalCentersModule,
+    MedicalCenterModule,
     PasswordModule,
     HealthModule,
   ],

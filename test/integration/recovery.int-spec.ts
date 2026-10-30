@@ -26,8 +26,8 @@ describe('RecoveryService (integration, Redis)', () => {
 
   const user = { id: 'user-id', phone: PHONE } as User;
   const usersService = {
-    findOneByPhone: jest.fn(),
-    changeUserPassword: jest.fn(),
+    findByPhone: jest.fn(),
+    changePassword: jest.fn(),
   };
   const authService = {
     generateTokens: jest.fn(),
@@ -59,8 +59,8 @@ describe('RecoveryService (integration, Redis)', () => {
   beforeEach(async () => {
     await redis.flushdb();
     jest.restoreAllMocks();
-    usersService.findOneByPhone.mockReset().mockResolvedValue(user);
-    usersService.changeUserPassword.mockReset().mockResolvedValue(undefined);
+    usersService.findByPhone.mockReset().mockResolvedValue(user);
+    usersService.changePassword.mockReset().mockResolvedValue(undefined);
     authService.generateTokens.mockReset();
     authService.revokeAllSessions.mockReset();
     passwordService.hash.mockReset().mockResolvedValue('new-hash');
@@ -87,9 +87,7 @@ describe('RecoveryService (integration, Redis)', () => {
 
   describe('requestOtp', () => {
     it('unknown phone → UserNotFound, no lock and no OTP are created', async () => {
-      usersService.findOneByPhone.mockRejectedValue(
-        new UserNotFoundException(),
-      );
+      usersService.findByPhone.mockRejectedValue(new UserNotFoundException());
 
       const error = await rejection(service.requestOtp(PHONE));
 
@@ -229,7 +227,7 @@ describe('RecoveryService (integration, Redis)', () => {
       const result = await service.resetPassword(recoveryToken, 'NewPassword1');
 
       expect(passwordService.hash).toHaveBeenCalledWith('NewPassword1');
-      expect(usersService.changeUserPassword).toHaveBeenCalledWith(
+      expect(usersService.changePassword).toHaveBeenCalledWith(
         user.id,
         'new-hash',
       );
@@ -249,7 +247,7 @@ describe('RecoveryService (integration, Redis)', () => {
       );
 
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
-      expect(usersService.changeUserPassword).toHaveBeenCalledTimes(1);
+      expect(usersService.changePassword).toHaveBeenCalledTimes(1);
     });
 
     it('unknown or expired token → error code, the password is unchanged', async () => {
@@ -258,7 +256,7 @@ describe('RecoveryService (integration, Redis)', () => {
       );
 
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
-      expect(usersService.changeUserPassword).not.toHaveBeenCalled();
+      expect(usersService.changePassword).not.toHaveBeenCalled();
     });
   });
 });
