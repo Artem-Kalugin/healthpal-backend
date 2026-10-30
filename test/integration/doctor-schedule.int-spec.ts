@@ -44,8 +44,9 @@ describe('DoctorScheduleService (integration)', () => {
     expect(result).toEqual(emptyWeek());
   });
 
-  it('groups intervals by day, trims seconds and sorts by start', async () => {
+  it('groups intervals by day, trims seconds, sorts by start and ignores other doctors', async () => {
     const doctor = await factories.doctor();
+    await factories.schedule((await factories.doctor()).id);
     await factories.schedule(doctor.id, {
       weekday: ScheduleDay.WEDNESDAY,
       startTime: '14:30:00',
@@ -74,17 +75,7 @@ describe('DoctorScheduleService (integration)', () => {
     });
   });
 
-  it('does not include the schedule of other doctors', async () => {
-    const doctor = await factories.doctor();
-    const other = await factories.doctor();
-    await factories.schedule(other.id);
-
-    const result = await service.getScheduleByDoctorId(doctor.id);
-
-    expect(Object.values(result).flat()).toEqual([]);
-  });
-
-  it('nonexistent doctor → NotFound', async () => {
+  it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
     await expect(
       service.getScheduleByDoctorId(MISSING_ID),
     ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });

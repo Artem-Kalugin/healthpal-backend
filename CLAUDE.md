@@ -5,6 +5,7 @@ NestJS + Drizzle ORM + PostgreSQL + Redis. Package manager: pnpm. Overview and s
 ## Language
 
 - No Russian in code or docs: identifiers, comments, test titles, commit messages, `CLAUDE.md`, `agents/*` notes. Write everything in English. Exception: `seed/`
+- Currently Russian text is allowed in tests that depend directly on Cyrillic (e.g. case-insensitive search over Cyrillic names). A move to English and i18n is planned, so do not translate such data and do not add Cyrillic where the test does not need it.
 - If you come across Russian in code while working, translate it to English once the task is done. Stay within the task: translate only the files you touched or read for it, and do not let it pull you away from the main work.
 
 ## Comments

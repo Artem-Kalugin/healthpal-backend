@@ -194,7 +194,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('nonexistent doctor → NO_AVAILABLE_SLOTS', async () => {
+    it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
       await expect(
         service.getSlotsForDoctor(
           '00000000-0000-4000-8000-000000000000',

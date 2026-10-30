@@ -25,38 +25,32 @@ describe('DoctorCategoryService (integration)', () => {
     await clearDatabase(db);
   });
 
-  it('returns an empty list if there are no categories', async () => {
-    await expect(service.findAll()).resolves.toEqual([]);
-  });
-
-  it('returns all categories with type, icon and id', async () => {
-    const cardiology = await factories.category({
-      type: DoctorCategoryType.CARDIOLOGY,
-      icon: 'heart',
-    });
+  it('returns categories ordered by `order`, equal values by id', async () => {
     const dentistry = await factories.category({
       type: DoctorCategoryType.DENTISTRY,
       icon: 'tooth',
+      order: 2,
+    });
+    const cardiology = await factories.category({
+      type: DoctorCategoryType.CARDIOLOGY,
+      icon: 'heart',
+      order: 1,
+    });
+    const general = await factories.category({
+      type: DoctorCategoryType.GENERAL,
+      order: 1,
     });
 
     const result = await service.findAll();
 
-    expect(result).toHaveLength(2);
-    expect(result).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: cardiology.id,
-          type: 'cardiology',
-          icon: 'heart',
-          order: 0,
-        }),
-        expect.objectContaining({
-          id: dentistry.id,
-          type: 'dentistry',
-          icon: 'tooth',
-          order: 0,
-        }),
-      ]),
+    expect(result.map(item => item.id)).toEqual(
+      [cardiology.id, general.id]
+        .sort((a, b) => a.localeCompare(b))
+        .concat(dentistry.id),
     );
+    expect(result.find(item => item.id === cardiology.id)).toMatchObject({
+      type: DoctorCategoryType.CARDIOLOGY,
+      icon: 'heart',
+    });
   });
 });

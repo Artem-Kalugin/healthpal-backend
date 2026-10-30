@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { ErrorCode } from 'src/common/errors/error-code';
 import type { Database } from 'src/db/db.module';
 import { DoctorCategoryType } from 'src/db/enums';
 import { userFavoriteDoctor } from 'src/db/schema';
@@ -220,26 +221,18 @@ describe('DoctorService (integration)', () => {
 
     it.each([
       ['rating', SortOrder.DESC, [D1, D2, D3, D4]],
+      ['rating', undefined, [D1, D2, D3, D4]],
       ['rating', SortOrder.ASC, [D4, D2, D3, D1]],
       ['reviews', SortOrder.DESC, [D1, D3, D2, D4]],
       ['reviews', SortOrder.ASC, [D2, D4, D3, D1]],
       ['practiceStartYear', SortOrder.DESC, [D4, D2, D3, D1]],
       ['practiceStartYear', SortOrder.ASC, [D1, D2, D3, D4]],
     ] as const)(
-      'sort=%s order=%s, equal values are ordered by id',
+      'sort=%s order=%s (descending by default), equal values are ordered by id',
       async (sort, order, expected) => {
         await expect(search({ sort, order })).resolves.toEqual(expected);
       },
     );
-
-    it('without order sorts descending', async () => {
-      await expect(search({ sort: 'rating' })).resolves.toEqual([
-        D1,
-        D2,
-        D3,
-        D4,
-      ]);
-    });
 
     it('pages with a join do not overlap and together give all doctors', async () => {
       const query = { sort: 'rating', order: SortOrder.ASC, size: 2 } as const;
@@ -264,6 +257,9 @@ describe('DoctorService (integration)', () => {
     };
 
     it('returns only the favorites of the user, most recently added first', async () => {
+      expect((await favoritesFor(userB)).map(item => item.id)).toEqual([D1]);
+      await expect(favoritesFor(userWithoutFavorites)).resolves.toEqual([]);
+
       const data = await favoritesFor(userA);
 
       expect(data.map(item => item.id)).toEqual([D4, D1, D2]);
@@ -272,11 +268,6 @@ describe('DoctorService (integration)', () => {
         medicalCenter: { name: 'Центр Юг' },
         category: { type: DoctorCategoryType.CARDIOLOGY },
       });
-    });
-
-    it('does not mix in the favorites of other users', async () => {
-      expect((await favoritesFor(userB)).map(item => item.id)).toEqual([D1]);
-      await expect(favoritesFor(userWithoutFavorites)).resolves.toEqual([]);
     });
 
     it('pages do not overlap', async () => {
@@ -302,6 +293,12 @@ describe('DoctorService (integration)', () => {
         id: D2,
         isFavorite: false,
       });
+    });
+
+    it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
+      await expect(
+        service.findOneForUser(userA, '00000000-0000-4000-8000-000000000999'),
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
   });
 });

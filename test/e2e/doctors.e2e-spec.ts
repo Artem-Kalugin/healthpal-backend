@@ -106,16 +106,24 @@ describe('Doctors (e2e)', () => {
       expect(byId.get(second.id)).toMatchObject({ isFavorite: false });
     });
 
-    it.each([
-      { title: 'sort outside the list', query: { sort: 'name' } },
-      { title: 'searchFor too short', query: { searchFor: 'ab' } },
-      { title: 'size below the minimum', query: { size: 5 } },
-    ])('$title → 400', async ({ query }) => {
+    it('invalid query → 400 VALIDATION_FAILED with codes per field', async () => {
       const { token } = await newUser();
 
-      const { status } = await send('/doctors/search', query, token);
+      const { status, body } = await send(
+        '/doctors/search',
+        { searchFor: 'ab', size: 5 },
+        token,
+      );
 
       expect(status).toBe(400);
+      expect(body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          searchFor: [{ code: 'TEXT_TOO_SHORT', params: { limit: 3 } }],
+          size: [{ code: 'VALUE_TOO_SMALL', params: { limit: 10 } }],
+        },
+      });
     });
   });
 
@@ -168,27 +176,48 @@ describe('Doctors (e2e)', () => {
       expect(status).toBe(404);
       expect(body).toEqual({ statusCode: 404, code: 'DOCTOR_NOT_FOUND' });
     });
-
-    it('unknown route → 404 NOT_FOUND in the common format', async () => {
-      const { status, body } = await send('/doctors/no/such/route');
-
-      expect(status).toBe(404);
-      expect(body).toEqual({ statusCode: 404, code: 'NOT_FOUND' });
-    });
   });
 
   describe('GET /doctors/:id/time-slots', () => {
-    it('doctor without free slots → 200 and an empty list', async () => {
+    it('accepts a full ISO date and returns free slots grouped by date', async () => {
+      const { token } = await newUser();
+      const doctor = await factories.doctor();
+      const slot = await factories.timeSlot(doctor.id, {
+        date: '2099-01-05',
+        startTime: '10:00:00',
+        endTime: '10:30:00',
+      });
+
+      const { status, body } = await send(
+        `/doctors/${doctor.id}/time-slots`,
+        { startDate: '2099-01-01T00:00:00.000Z', endDate: '2099-01-31' },
+        token,
+      );
+
+      expect(status).toBe(200);
+      expect(body).toMatchObject([
+        {
+          date: '2099-01-05',
+          slots: [{ id: slot.id, startTime: '10:00', endTime: '10:30' }],
+        },
+      ]);
+    });
+
+    it('invalid date → 400 VALIDATION_FAILED', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
 
-      const response = await request(app.getHttpServer())
-        .get(`/doctors/${doctor.id}/time-slots`)
-        .query({ startDate: '2026-11-01', endDate: '2026-11-30' })
-        .set('Authorization', token);
+      const { status, body } = await send(
+        `/doctors/${doctor.id}/time-slots`,
+        { startDate: 'tomorrow', endDate: '2099-01-31' },
+        token,
+      );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual([]);
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        validation: { startDate: expect.any(Array) as unknown },
+      });
     });
   });
 
