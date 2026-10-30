@@ -4,7 +4,7 @@ import { userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
 import { MedicalCenterFavoriteService } from 'src/domain/medical-center/modules/medical-center-favorite/medical-center-favorite.service';
 import { createTestDb } from './db';
-import { createFactories } from './factories';
+import { createFactories, CTX } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const [C1, C2, C3, C4, C5, C6] = [id(1), id(2), id(3), id(4), id(5), id(6)];
@@ -78,17 +78,21 @@ describe('MedicalCenterService (integration)', () => {
   const byRating = async (
     userId = userWithoutFavorites,
     shouldTake5Only = false,
-  ) => service.findForUser(userId, { shouldTake5Only });
+  ) => service.findForUser(userId, { shouldTake5Only }, CTX);
 
   const byDistance = async (
     point: { lat: number; lon: number } = EQUATOR_ORIGIN,
     shouldTake5Only = false,
   ) =>
-    service.findForUser(userWithoutFavorites, {
-      lat: String(point.lat),
-      lon: String(point.lon),
-      shouldTake5Only,
-    });
+    service.findForUser(
+      userWithoutFavorites,
+      {
+        lat: String(point.lat),
+        lon: String(point.lon),
+        shouldTake5Only,
+      },
+      CTX,
+    );
 
   describe('findForUser without coordinates (by rating)', () => {
     it('rating is the average weighted by reviews, reviewsCount is their sum; centers without doctors or reviews stay with rating = null and reviewsCount = 0', async () => {
@@ -189,7 +193,7 @@ describe('MedicalCenterService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) =>
-      favoriteService.findFavoritesForUser(userId, { page, size });
+      favoriteService.findFavoritesForUser(userId, { page, size }, CTX);
 
     it('returns only the favorites of the user, most recently added first', async () => {
       const { data } = await favoritesFor(userA);

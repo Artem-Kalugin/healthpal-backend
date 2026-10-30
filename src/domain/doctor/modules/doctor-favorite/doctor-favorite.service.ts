@@ -8,6 +8,7 @@ import type { Database } from 'src/db/db.module';
 import { doctor, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { selectDoctors } from 'src/domain/doctor/doctor.queries';
+import type { RequestContext } from 'src/common/i18n/request-context';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 
 @Injectable()
@@ -17,12 +18,16 @@ export class DoctorFavoriteService {
     private readonly doctorService: DoctorService,
   ) {}
 
-  async findFavoritesForUser(userId: string, query: DoctorFavoritesQueryDto) {
+  async findFavoritesForUser(
+    userId: string,
+    query: DoctorFavoritesQueryDto,
+    { locale }: RequestContext,
+  ) {
     const { page, size } = query;
     const userFavorites = eq(userFavoriteDoctor.userId, userId);
 
     return paginate(
-      selectDoctors(this.db, userId)
+      selectDoctors(this.db, userId, locale)
         .where(userFavorites)
         .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id)),
       { page, size },

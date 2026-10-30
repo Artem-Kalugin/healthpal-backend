@@ -13,6 +13,8 @@ import {
   DoctorSearchQueryDto,
   DoctorSort,
 } from './dto/doctor-search-query.dto';
+import { localized } from 'src/common/i18n/locale';
+import type { RequestContext } from 'src/common/i18n/request-context';
 import { selectDoctors } from './doctor.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
@@ -27,7 +29,11 @@ const sortColumns: Record<DoctorSort, PgColumn> = {
 export class DoctorService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async searchForUser(userId: string, query: DoctorSearchQueryDto) {
+  async searchForUser(
+    userId: string,
+    query: DoctorSearchQueryDto,
+    { locale }: RequestContext,
+  ) {
     const {
       page,
       size,
@@ -44,16 +50,19 @@ export class DoctorService {
       medicalCenterId ? eq(doctor.medicalCenterId, medicalCenterId) : undefined,
       term
         ? or(
-            ilike(sql`concat(${doctor.name}, ' ', ${doctor.surname})`, term),
-            ilike(medicalCenter.name, term),
-            ilike(medicalCenter.address, term),
+            ilike(
+              sql`concat(${localized(doctor.name, locale)}, ' ', ${localized(doctor.surname, locale)})`,
+              term,
+            ),
+            ilike(localized(medicalCenter.name, locale), term),
+            ilike(localized(medicalCenter.address, locale), term),
           )
         : undefined,
     );
     const direction = order === SortOrder.ASC ? asc : desc;
 
     return paginate(
-      selectDoctors(this.db, userId)
+      selectDoctors(this.db, userId, locale)
         .where(where)
         .orderBy(
           ...(sort ? [direction(sortColumns[sort])] : []),
@@ -67,9 +76,15 @@ export class DoctorService {
     return existsById(this.db, doctor, doctorId);
   }
 
-  async findOneForUser(userId: string, doctorId: string) {
+  async findOneForUser(
+    userId: string,
+    doctorId: string,
+    { locale }: RequestContext,
+  ) {
     return firstOrThrow(
-      await selectDoctors(this.db, userId).where(eq(doctor.id, doctorId)),
+      await selectDoctors(this.db, userId, locale).where(
+        eq(doctor.id, doctorId),
+      ),
       () => new AppException(ErrorCode.DOCTOR_NOT_FOUND),
     );
   }

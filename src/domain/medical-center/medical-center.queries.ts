@@ -1,4 +1,5 @@
 import { getTableColumns, sql, type SQL } from 'drizzle-orm';
+import { localized, type Locale } from 'src/common/i18n/locale';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -41,12 +42,15 @@ export const selectCenters = <
 >(
   db: Database,
   userId: string,
-
+  locale: Locale,
   extra: Extra = {} as Extra,
 ) =>
   db
     .select({
       ...getTableColumns(medicalCenter),
+      name: localized(medicalCenter.name, locale),
+      address: localized(medicalCenter.address, locale),
+      city: localized(medicalCenter.city, locale),
       reviewsCount,
       rating,
       isFavorite,

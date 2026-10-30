@@ -7,7 +7,8 @@ import { rule, ValidationCode } from 'src/common/errors/validation-code';
 
 const NAME_MIN = 2;
 const NAME_MAX = 16;
-const NAME_PATTERN = /^[А-Яа-яЁё]+(?:-[А-Яа-яЁё]+)*$/;
+/** Letters of any script, parts separated by a hyphen, an apostrophe or a space ("Anna-Maria", "O'Connor", "van der Berg"). */
+const NAME_PATTERN = /^\p{L}+(?:[-'’ ]\p{L}+)*$/u;
 
 export class CreateUserDto extends OmitType(LoginDto, ['password']) {
   @ApiProperty({ example: 'Password123' })

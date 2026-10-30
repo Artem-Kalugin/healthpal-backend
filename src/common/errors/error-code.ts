@@ -31,6 +31,8 @@ export enum ErrorCode {
   TIME_SLOT_DOCTOR_MISMATCH = 'TIME_SLOT_DOCTOR_MISMATCH',
   NO_AVAILABLE_SLOTS = 'NO_AVAILABLE_SLOTS',
   INVALID_DATE_RANGE = 'INVALID_DATE_RANGE',
+  /** `Accept-Language` or `X-Region` holds a value outside the contract; the header is in the log `message`. */
+  INVALID_REQUEST_CONTEXT = 'INVALID_REQUEST_CONTEXT',
   IMAGE_INVALID = 'IMAGE_INVALID',
 
   REGISTRATION_INCOMPLETE = 'REGISTRATION_INCOMPLETE',
@@ -88,6 +90,7 @@ export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.TIME_SLOT_DOCTOR_MISMATCH]: HttpStatus.BAD_REQUEST,
   [ErrorCode.NO_AVAILABLE_SLOTS]: HttpStatus.NOT_FOUND,
   [ErrorCode.INVALID_DATE_RANGE]: HttpStatus.BAD_REQUEST,
+  [ErrorCode.INVALID_REQUEST_CONTEXT]: HttpStatus.BAD_REQUEST,
   [ErrorCode.IMAGE_INVALID]: HttpStatus.BAD_REQUEST,
 
   [ErrorCode.REGISTRATION_INCOMPLETE]: HttpStatus.FORBIDDEN,

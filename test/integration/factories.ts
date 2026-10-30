@@ -1,7 +1,10 @@
+import { Locale, type Localized } from 'src/common/i18n/locale';
+import type { RequestContext } from 'src/common/i18n/request-context';
 import type { Database } from 'src/db/db.module';
 import {
   DoctorCategoryType,
   MedicalCenterType,
+  Region,
   ScheduleDay,
 } from 'src/db/enums';
 import {
@@ -19,8 +22,27 @@ const IMAGE = { image: 'image.jpg', thumbhash: 'thumbhash' };
 let sequence = 0;
 const next = () => ++sequence;
 
+/** Default request context: the Russian client without headers. */
+export const CTX: RequestContext = { locale: Locale.RU, region: Region.RU };
+
+/** For test convenience a translatable field accepts a plain string: the same text in every locale. */
+type LocalizedInput = string | Localized;
+const toLocalized = (value: LocalizedInput): Localized =>
+  typeof value === 'string' ? { ru: value, en: value } : value;
+
+type WithLocalized<T, Keys extends keyof T> = Omit<T, Keys> & {
+  [K in Keys]?: LocalizedInput;
+};
+
 type Insert<T extends { $inferInsert: object }> = Partial<T['$inferInsert']>;
-type DoctorOverrides = Omit<Insert<typeof doctorTable>, 'rating'> & {
+type CenterOverrides = WithLocalized<
+  Insert<typeof medicalCenterTable>,
+  'name' | 'address' | 'city'
+>;
+type DoctorOverrides = Omit<
+  WithLocalized<Insert<typeof doctorTable>, 'name' | 'surname' | 'description'>,
+  'rating'
+> & {
   /** `numeric` is a string in Drizzle, for test convenience we accept a number too. */
   rating?: number | string;
 };
@@ -28,14 +50,19 @@ type DoctorOverrides = Omit<Insert<typeof doctorTable>, 'rating'> & {
 export const createFactories = (db: Database) => {
   const insert = async <T>(query: Promise<T[]>) => (await query)[0];
 
-  const medicalCenter = (overrides: Insert<typeof medicalCenterTable> = {}) =>
+  const medicalCenter = ({
+    name = `Center ${next()}`,
+    address = '1 Main Street',
+    city = 'Moscow',
+    ...overrides
+  }: CenterOverrides = {}) =>
     insert(
       db
         .insert(medicalCenterTable)
         .values({
-          name: `Center ${next()}`,
-          address: '1 Main Street',
-          city: 'Moscow',
+          name: toLocalized(name),
+          address: toLocalized(address),
+          city: toLocalized(city),
           image: IMAGE,
           lat: 55.75,
           lon: 37.61,
@@ -73,18 +100,23 @@ export const createFactories = (db: Database) => {
     );
 
   /** Creates `medicalCenterId`/`categoryId` itself if not given. */
-  const doctor = async (overrides: DoctorOverrides = {}) =>
+  const doctor = async ({
+    name = 'Peter',
+    surname = 'Petrov',
+    description = 'Doctor',
+    ...overrides
+  }: DoctorOverrides = {}) =>
     insert(
       db
         .insert(doctorTable)
         .values({
-          name: 'Peter',
-          surname: 'Petrov',
+          name: toLocalized(name),
+          surname: toLocalized(surname),
+          description: toLocalized(description),
           practiceStartYear: 2010,
           patientsCount: 100,
           reviewsCount: 10,
           image: IMAGE,
-          description: 'Doctor',
           medicalCenterId:
             overrides.medicalCenterId ?? (await medicalCenter()).id,
           categoryId: overrides.categoryId ?? (await category()).id,

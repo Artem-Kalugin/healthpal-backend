@@ -1,4 +1,5 @@
 import { Constraint } from 'src/db/constraints';
+import { Region } from 'src/db/enums';
 import { DrizzleQueryError, eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
@@ -48,9 +49,9 @@ describe('schema (integration)', () => {
     const [{ id }] = await db
       .insert(medicalCenter)
       .values({
-        name: 'Center',
-        address: 'Address',
-        city: 'Moscow',
+        name: { ru: 'Center', en: 'Center' },
+        address: { ru: 'Address', en: 'Address' },
+        city: { ru: 'Moscow', en: 'Moscow' },
         image: { image: 'a', thumbhash: 'b' },
         lat: 1,
         lon: 1,
@@ -80,6 +81,18 @@ describe('schema (integration)', () => {
         constraint: Constraint.USER_BIRTHDAY_PAST_CHECK,
       }),
     );
+  });
+
+  it('accepts an international E.164 phone', async () => {
+    await expect(
+      factories.user({ phone: '+4915112345678' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('defaults the medical center region to RU', async () => {
+    const center = await factories.medicalCenter();
+
+    expect(center.region).toBe(Region.RU);
   });
 
   it('rejects a weekday outside 1..7', async () => {

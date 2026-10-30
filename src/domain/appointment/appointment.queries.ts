@@ -1,6 +1,11 @@
 import { eq, getTableColumns, sql } from 'drizzle-orm';
+import type { Locale } from 'src/common/i18n/locale';
 import type { Database } from 'src/db/db.module';
-import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
+import {
+  centerLabel,
+  centerOfDoctor,
+  doctorColumns,
+} from 'src/domain/doctor/doctor.queries';
 import {
   appointment,
   doctor,
@@ -15,16 +20,13 @@ export const appointmentStartAt = sql<Date>`((${appointment.date} + ${appointmen
  * Appointment with its doctor, category and center (name, address); the caller adds `where`, ordering and pagination.
  * Drizzle does not nest a select deeper than one level, so the row must go through `nestDoctor`.
  */
-export const selectAppointments = (db: Database) =>
+export const selectAppointments = (db: Database, locale: Locale) =>
   db
     .select({
       ...getTableColumns(appointment),
-      doctor: getTableColumns(doctor),
+      doctor: doctorColumns(locale),
       category: { type: doctorCategory.type },
-      medicalCenter: {
-        name: medicalCenter.name,
-        address: medicalCenter.address,
-      },
+      medicalCenter: centerLabel(locale),
     })
     .from(appointment)
     .innerJoin(doctor, eq(doctor.id, appointment.doctorId))

@@ -19,10 +19,7 @@ export class UsersService {
   ) {}
 
   private normalizeNameOrSurname(value: string): string {
-    return value
-      .split('-')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join('-');
+    return value.trim();
   }
 
   private normalizeNickname(nickname?: string): string | undefined {

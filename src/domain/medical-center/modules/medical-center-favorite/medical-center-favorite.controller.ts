@@ -1,3 +1,7 @@
+import {
+  ClientContext,
+  type RequestContext,
+} from 'src/common/i18n/request-context';
 import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/decorators/authenticated.decorator';
@@ -32,8 +36,9 @@ export class MedicalCenterFavoriteController {
   listFavorites(
     @CurrentUserId() userId: string,
     @Query() query: MedicalCenterFavoritesQueryDto,
+    @ClientContext() context: RequestContext,
   ) {
-    return this.service.findFavoritesForUser(userId, query);
+    return this.service.findFavoritesForUser(userId, query, context);
   }
 
   @Post(':id/favorite')

@@ -8,6 +8,7 @@ import {
   type SQL,
   sql,
 } from 'drizzle-orm';
+import type { RequestContext } from 'src/common/i18n/request-context';
 import { getSlotStart } from 'src/domain/medical-center/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { paginate } from 'src/common/pagination/page';
@@ -41,7 +42,11 @@ import { ErrorCode } from 'src/common/errors/error-code';
 export class AppointmentService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async getForUser(userId: string, query: AppointmentQueryDto) {
+  async getForUser(
+    userId: string,
+    query: AppointmentQueryDto,
+    { locale }: RequestContext,
+  ) {
     const { page, size, type } = query;
     const now = sql`${new Date().toISOString()}::timestamptz`;
 
@@ -74,7 +79,7 @@ export class AppointmentService {
     const where = and(eq(appointment.userId, userId), byType.where);
 
     const result = await paginate(
-      selectAppointments(this.db)
+      selectAppointments(this.db, locale)
         .where(where)
         .orderBy(byType.order, asc(appointment.id)),
       { page, size },
@@ -83,7 +88,11 @@ export class AppointmentService {
     return { ...result, data: result.data.map(nestDoctor) };
   }
 
-  async bookForUser(userId: string, dto: CreateAppointmentDto) {
+  async bookForUser(
+    userId: string,
+    dto: CreateAppointmentDto,
+    context: RequestContext,
+  ) {
     const { timeSlotId } = dto;
 
     const slot = firstOrThrow(
@@ -116,10 +125,14 @@ export class AppointmentService {
       })
       .returning({ id: appointment.id });
 
-    return this.findDetailed(created.id);
+    return this.findDetailed(created.id, context);
   }
 
-  async cancelForUser(userId: string, appointmentId: string) {
+  async cancelForUser(
+    userId: string,
+    appointmentId: string,
+    context: RequestContext,
+  ) {
     const target = await this.findOwned(userId, appointmentId);
 
     if (target.isCancelled) {
@@ -148,13 +161,14 @@ export class AppointmentService {
       throw new AppException(ErrorCode.APPOINTMENT_ALREADY_CANCELLED);
     }
 
-    return this.findDetailed(appointmentId);
+    return this.findDetailed(appointmentId, context);
   }
 
   async rescheduleForUser(
     userId: string,
     appointmentId: string,
     newTimeSlotId: string,
+    context: RequestContext,
   ) {
     const target = await this.findOwned(userId, appointmentId);
 
@@ -206,7 +220,7 @@ export class AppointmentService {
       throw new AppException(ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE);
     }
 
-    return this.findDetailed(appointmentId);
+    return this.findDetailed(appointmentId, context);
   }
 
   /** Another user's appointment is reported as not found. */
@@ -230,9 +244,12 @@ export class AppointmentService {
     );
   }
 
-  private async findDetailed(appointmentId: string) {
+  private async findDetailed(
+    appointmentId: string,
+    { locale }: RequestContext,
+  ) {
     const row = firstOrThrow(
-      await selectAppointments(this.db).where(
+      await selectAppointments(this.db, locale).where(
         eq(appointment.id, appointmentId),
       ),
       () => new AppException(ErrorCode.APPOINTMENT_NOT_FOUND),

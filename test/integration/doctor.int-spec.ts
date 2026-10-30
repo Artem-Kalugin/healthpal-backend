@@ -11,7 +11,7 @@ import {
 } from 'src/domain/doctor/dto/doctor-search-query.dto';
 import { SortOrder } from 'src/common/config';
 import { createTestDb } from './db';
-import { createFactories } from './factories';
+import { createFactories, CTX } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const [D1, D2, D3, D4] = [id(1), id(2), id(3), id(4)];
@@ -138,21 +138,29 @@ describe('DoctorService (integration)', () => {
     query: Partial<DoctorSearchQueryDto> = {},
     userId = userA,
   ) => {
-    const result = await service.searchForUser(userId, {
-      page: 1,
-      size: 10,
-      ...query,
-    });
+    const result = await service.searchForUser(
+      userId,
+      {
+        page: 1,
+        size: 10,
+        ...query,
+      },
+      CTX,
+    );
 
     return result.data.map(item => item.id);
   };
 
   describe('searchForUser', () => {
     it('returns all doctors by id with center, category and isFavorite', async () => {
-      const { data } = await service.searchForUser(userA, {
-        page: 1,
-        size: 10,
-      });
+      const { data } = await service.searchForUser(
+        userA,
+        {
+          page: 1,
+          size: 10,
+        },
+        CTX,
+      );
 
       expect(data.map(item => item.id)).toEqual([D1, D2, D3, D4]);
       expect(data[0]).toMatchObject({
@@ -163,10 +171,14 @@ describe('DoctorService (integration)', () => {
 
     it('isFavorite is computed for a specific user and does not duplicate rows', async () => {
       const favoritesOf = async (userId: string) => {
-        const { data } = await service.searchForUser(userId, {
-          page: 1,
-          size: 10,
-        });
+        const { data } = await service.searchForUser(
+          userId,
+          {
+            page: 1,
+            size: 10,
+          },
+          CTX,
+        );
 
         return data.map(item => [item.id, item.isFavorite]);
       };
@@ -254,10 +266,14 @@ describe('DoctorService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) => {
-      const { data } = await favoriteService.findFavoritesForUser(userId, {
-        page,
-        size,
-      });
+      const { data } = await favoriteService.findFavoritesForUser(
+        userId,
+        {
+          page,
+          size,
+        },
+        CTX,
+      );
 
       return data;
     };
@@ -289,13 +305,17 @@ describe('DoctorService (integration)', () => {
 
   describe('findOneForUser', () => {
     it('returns a doctor with center, category and isFavorite for the user', async () => {
-      await expect(service.findOneForUser(userA, D2)).resolves.toMatchObject({
+      await expect(
+        service.findOneForUser(userA, D2, CTX),
+      ).resolves.toMatchObject({
         id: D2,
         isFavorite: true,
         medicalCenter: { name: 'Клиника Север' },
         category: { type: DoctorCategoryType.CARDIOLOGY },
       });
-      await expect(service.findOneForUser(userB, D2)).resolves.toMatchObject({
+      await expect(
+        service.findOneForUser(userB, D2, CTX),
+      ).resolves.toMatchObject({
         id: D2,
         isFavorite: false,
       });
@@ -303,7 +323,11 @@ describe('DoctorService (integration)', () => {
 
     it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
       await expect(
-        service.findOneForUser(userA, '00000000-0000-4000-8000-000000000999'),
+        service.findOneForUser(
+          userA,
+          '00000000-0000-4000-8000-000000000999',
+          CTX,
+        ),
       ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
   });

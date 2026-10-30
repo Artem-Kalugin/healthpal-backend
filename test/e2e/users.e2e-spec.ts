@@ -87,11 +87,11 @@ describe('Users (e2e)', () => {
     const user = await factories.user({ registrationComplete: true });
 
     const { status, body } = await me('patch', await tokenFor(user), {
-      name: 'пётр',
+      name: 'Peter',
     });
 
     expect(status).toBe(200);
-    expect(body.name).toBe('Пётр');
+    expect(body.name).toBe('Peter');
     expect(body).not.toHaveProperty('password');
   });
 

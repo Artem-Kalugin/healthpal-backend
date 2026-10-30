@@ -2,6 +2,11 @@
 
 NestJS + Drizzle ORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup: `README.md`.
 
+## Client
+
+- The only client is the mobile app, and it adapts to the API contract fully. Do not add tolerance for other clients (browsers, curl habits): no input normalization, no fallbacks for malformed values. A value outside the contract is a client bug and gets a 400 with a code.
+- Example: `Accept-Language` is exactly `ru` or `en`, `X-Region` is exactly `RU` or `EU` (`parseRequestContext` in `src/common/i18n`), anything else is `INVALID_REQUEST_CONTEXT`. A missing header means `ru` / `RU`.
+
 ## Language
 
 - No Russian in code or docs: identifiers, comments, test titles, commit messages, `CLAUDE.md`, `agents/*` notes. Write everything in English. Exception: `seed/`

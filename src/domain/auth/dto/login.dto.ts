@@ -3,7 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PASSWORD_MAX } from 'src/common/validators/is-password.decorator';
 import { rule, ValidationCode } from 'src/common/errors/validation-code';
 
-export const PHONE_PATTERN = /^\+\d{11}$/;
+/** E.164: `+`, a country code without a leading zero, 7 to 15 digits in total. */
+export const PHONE_PATTERN = /^\+[1-9]\d{6,14}$/;
 
 export class LoginDto {
   @ApiProperty({ example: '+79323572448' })

@@ -74,17 +74,17 @@ describe('UsersService (integration)', () => {
     return found;
   };
 
-  it('create: hashes the password, normalizes first and last name, registration is not complete', async () => {
+  it('create: hashes the password, trims first and last name, registration is not complete', async () => {
     const created = await service.create({
       phone: '+79001234567',
       password: 'secret',
-      name: 'иВАН-пЕТРОВ',
-      surname: 'сИДОРОВ',
+      name: '  Anna-Maria ',
+      surname: ' van der Berg  ',
     });
 
     expect(await reload(created.id)).toMatchObject({
-      name: 'Иван-Петров',
-      surname: 'Сидоров',
+      name: 'Anna-Maria',
+      surname: 'van der Berg',
       registrationComplete: false,
     });
     expect(

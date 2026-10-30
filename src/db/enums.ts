@@ -15,6 +15,12 @@ export enum MedicalCenterType {
   CABINET = 'cabinet',
 }
 
+/** Catalog set of a medical center: `RU` is the Russian one, `EU` the European one (Berlin). */
+export enum Region {
+  RU = 'RU',
+  EU = 'EU',
+}
+
 export enum Gender {
   MALE = 'MALE',
   FEMALE = 'FEMALE',

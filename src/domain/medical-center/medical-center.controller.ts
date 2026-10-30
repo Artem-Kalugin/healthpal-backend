@@ -3,6 +3,10 @@ import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/decorators/authenticated.decorator';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import {
+  ClientContext,
+  type RequestContext,
+} from 'src/common/i18n/request-context';
 import { MedicalCenterResponseDto } from './dto/medical-center-response.dto';
 import { MedicalCenterService } from './medical-center.service';
 import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
@@ -15,7 +19,11 @@ export class MedicalCenterController {
 
   @Get()
   @ApiSerialized(MedicalCenterResponseDto, { isArray: true })
-  list(@CurrentUserId() userId: string, @Query() query: GetMedicalCentersDto) {
-    return this.service.findForUser(userId, query);
+  list(
+    @CurrentUserId() userId: string,
+    @Query() query: GetMedicalCentersDto,
+    @ClientContext() context: RequestContext,
+  ) {
+    return this.service.findForUser(userId, query, context);
   }
 }

@@ -21,11 +21,13 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import type { Localized } from 'src/common/i18n/locale';
 import { Constraint } from './constraints';
 import {
   DoctorCategoryType,
   Gender,
   MedicalCenterType,
+  Region,
   ScheduleDay,
 } from './enums';
 
@@ -42,6 +44,8 @@ export const medicalCenterType = pgEnum(
   enumValues(MedicalCenterType),
 );
 
+export const region = pgEnum('region', enumValues(Region));
+
 export const gender = pgEnum('gender', enumValues(Gender));
 
 export type StoredImage = { image: string; thumbhash: string };
@@ -55,9 +59,9 @@ export const doctorCategory = pgTable('doctor_category', {
 
 export const medicalCenter = pgTable('medical_center', {
   id: uuid().primaryKey().defaultRandom(),
-  name: varchar().notNull(),
-  address: varchar().notNull(),
-  city: varchar().notNull(),
+  name: jsonb().$type<Localized>().notNull(),
+  address: jsonb().$type<Localized>().notNull(),
+  city: jsonb().$type<Localized>().notNull(),
   image: jsonb().$type<StoredImage>().notNull(),
   lat: doublePrecision().notNull(),
   lon: doublePrecision().notNull(),
@@ -67,20 +71,22 @@ export const medicalCenter = pgTable('medical_center', {
     .$type<MedicalCenterType>()
     .notNull()
     .default(MedicalCenterType.CLINIC),
+  /** Doctors have no region of their own, they inherit it from the center. */
+  region: region().$type<Region>().notNull().default(Region.RU),
 });
 
 export const doctor = pgTable(
   'doctor',
   {
     id: uuid().primaryKey().defaultRandom(),
-    name: varchar({ length: 255 }).notNull(),
-    surname: varchar({ length: 255 }).notNull(),
+    name: jsonb().$type<Localized>().notNull(),
+    surname: jsonb().$type<Localized>().notNull(),
     practiceStartYear: integer().notNull(),
     patientsCount: integer().notNull(),
     reviewsCount: integer().notNull(),
     image: jsonb().$type<StoredImage>().notNull(),
     rating: numeric({ precision: 2, scale: 1 }).notNull(),
-    description: varchar({ length: 1000 }).notNull(),
+    description: jsonb().$type<Localized>().notNull(),
     categoryId: uuid().notNull(),
     medicalCenterId: uuid().notNull(),
   },
@@ -121,7 +127,10 @@ export const user = pgTable(
   t => [
     unique(Constraint.USER_PHONE_UNIQUE).on(t.phone),
     unique(Constraint.USER_NICKNAME_UNIQUE).on(t.nickname),
-    check(Constraint.USER_PHONE_FORMAT_CHECK, sql`${t.phone} ~ '^\\+\\d{11}$'`),
+    check(
+      Constraint.USER_PHONE_FORMAT_CHECK,
+      sql`${t.phone} ~ '^\\+[1-9]\\d{6,14}$'`,
+    ),
     check(
       Constraint.USER_BIRTHDAY_PAST_CHECK,
       sql`${t.birthday} <= CURRENT_DATE`,
@@ -213,8 +222,8 @@ export const appointment = pgTable(
 export const onboardingSlide = pgTable('onboarding_slide', {
   id: uuid().primaryKey().defaultRandom(),
   image: jsonb().$type<StoredImage>().notNull(),
-  title: varchar({ length: 128 }).notNull(),
-  text: text().notNull(),
+  title: jsonb().$type<Localized>().notNull(),
+  text: jsonb().$type<Localized>().notNull(),
   order: integer().notNull().default(0),
   isActive: boolean().notNull().default(true),
 });

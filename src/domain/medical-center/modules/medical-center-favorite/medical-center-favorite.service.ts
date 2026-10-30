@@ -8,6 +8,7 @@ import type { Database } from 'src/db/db.module';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
 import { selectCenters } from 'src/domain/medical-center/medical-center.queries';
+import type { RequestContext } from 'src/common/i18n/request-context';
 import { favoritedAt } from './medical-center-favorite.queries';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 
@@ -21,12 +22,13 @@ export class MedicalCenterFavoriteService {
   async findFavoritesForUser(
     userId: string,
     query: MedicalCenterFavoritesQueryDto,
+    { locale }: RequestContext,
   ) {
     const { page, size } = query;
     const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
 
     return paginate(
-      selectCenters(this.db, userId)
+      selectCenters(this.db, userId, locale)
         .where(userFavorites)
         .orderBy(desc(favoritedAt), asc(medicalCenter.id)),
       { page, size },
