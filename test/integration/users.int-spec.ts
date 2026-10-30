@@ -257,11 +257,11 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  it('changePassword: saves the new hash', async () => {
+  it('changePassword: saves the hash of the new password', async () => {
     const user = await factories.user();
 
-    await service.changePassword(user.id, 'new-hash');
+    await service.changePassword(user.id, 'NewPassword1');
 
-    expect((await reload(user.id)).password).toBe('new-hash');
+    expect((await reload(user.id)).password).toBe('hash');
   });
 });

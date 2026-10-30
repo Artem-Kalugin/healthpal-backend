@@ -5,7 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
-import { AuthService } from 'src/domain/auth/auth.service';
+import { SessionService } from 'src/domain/auth/session.service';
 import { user as userTable, type User } from 'src/db/schema';
 import { eq } from 'drizzle-orm';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
@@ -17,7 +17,7 @@ describe('Users (e2e)', () => {
   let app: INestApplication<App>;
   let db: Database;
   let factories: ReturnType<typeof createFactories>;
-  let authService: AuthService;
+  let sessionService: SessionService;
 
   beforeAll(async () => {
     const testingModule = await Test.createTestingModule({
@@ -31,7 +31,7 @@ describe('Users (e2e)', () => {
     db = app.get<Database>(DB);
     await resetSchema(db);
     factories = createFactories(db);
-    authService = app.get(AuthService, { strict: false });
+    sessionService = app.get(SessionService, { strict: false });
   });
 
   afterAll(async () => {
@@ -45,7 +45,7 @@ describe('Users (e2e)', () => {
   });
 
   const tokenFor = async (user: User) => {
-    const { accessToken } = await authService.generateTokens(user, 'e2e');
+    const { accessToken } = await sessionService.generateTokens(user, 'e2e');
 
     return `Bearer ${accessToken}`;
   };

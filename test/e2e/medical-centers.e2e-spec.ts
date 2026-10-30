@@ -6,7 +6,7 @@ import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { ErrorCode } from 'src/common/errors/error-code';
-import { AuthService } from 'src/domain/auth/auth.service';
+import { SessionService } from 'src/domain/auth/session.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { userFavoriteMedicalCenter } from 'src/db/schema';
 import { DB, type Database } from 'src/db/db.module';
@@ -21,7 +21,7 @@ describe('Medical centers (e2e)', () => {
   let app: INestApplication<App>;
   let db: Database;
   let factories: ReturnType<typeof createFactories>;
-  let authService: AuthService;
+  let sessionService: SessionService;
 
   beforeAll(async () => {
     const testingModule = await Test.createTestingModule({
@@ -35,7 +35,7 @@ describe('Medical centers (e2e)', () => {
     db = app.get<Database>(DB);
     await resetSchema(db);
     factories = createFactories(db);
-    authService = app.get(AuthService, { strict: false });
+    sessionService = app.get(SessionService, { strict: false });
   });
 
   afterAll(async () => {
@@ -59,7 +59,7 @@ describe('Medical centers (e2e)', () => {
 
   const newUser = async () => {
     const user = await factories.user({ registrationComplete: true });
-    const { accessToken } = await authService.generateTokens(user, 'e2e');
+    const { accessToken } = await sessionService.generateTokens(user, 'e2e');
 
     return { user, token: `Bearer ${accessToken}` };
   };

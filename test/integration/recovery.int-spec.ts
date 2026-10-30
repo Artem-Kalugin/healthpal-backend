@@ -4,7 +4,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import type Redis from 'ioredis';
-import type { AuthService } from 'src/domain/auth/auth.service';
+import type { SessionService } from 'src/domain/auth/session.service';
 import {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_REQUESTS,
@@ -12,7 +12,6 @@ import {
 } from 'src/domain/auth/recovery.service';
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
 import type { UsersService } from 'src/domain/users/users.service';
-import type { PasswordService } from 'src/infrastructure/password/password.service';
 import type { User } from 'src/db/schema';
 import { createTestRedis } from './redis';
 
@@ -29,11 +28,10 @@ describe('RecoveryService (integration, Redis)', () => {
     findByPhone: jest.fn(),
     changePassword: jest.fn(),
   };
-  const authService = {
+  const sessionService = {
     generateTokens: jest.fn(),
     revokeAllSessions: jest.fn(),
   };
-  const passwordService = { hash: jest.fn() };
   /* eslint-disable @typescript-eslint/naming-convention */
   const config = {
     get: (key: string) =>
@@ -50,8 +48,7 @@ describe('RecoveryService (integration, Redis)', () => {
     service = new RecoveryService(
       redis,
       usersService as unknown as UsersService,
-      authService as unknown as AuthService,
-      passwordService as unknown as PasswordService,
+      sessionService as unknown as SessionService,
       config as unknown as ConfigService<EnvironmentVariables>,
     );
   });
@@ -61,9 +58,8 @@ describe('RecoveryService (integration, Redis)', () => {
     jest.restoreAllMocks();
     usersService.findByPhone.mockReset().mockResolvedValue(user);
     usersService.changePassword.mockReset().mockResolvedValue(undefined);
-    authService.generateTokens.mockReset();
-    authService.revokeAllSessions.mockReset();
-    passwordService.hash.mockReset().mockResolvedValue('new-hash');
+    sessionService.generateTokens.mockReset();
+    sessionService.revokeAllSessions.mockReset();
   });
 
   afterAll(async () => {
@@ -219,27 +215,26 @@ describe('RecoveryService (integration, Redis)', () => {
       return (await service.verifyOtp(PHONE, otp)).recoveryToken;
     };
 
-    it('stores the hash (not the password), invalidates the token and returns login tokens', async () => {
+    it('changes the password, invalidates the token and returns login tokens', async () => {
       const recoveryToken = await issueRecoveryToken();
       const tokens = { accessToken: 'a', refreshToken: 'r', user };
-      authService.generateTokens.mockResolvedValue(tokens);
+      sessionService.generateTokens.mockResolvedValue(tokens);
 
       const result = await service.resetPassword(recoveryToken, 'NewPassword1');
 
-      expect(passwordService.hash).toHaveBeenCalledWith('NewPassword1');
       expect(usersService.changePassword).toHaveBeenCalledWith(
         user.id,
-        'new-hash',
+        'NewPassword1',
       );
-      expect(authService.revokeAllSessions).toHaveBeenCalledWith(user.id);
-      expect(authService.generateTokens).toHaveBeenCalledWith(user);
+      expect(sessionService.revokeAllSessions).toHaveBeenCalledWith(user.id);
+      expect(sessionService.generateTokens).toHaveBeenCalledWith(user);
       expect(result).toBe(tokens);
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
     });
 
     it('the token is single-use: a repeated reset with it is rejected', async () => {
       const recoveryToken = await issueRecoveryToken();
-      authService.generateTokens.mockResolvedValue({});
+      sessionService.generateTokens.mockResolvedValue({});
       await service.resetPassword(recoveryToken, 'NewPassword1');
 
       const error = await rejection(

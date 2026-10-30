@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { UsersModule } from 'src/domain/users/users.module';
 import { AuthService } from './auth.service';
+import { SessionService } from './session.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { EnvironmentVariables } from 'declarations';
@@ -39,11 +40,12 @@ import { JwtAuthWithRegistrationGuard } from './jwt/jwt-auth-with-registration.g
   ],
   providers: [
     AuthService,
+    SessionService,
     RecoveryService,
     JwtAuthWithRegistrationGuard,
     JwtStrategy,
   ],
   controllers: [AuthController, RecoveryController],
-  exports: [AuthService, RecoveryService],
+  exports: [AuthService, SessionService, RecoveryService],
 })
 export class AuthModule {}

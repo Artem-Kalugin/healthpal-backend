@@ -10,6 +10,7 @@ import type { Database } from 'src/db/db.module';
 import { user as userTable } from 'src/db/schema';
 import type { User } from 'src/db/schema';
 import { AuthService } from 'src/domain/auth/auth.service';
+import { SessionService } from 'src/domain/auth/session.service';
 import { UsersService } from 'src/domain/users/users.service';
 import type { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { PasswordService } from 'src/infrastructure/password/password.service';
@@ -42,6 +43,7 @@ describe('AuthService (integration)', () => {
   let redis: Redis;
   let jwtService: JwtService;
   let service: AuthService;
+  let sessions: SessionService;
   let phone: string;
   let user: User;
 
@@ -65,13 +67,12 @@ describe('AuthService (integration)', () => {
     };
     /* eslint-enable @typescript-eslint/naming-convention */
 
-    service = new AuthService(
-      usersService,
+    sessions = new SessionService(
       jwtService,
-      passwordService,
       config as unknown as ConfigService<EnvironmentVariables>,
       redis,
     );
+    service = new AuthService(usersService, sessions, passwordService);
   });
 
   beforeEach(async () => {
@@ -137,7 +138,7 @@ describe('AuthService (integration)', () => {
     it.each([false, true])(
       'payload has id and registrationComplete=%s, refresh has its own lifetime',
       async registrationComplete => {
-        const tokens = await service.generateTokens(
+        const tokens = await sessions.generateTokens(
           { ...user, registrationComplete },
           SID,
         );
@@ -153,7 +154,7 @@ describe('AuthService (integration)', () => {
     );
 
     it('the refresh token is stored under the user and sid key with a lifetime', async () => {
-      const tokens = await service.generateTokens(user, SID);
+      const tokens = await sessions.generateTokens(user, SID);
 
       expect(await redis.get(refreshKey())).toBe(tokens.refreshToken);
       expect(await redis.ttl(refreshKey())).toBeGreaterThan(REFRESH_TTL - 5);
@@ -161,8 +162,8 @@ describe('AuthService (integration)', () => {
     });
 
     it('without sid each call creates a new session, the refresh token carries its sid', async () => {
-      const first = await service.generateTokens(user);
-      const second = await service.generateTokens(user);
+      const first = await sessions.generateTokens(user);
+      const second = await sessions.generateTokens(user);
 
       const firstSid = claims(first.refreshToken).sid;
       const secondSid = claims(second.refreshToken).sid;
@@ -177,10 +178,10 @@ describe('AuthService (integration)', () => {
 
     it('different sids live independently, the same sid is overwritten', async () => {
       freezeDate(T0);
-      const phoneSession = await service.generateTokens(user, 'phone');
-      const tabletSession = await service.generateTokens(user, 'tablet');
+      const phoneSession = await sessions.generateTokens(user, 'phone');
+      const tabletSession = await sessions.generateTokens(user, 'tablet');
       freezeDate(T1);
-      const phoneSessionNew = await service.generateTokens(user, 'phone');
+      const phoneSessionNew = await sessions.generateTokens(user, 'phone');
 
       expect(await redis.get(refreshKey(user.id, 'tablet'))).toBe(
         tabletSession.refreshToken,
@@ -195,7 +196,7 @@ describe('AuthService (integration)', () => {
   describe('refresh', () => {
     it('valid token → new pair, new token in Redis', async () => {
       freezeDate(T0);
-      const old = await service.generateTokens(user, SID);
+      const old = await sessions.generateTokens(user, SID);
       freezeDate(T1);
 
       const result = await service.refresh(user.id, old.refreshToken);
@@ -208,7 +209,7 @@ describe('AuthService (integration)', () => {
     it('the token is single-use: reuse → error code', async () => {
       // within the same second refresh would issue the same JWT and the "old" token would become valid again
       freezeDate(T0);
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
       freezeDate(T1);
       await service.refresh(user.id, refreshToken);
 
@@ -218,7 +219,7 @@ describe('AuthService (integration)', () => {
     });
 
     it('parallel requests with one token: exactly one succeeds', async () => {
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
 
       const results = await Promise.allSettled([
         service.refresh(user.id, refreshToken),
@@ -229,7 +230,7 @@ describe('AuthService (integration)', () => {
     });
 
     it('foreign token → error code and the owner session stays valid', async () => {
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
 
       const error = await rejection(service.refresh(user.id, 'garbage'));
 
@@ -238,7 +239,7 @@ describe('AuthService (integration)', () => {
     });
 
     it('no session (key deleted or expired) → error code', async () => {
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
       await redis.del(refreshKey());
 
       const error = await rejection(service.refresh(user.id, refreshToken));
@@ -247,7 +248,7 @@ describe('AuthService (integration)', () => {
     });
 
     it('another user token in the request → error code, the session stays', async () => {
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
 
       const error = await rejection(
         service.refresh('00000000-0000-4000-8000-000000000000', refreshToken),
@@ -259,7 +260,7 @@ describe('AuthService (integration)', () => {
 
     it('refresh keeps the session sid', async () => {
       freezeDate(T0);
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
       freezeDate(T1);
 
       const result = await service.refresh(user.id, refreshToken);
@@ -269,7 +270,7 @@ describe('AuthService (integration)', () => {
     });
 
     it('user deleted → error code, not 404', async () => {
-      const { refreshToken } = await service.generateTokens(user, SID);
+      const { refreshToken } = await sessions.generateTokens(user, SID);
       await db.delete(userTable).where(eq(userTable.id, user.id));
 
       const error = await rejection(service.refresh(user.id, refreshToken));
@@ -281,11 +282,11 @@ describe('AuthService (integration)', () => {
   describe('revokeAllSessions', () => {
     it('deletes all sessions of the user and leaves others untouched', async () => {
       const other = await factories.user();
-      await service.generateTokens(user, 'phone');
-      await service.generateTokens(user, 'tablet');
-      await service.generateTokens(other, 'phone');
+      await sessions.generateTokens(user, 'phone');
+      await sessions.generateTokens(user, 'tablet');
+      await sessions.generateTokens(other, 'phone');
 
-      await service.revokeAllSessions(user.id);
+      await sessions.revokeAllSessions(user.id);
 
       expect(await redis.keys('refresh:*')).toEqual([
         refreshKey(other.id, 'phone'),

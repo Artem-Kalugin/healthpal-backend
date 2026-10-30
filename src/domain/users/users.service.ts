@@ -116,10 +116,10 @@ export class UsersService {
     return this.findOneBy(eq(user.phone, phone));
   }
 
-  async changePassword(userId: string, newPasswordHash: string) {
+  async changePassword(userId: string, newPassword: string) {
     const updated = await this.db
       .update(user)
-      .set({ password: newPasswordHash })
+      .set({ password: await this.passwordService.hash(newPassword) })
       .where(eq(user.id, userId))
       .returning({ id: user.id });
 

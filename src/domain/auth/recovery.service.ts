@@ -3,13 +3,12 @@ import * as crypto from 'crypto';
 import { UsersService } from 'src/domain/users/users.service';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
-import { AuthService } from './auth.service';
+import { SessionService } from './session.service';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { PasswordService } from 'src/infrastructure/password/password.service';
 
 /** Wrong inputs per OTP, after which it burns and a new request is needed. */
 export const OTP_MAX_ATTEMPTS = 5;
@@ -31,8 +30,7 @@ export class RecoveryService {
     @Inject(REDIS_PROVIDER_KEY)
     private readonly redis: Redis,
     private readonly usersService: UsersService,
-    private readonly authService: AuthService,
-    private readonly passwordService: PasswordService,
+    private readonly sessionService: SessionService,
     private readonly config: ConfigService<EnvironmentVariables>,
   ) {}
 
@@ -149,13 +147,11 @@ export class RecoveryService {
 
     const user = await this.usersService.findByPhone(phone);
 
-    const newUserPassword = await this.passwordService.hash(newPassword);
-
-    await this.usersService.changePassword(user.id, newUserPassword);
+    await this.usersService.changePassword(user.id, newPassword);
 
     // a stolen refresh token must not outlive a password change
-    await this.authService.revokeAllSessions(user.id);
+    await this.sessionService.revokeAllSessions(user.id);
 
-    return this.authService.generateTokens(user);
+    return this.sessionService.generateTokens(user);
   }
 }
