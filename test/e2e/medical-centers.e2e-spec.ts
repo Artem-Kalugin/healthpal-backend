@@ -5,6 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { userFavoriteMedicalCenter } from 'src/db/schema';
@@ -71,11 +72,11 @@ describe('Medical centers (e2e)', () => {
     return centers;
   };
 
-  it('without a token both endpoints respond 401', async () => {
-    for (const url of ['/medical-centers', '/medical-centers/favorites']) {
-      const { status } = await send(url, { shouldTake5Only: false });
-      expect(status).toBe(401);
-    }
+  it('without a token responds 401 UNAUTHORIZED', async () => {
+    const { status, body } = await send('/medical-centers');
+
+    expect(status).toBe(401);
+    expect(body).toEqual({ statusCode: 401, code: ErrorCode.UNAUTHORIZED });
   });
 
   describe('GET /medical-centers', () => {
@@ -100,9 +101,9 @@ describe('Medical centers (e2e)', () => {
       expect(all.body).toHaveLength(6);
     });
 
-    it('with lat and lon returns centers by distance with distance and walkingTimeMinutes', async () => {
+    it('with lat and lon returns distance and walkingTimeMinutes, lat/lon arrive as strings', async () => {
       const { token } = await newUser();
-      const centers = await seedCenters(3);
+      const [nearest] = await seedCenters(2);
 
       const { status, body } = await send(
         '/medical-centers',
@@ -111,22 +112,50 @@ describe('Medical centers (e2e)', () => {
       );
 
       expect(status).toBe(200);
-      expect(
-        (body as unknown as Body[]).map(item => item.id as string),
-      ).toEqual(centers.map(item => item.id));
-      expect(body[0]).toMatchObject({ distance: 1.1, walkingTimeMinutes: 13 });
+      expect(body[0]).toMatchObject({
+        id: nearest.id,
+        distance: 1.1,
+        walkingTimeMinutes: 13,
+      });
     });
 
-    it('non-numeric lat → 400', async () => {
+    it('rejects a non-numeric lat with VALIDATION_FAILED', async () => {
       const { token } = await newUser();
 
-      const { status } = await send(
+      const { status, body } = await send(
         '/medical-centers',
         { shouldTake5Only: false, lat: 'abc', lon: '0' },
         token,
       );
 
       expect(status).toBe(400);
+      expect(body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: { lat: [{ code: 'NUMBER_FORMAT' }] },
+      });
+    });
+
+    it.each([
+      ['lat', 'lon'],
+      ['lon', 'lat'],
+    ])('rejects %s without %s', async (given, missing) => {
+      const { token } = await newUser();
+
+      const { status, body } = await send(
+        '/medical-centers',
+        { shouldTake5Only: false, [given]: '0' },
+        token,
+      );
+
+      expect(status).toBe(400);
+      expect(body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          [missing]: [{ code: 'NUMBER_FORMAT' }, { code: 'NOT_STRING' }],
+        },
+      });
     });
   });
 

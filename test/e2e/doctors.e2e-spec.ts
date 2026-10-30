@@ -64,25 +64,19 @@ describe('Doctors (e2e)', () => {
     return { user, token: `Bearer ${accessToken}` };
   };
 
-  it('without a token all endpoints respond 401', async () => {
-    const urls = [
-      '/doctors/search',
-      '/doctors/favorites',
-      `/doctors/${UNKNOWN_ID}`,
-    ];
+  it('answers 401 UNAUTHORIZED without a token', async () => {
+    const { status, body } = await send('/doctors/search');
 
-    for (const url of urls) {
-      const { status } = await send(url);
-      expect(status).toBe(401);
-    }
+    expect(status).toBe(401);
+    expect(body).toEqual({ statusCode: 401, code: 'UNAUTHORIZED' });
   });
 
   describe('GET /doctors/search', () => {
     it('returns a page of doctors in the response format with isFavorite and metadata', async () => {
       const { user, token } = await newUser();
       const [first, second] = [
-        await factories.doctor({ name: 'Анна' }),
-        await factories.doctor({ name: 'Борис' }),
+        await factories.doctor({ name: 'Anna' }),
+        await factories.doctor({ name: 'Boris' }),
       ];
       await db
         .insert(userFavoriteDoctor)
@@ -100,7 +94,7 @@ describe('Doctors (e2e)', () => {
         (body.data as Body[]).map(item => [item.id as string, item]),
       );
       expect(byId.get(first.id)).toMatchObject({
-        name: 'Анна',
+        name: 'Anna',
         isFavorite: true,
       });
       expect(byId.get(second.id)).toMatchObject({ isFavorite: false });

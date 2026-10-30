@@ -98,8 +98,8 @@ describe('UsersService (integration)', () => {
       .create({
         phone: existing.phone,
         password: 'secret',
-        name: 'Анна',
-        surname: 'Орлова',
+        name: 'Anna',
+        surname: 'Orlova',
       })
       .catch((caught: unknown) => caught);
 
@@ -133,8 +133,8 @@ describe('UsersService (integration)', () => {
 
   it('update: fields not passed are not overwritten', async () => {
     const user = await factories.user({
-      name: 'Иван',
-      surname: 'Иванов',
+      name: 'Ivan',
+      surname: 'Ivanov',
       nickname: 'ivan',
     });
 
@@ -142,8 +142,8 @@ describe('UsersService (integration)', () => {
 
     const saved = await reload(user.id);
     expect(saved).toMatchObject({
-      name: 'Иван',
-      surname: 'Иванов',
+      name: 'Ivan',
+      surname: 'Ivanov',
       nickname: 'ivan',
     });
   });

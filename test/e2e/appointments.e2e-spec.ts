@@ -105,12 +105,13 @@ describe('Appointments (e2e)', () => {
     );
   };
 
-  it('rejects requests without a token', async () => {
-    const { status } = await send('get', '/appointments', {
+  it('answers 401 UNAUTHORIZED without a token', async () => {
+    const { status, body } = await send('get', '/appointments', {
       query: { type: 'FUTURE' },
     });
 
     expect(status).toBe(401);
+    expect(body).toEqual({ statusCode: 401, code: ErrorCode.UNAUTHORIZED });
   });
 
   describe('POST /appointments', () => {
@@ -131,6 +132,22 @@ describe('Appointments (e2e)', () => {
         timeSlotId: slot.id,
         date: '2026-11-03',
         isCancelled: false,
+      });
+    });
+
+    it('answers 400 VALIDATION_FAILED without timeSlotId', async () => {
+      const { token } = await newUser();
+
+      const { status, body } = await send('post', '/appointments', {
+        token,
+        body: {},
+      });
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: { timeSlotId: expect.any(Array) as unknown[] },
       });
     });
 

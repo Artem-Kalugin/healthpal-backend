@@ -79,7 +79,7 @@ describe('ImageFileStorageService', () => {
       );
     });
 
-    it('broken buffer → BadRequest, nothing is saved', async () => {
+    it('broken buffer → IMAGE_INVALID, nothing is saved', async () => {
       await expect(
         service.processAndSave(Buffer.from('not an image'), 'avatar'),
       ).rejects.toMatchObject({ code: ErrorCode.IMAGE_INVALID });

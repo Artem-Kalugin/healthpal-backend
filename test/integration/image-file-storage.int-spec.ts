@@ -59,7 +59,7 @@ describe('ImageFileStorageService (integration)', () => {
     },
   );
 
-  it('error after saving → BadRequest and the file is rolled back', async () => {
+  it('error after saving → IMAGE_INVALID and the file is rolled back', async () => {
     jest.mocked(rgbaToThumbHash).mockImplementationOnce(() => {
       throw new Error('thumbhash failed');
     });

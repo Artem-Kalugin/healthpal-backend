@@ -87,22 +87,7 @@ describe('MedicalCentersService (integration)', () => {
     );
 
   describe('findByRatingForUser', () => {
-    it('rating is the average weighted by reviews, reviewsCount is their sum', async () => {
-      const centers = await byRating();
-      const aggregates = Object.fromEntries(
-        centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
-      );
-
-      expect(aggregates).toMatchObject({
-        // a plain average would give 4.5
-        [C1]: ['4.25', '40'],
-        [C2]: ['4.60', '5'],
-        [C5]: ['4.25', '20'],
-        [C6]: ['3.00', '10'],
-      });
-    });
-
-    it('centers without doctors and without reviews stay in the result with rating = null and reviewsCount = 0', async () => {
+    it('rating is the average weighted by reviews, reviewsCount is their sum; centers without doctors or reviews stay with rating = null and reviewsCount = 0', async () => {
       const centers = await byRating();
       const aggregates = Object.fromEntries(
         centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
@@ -110,6 +95,11 @@ describe('MedicalCentersService (integration)', () => {
 
       expect(centers).toHaveLength(6);
       expect(aggregates).toMatchObject({
+        // a plain average would give 4.5
+        [C1]: ['4.25', '40'],
+        [C2]: ['4.60', '5'],
+        [C5]: ['4.25', '20'],
+        [C6]: ['3.00', '10'],
         [C3]: [null, '0'],
         [C4]: [null, '0'],
       });
@@ -150,12 +140,10 @@ describe('MedicalCentersService (integration)', () => {
       });
     });
 
-    it('top5Only limits the result to the five best, without it all come back', async () => {
+    it('top5Only limits the result to the five best', async () => {
       const top5 = await byRating(userWithoutFavorites, true);
-      const all = await byRating(userWithoutFavorites, false);
 
       expect(top5.map(item => item.id)).toEqual([C2, C1, C5, C6, C3]);
-      expect(all).toHaveLength(6);
     });
   });
 
@@ -205,9 +193,7 @@ describe('MedicalCentersService (integration)', () => {
       expect(data.map(item => item.id)).toEqual([C6, C1, C3]);
       expect(data.every(item => item.isFavorite)).toBe(true);
       expect(data[1]).toMatchObject({ rating: '4.25', reviewsCount: '40' });
-    });
-
-    it('does not mix in the favorites of other users', async () => {
+      // C1 is a favorite of both users: each sees only their own list
       expect((await favoritesFor(userB)).data.map(item => item.id)).toEqual([
         C1,
       ]);

@@ -120,7 +120,7 @@ describe('JwtAuthWithRegistrationGuard', () => {
     ).resolves.toBe(false);
   });
 
-  it('passport passed but there is no user in the request: Unauthorized', async () => {
+  it('passport passed but there is no user in the request: UNAUTHORIZED', async () => {
     await expect(
       guard.canActivate(contextFor(AnyOnHandler, undefined)),
     ).rejects.toMatchObject({ code: ErrorCode.UNAUTHORIZED });

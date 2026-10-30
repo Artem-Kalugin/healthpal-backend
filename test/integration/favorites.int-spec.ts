@@ -47,14 +47,14 @@ describe('FavoritesService (integration)', () => {
       ]);
     });
 
-    it('nonexistent doctor: NotFound, no link is created', async () => {
+    it('nonexistent doctor: DOCTOR_NOT_FOUND, no link is created', async () => {
       await expect(
         service.addDoctorToFavorites(userId, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
       expect(await doctorLinks()).toHaveLength(0);
     });
 
-    it('repeated add: Conflict, a single link remains', async () => {
+    it('repeated add: FAVORITE_ALREADY_EXISTS, a single link remains', async () => {
       const doctor = await factories.doctor();
       await service.addDoctorToFavorites(userId, doctor.id);
 
@@ -90,14 +90,14 @@ describe('FavoritesService (integration)', () => {
       ]);
     });
 
-    it('nonexistent center: NotFound, no link is created', async () => {
+    it('nonexistent center: MEDICAL_CENTER_NOT_FOUND, no link is created', async () => {
       await expect(
         service.addMedicalCenterToFavorites(userId, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.MEDICAL_CENTER_NOT_FOUND });
       expect(await centerLinks()).toHaveLength(0);
     });
 
-    it('repeated add: Conflict, a single link remains', async () => {
+    it('repeated add: FAVORITE_ALREADY_EXISTS, a single link remains', async () => {
       const center = await factories.medicalCenter();
       await service.addMedicalCenterToFavorites(userId, center.id);
 

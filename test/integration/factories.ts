@@ -34,8 +34,8 @@ export const createFactories = (db: Database) => {
         .insert(medicalCenterTable)
         .values({
           name: `Center ${next()}`,
-          address: 'ул. Тверская, д. 1',
-          city: 'Москва',
+          address: '1 Main Street',
+          city: 'Moscow',
           image: IMAGE,
           lat: 55.75,
           lon: 37.61,
@@ -63,8 +63,8 @@ export const createFactories = (db: Database) => {
       db
         .insert(userTable)
         .values({
-          name: 'Иван',
-          surname: 'Иванов',
+          name: 'Ivan',
+          surname: 'Ivanov',
           phone: `+7900${String(next()).padStart(7, '0')}`,
           password: 'hash',
           ...overrides,
@@ -78,13 +78,13 @@ export const createFactories = (db: Database) => {
       db
         .insert(doctorTable)
         .values({
-          name: 'Пётр',
-          surname: 'Петров',
+          name: 'Peter',
+          surname: 'Petrov',
           practiceStartYear: 2010,
           patientsCount: 100,
           reviewsCount: 10,
           image: IMAGE,
-          description: 'Врач',
+          description: 'Doctor',
           medicalCenterId:
             overrides.medicalCenterId ?? (await medicalCenter()).id,
           categoryId: overrides.categoryId ?? (await category()).id,

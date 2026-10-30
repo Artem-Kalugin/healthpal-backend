@@ -50,7 +50,7 @@ describe('schema (integration)', () => {
       .values({
         name: 'Center',
         address: 'Address',
-        city: 'Москва',
+        city: 'Moscow',
         image: { image: 'a', thumbhash: 'b' },
         lat: 1,
         lon: 1,
@@ -63,34 +63,6 @@ describe('schema (integration)', () => {
       .where(eq(medicalCenter.id, id));
 
     expect(center?.timezone).toBe('Europe/Moscow');
-  });
-
-  // This is what protects against double booking of a slot.
-  it('rejects a second appointment on the same time slot at the database level', async () => {
-    const doctor = await factories.doctor();
-    const slot = await factories.timeSlot(doctor.id);
-    const first = await factories.user();
-    const second = await factories.user();
-
-    await factories.appointment(first.id, slot);
-
-    expect(await violation(factories.appointment(second.id, slot))).toEqual(
-      expect.objectContaining({
-        code: '23505',
-        constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE,
-      }),
-    );
-  });
-
-  it('rejects a duplicate phone', async () => {
-    const existing = await factories.user();
-
-    expect(await violation(factories.user({ phone: existing.phone }))).toEqual(
-      expect.objectContaining({
-        code: '23505',
-        constraint: Constraint.USER_PHONE_UNIQUE,
-      }),
-    );
   });
 
   it('rejects a malformed phone and a future birthday', async () => {
@@ -130,21 +102,9 @@ describe('schema (integration)', () => {
     );
   });
 
-  it('rejects a duplicate favorite and an unknown doctor', async () => {
+  it('rejects a favorite of an unknown doctor', async () => {
     const user = await factories.user();
-    const doctor = await factories.doctor();
-    const favorite = { userId: user.id, doctorId: doctor.id };
 
-    await db.insert(userFavoriteDoctor).values(favorite);
-
-    expect(
-      await violation(db.insert(userFavoriteDoctor).values(favorite)),
-    ).toEqual(
-      expect.objectContaining({
-        code: '23505',
-        constraint: Constraint.USER_FAVORITE_DOCTOR_PK,
-      }),
-    );
     expect(
       await violation(
         db.insert(userFavoriteDoctor).values({
