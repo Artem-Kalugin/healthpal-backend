@@ -4,7 +4,6 @@ import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { user } from 'src/db/schema';
-import type { User } from 'src/db/schema';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -54,7 +53,8 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     avatar?: Buffer<ArrayBufferLike>,
   ) {
-    const existingUser = await this.findById(id);
+    // fails fast, before the image is processed
+    await this.findById(id);
 
     const avatarSaved = avatar
       ? await this.imageFileStorageService.processAndSave(
@@ -68,28 +68,41 @@ export class UsersService {
       ? new Date(updateUserDto.birthday)
       : undefined;
 
-    let updatedUser: User | undefined;
+    let result;
 
     try {
-      // Drizzle leaves undefined fields out of UPDATE, so it does not overwrite them
-      [updatedUser] = await this.db
-        .update(user)
-        .set({
-          ...updateUserDto,
-          birthday,
-          name: updateUserDto.name
-            ? this.normalizeNameOrSurname(updateUserDto.name)
-            : undefined,
-          surname: updateUserDto.surname
-            ? this.normalizeNameOrSurname(updateUserDto.surname)
-            : undefined,
-          nickname: this.normalizeNickname(updateUserDto.nickname),
-          avatar: avatarSaved,
-          // computed in SQL from the stored row: concurrent updates of different fields must not overwrite each other's flag
-          registrationComplete: sql<boolean>`coalesce(${birthday?.toISOString() ?? null}::timestamp, ${user.birthday}) is not null and coalesce(${updateUserDto.gender ?? null}::gender, ${user.gender}) is not null`,
-        })
-        .where(eq(user.id, id))
-        .returning();
+      // The row lock makes concurrent updates take turns, so each one deletes the avatar it actually replaced
+      result = await this.db.transaction(async tx => {
+        const [current] = await tx
+          .select({ avatar: user.avatar })
+          .from(user)
+          .where(eq(user.id, id))
+          .for('update');
+
+        if (!current) throw new UserNotFoundException();
+
+        // Drizzle leaves undefined fields out of UPDATE, so it does not overwrite them
+        const [updated] = await tx
+          .update(user)
+          .set({
+            ...updateUserDto,
+            birthday,
+            name: updateUserDto.name
+              ? this.normalizeNameOrSurname(updateUserDto.name)
+              : undefined,
+            surname: updateUserDto.surname
+              ? this.normalizeNameOrSurname(updateUserDto.surname)
+              : undefined,
+            nickname: this.normalizeNickname(updateUserDto.nickname),
+            avatar: avatarSaved,
+            // computed in SQL from the stored row: concurrent updates of different fields must not overwrite each other's flag
+            registrationComplete: sql<boolean>`coalesce(${birthday?.toISOString() ?? null}::timestamp, ${user.birthday}) is not null and coalesce(${updateUserDto.gender ?? null}::gender, ${user.gender}) is not null`,
+          })
+          .where(eq(user.id, id))
+          .returning();
+
+        return { updatedUser: updated, previousAvatar: current.avatar };
+      });
     } catch (error) {
       if (avatarSaved) {
         this.imageFileStorageService.deleteImage(avatarSaved.image);
@@ -97,10 +110,10 @@ export class UsersService {
       throw error;
     }
 
-    if (!updatedUser) throw new UserNotFoundException();
+    const { updatedUser, previousAvatar } = result;
 
-    if (avatar && existingUser.avatar?.image) {
-      this.imageFileStorageService.deleteImage(existingUser.avatar.image);
+    if (avatarSaved && previousAvatar) {
+      this.imageFileStorageService.deleteImage(previousAvatar.image);
     }
 
     return updatedUser;

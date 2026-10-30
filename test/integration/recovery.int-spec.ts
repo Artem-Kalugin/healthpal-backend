@@ -11,23 +11,31 @@ import {
   RecoveryService,
 } from 'src/domain/auth/recovery.service';
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
-import type { UsersService } from 'src/domain/users/users.service';
-import type { User } from 'src/db/schema';
+import { UsersService } from 'src/domain/users/users.service';
+import type { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
+import { PasswordService } from 'src/infrastructure/password/password.service';
+import { eq } from 'drizzle-orm';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { user as userTable } from 'src/db/schema';
+import { clearDatabase, createTestDb } from './db';
+import { createFactories } from './factories';
 import { createTestRedis } from './redis';
 
 const OTP_TTL = 300;
 const RECOVERY_TTL = 600;
 const PHONE = '+79001234567';
+const OLD_PASSWORD = 'OldPassword1';
 
 describe('RecoveryService (integration, Redis)', () => {
+  let db: Database;
+  let pool: Pool;
+  let factories: ReturnType<typeof createFactories>;
   let redis: Redis;
   let service: RecoveryService;
+  let user: Awaited<ReturnType<ReturnType<typeof createFactories>['user']>>;
 
-  const user = { id: 'user-id', phone: PHONE } as User;
-  const usersService = {
-    findByPhone: jest.fn(),
-    changePassword: jest.fn(),
-  };
+  const passwordService = new PasswordService();
   const sessionService = {
     generateTokens: jest.fn(),
     revokeAllSessions: jest.fn(),
@@ -43,11 +51,13 @@ describe('RecoveryService (integration, Redis)', () => {
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
     redis = createTestRedis();
     service = new RecoveryService(
       redis,
-      usersService as unknown as UsersService,
+      new UsersService(db, {} as ImageFileStorageService, passwordService),
       sessionService as unknown as SessionService,
       config as unknown as ConfigService<EnvironmentVariables>,
     );
@@ -55,15 +65,19 @@ describe('RecoveryService (integration, Redis)', () => {
 
   beforeEach(async () => {
     await redis.flushdb();
+    await clearDatabase(db);
     jest.restoreAllMocks();
-    usersService.findByPhone.mockReset().mockResolvedValue(user);
-    usersService.changePassword.mockReset().mockResolvedValue(undefined);
+    user = await factories.user({
+      phone: PHONE,
+      password: await passwordService.hash(OLD_PASSWORD),
+    });
     sessionService.generateTokens.mockReset();
     sessionService.revokeAllSessions.mockReset();
   });
 
   afterAll(async () => {
     await redis.quit();
+    await pool.end();
   });
 
   // the lock "at most once per 10 seconds" is tested separately, in the other tests it gets in the way
@@ -83,9 +97,7 @@ describe('RecoveryService (integration, Redis)', () => {
 
   describe('requestOtp', () => {
     it('unknown phone → UserNotFound, no lock and no OTP are created', async () => {
-      usersService.findByPhone.mockRejectedValue(new UserNotFoundException());
-
-      const error = await rejection(service.requestOtp(PHONE));
+      const error = await rejection(service.requestOtp('+70000000000'));
 
       expect(error).toBeInstanceOf(UserNotFoundException);
       expect(await redis.keys('*')).toEqual([]);
@@ -208,12 +220,58 @@ describe('RecoveryService (integration, Redis)', () => {
     });
   });
 
+  describe('verifyOtp: concurrency', () => {
+    it('parallel wrong guesses cannot exceed OTP_MAX_ATTEMPTS: the rest find the OTP burned', async () => {
+      const otp = await requestOtp();
+
+      const errors = await Promise.all(
+        Array.from({ length: 50 }, () =>
+          rejection(service.verifyOtp(PHONE, wrongOtp(otp))),
+        ),
+      );
+
+      const messages = errors.map(error => (error as Error).message);
+      expect(messages.filter(m => m === 'Wrong OTP')).toHaveLength(
+        OTP_MAX_ATTEMPTS,
+      );
+      expect(
+        messages.filter(m => m === 'OTP was not requested or has expired'),
+      ).toHaveLength(50 - OTP_MAX_ATTEMPTS);
+      expect(await redis.exists(`otp:${PHONE}`)).toBe(0);
+    });
+
+    it('parallel requests with the right code: exactly one succeeds', async () => {
+      const otp = await requestOtp();
+
+      const results = await Promise.allSettled(
+        Array.from({ length: 10 }, () => service.verifyOtp(PHONE, otp)),
+      );
+
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+      expect(await redis.keys('recovery:*')).toHaveLength(1);
+    });
+  });
+
+  describe('counters always have a TTL', () => {
+    it('requests counter and attempts counter expire', async () => {
+      const otp = await requestOtp();
+      await rejection(service.verifyOtp(PHONE, wrongOtp(otp)));
+
+      expect(await redis.ttl(`otp_requests:${PHONE}`)).toBeGreaterThan(0);
+      expect(await redis.ttl(`otp_attempts:${PHONE}`)).toBeGreaterThan(0);
+    });
+  });
+
   describe('resetPassword', () => {
     const issueRecoveryToken = async () => {
       const otp = await requestOtp();
 
       return (await service.verifyOtp(PHONE, otp)).recoveryToken;
     };
+
+    const storedPassword = async () =>
+      (await db.select().from(userTable).where(eq(userTable.id, user.id)))[0]
+        .password;
 
     it('changes the password, invalidates the token and returns login tokens', async () => {
       const recoveryToken = await issueRecoveryToken();
@@ -222,14 +280,34 @@ describe('RecoveryService (integration, Redis)', () => {
 
       const result = await service.resetPassword(recoveryToken, 'NewPassword1');
 
-      expect(usersService.changePassword).toHaveBeenCalledWith(
-        user.id,
-        'NewPassword1',
-      );
+      expect(
+        await passwordService.compare('NewPassword1', await storedPassword()),
+      ).toBe(true);
       expect(sessionService.revokeAllSessions).toHaveBeenCalledWith(user.id);
-      expect(sessionService.generateTokens).toHaveBeenCalledWith(user);
+      expect(sessionService.generateTokens).toHaveBeenCalledWith(
+        expect.objectContaining({ id: user.id }),
+      );
       expect(result).toBe(tokens);
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
+    });
+
+    it('sessions are revoked after the password changes and before new tokens are issued', async () => {
+      const recoveryToken = await issueRecoveryToken();
+      let isPasswordChangedOnRevoke = false;
+      sessionService.revokeAllSessions.mockImplementation(async () => {
+        isPasswordChangedOnRevoke = await passwordService.compare(
+          'NewPassword1',
+          await storedPassword(),
+        );
+      });
+      sessionService.generateTokens.mockResolvedValue({});
+
+      await service.resetPassword(recoveryToken, 'NewPassword1');
+
+      expect(isPasswordChangedOnRevoke).toBe(true);
+      expect(
+        sessionService.revokeAllSessions.mock.invocationCallOrder[0],
+      ).toBeLessThan(sessionService.generateTokens.mock.invocationCallOrder[0]);
     });
 
     it('the token is single-use: a repeated reset with it is rejected', async () => {
@@ -242,7 +320,9 @@ describe('RecoveryService (integration, Redis)', () => {
       );
 
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
-      expect(usersService.changePassword).toHaveBeenCalledTimes(1);
+      expect(
+        await passwordService.compare('NewPassword1', await storedPassword()),
+      ).toBe(true);
     });
 
     it('unknown or expired token → error code, the password is unchanged', async () => {
@@ -251,7 +331,9 @@ describe('RecoveryService (integration, Redis)', () => {
       );
 
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
-      expect(usersService.changePassword).not.toHaveBeenCalled();
+      expect(
+        await passwordService.compare(OLD_PASSWORD, await storedPassword()),
+      ).toBe(true);
     });
   });
 });

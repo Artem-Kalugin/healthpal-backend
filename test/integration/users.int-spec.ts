@@ -8,7 +8,7 @@ import { UpdateUserDto } from 'src/domain/users/dto/update-user.dto';
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
 import { UsersService } from 'src/domain/users/users.service';
 import type { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
-import type { PasswordService } from 'src/infrastructure/password/password.service';
+import { PasswordService } from 'src/infrastructure/password/password.service';
 import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
@@ -35,6 +35,7 @@ describe('UsersService (integration)', () => {
   let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: UsersService;
+  const passwordService = new PasswordService();
   const storage = {
     processAndSave: jest.fn(),
     deleteImage: jest.fn(),
@@ -46,9 +47,7 @@ describe('UsersService (integration)', () => {
     service = new UsersService(
       db,
       storage as unknown as ImageFileStorageService,
-      {
-        hash: jest.fn().mockResolvedValue('hash'),
-      } as unknown as PasswordService,
+      passwordService,
     );
   });
 
@@ -84,11 +83,16 @@ describe('UsersService (integration)', () => {
     });
 
     expect(await reload(created.id)).toMatchObject({
-      password: 'hash',
       name: 'Иван-Петров',
       surname: 'Сидоров',
       registrationComplete: false,
     });
+    expect(
+      await passwordService.compare(
+        'secret',
+        (await reload(created.id)).password,
+      ),
+    ).toBe(true);
   });
 
   it('create: taken phone → uniqueness violation', async () => {
@@ -219,6 +223,29 @@ describe('UsersService (integration)', () => {
       expect((await reload(user.id)).avatar).toEqual(OLD_IMAGE);
     });
 
+    it('parallel avatar updates: every replaced file is deleted, only the winner stays', async () => {
+      const first = { image: 'first.jpg', thumbhash: 'first-hash' };
+      const second = { image: 'second.jpg', thumbhash: 'second-hash' };
+      storage.processAndSave
+        .mockResolvedValueOnce(first)
+        .mockResolvedValueOnce(second);
+      const user = await factories.user({ avatar: OLD_IMAGE });
+
+      await Promise.all([
+        service.update(user.id, {} as UpdateUserDto, AVATAR),
+        service.update(user.id, {} as UpdateUserDto, AVATAR),
+      ]);
+
+      const { avatar } = await reload(user.id);
+      const deleted = storage.deleteImage.mock.calls.map(
+        ([image]: [string]) => image,
+      );
+      expect(deleted).toHaveLength(2);
+      expect(deleted).toContain(OLD_IMAGE.image);
+      expect(deleted).not.toContain(avatar?.image);
+      expect([first.image, second.image]).toContain(avatar?.image);
+    });
+
     it('without an avatar the file storage is untouched', async () => {
       const user = await factories.user({ avatar: OLD_IMAGE });
 
@@ -262,6 +289,11 @@ describe('UsersService (integration)', () => {
 
     await service.changePassword(user.id, 'NewPassword1');
 
-    expect((await reload(user.id)).password).toBe('hash');
+    expect(
+      await passwordService.compare(
+        'NewPassword1',
+        (await reload(user.id)).password,
+      ),
+    ).toBe(true);
   });
 });

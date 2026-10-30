@@ -10,11 +10,39 @@ import { EnvironmentVariables } from 'declarations';
 import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 
+enum OtpCheck {
+  MISSING = 0,
+  VALID = 1,
+  WRONG = 2,
+}
+
 /** Wrong inputs per OTP, after which it burns and a new request is needed. */
 export const OTP_MAX_ATTEMPTS = 5;
 /** OTP requests per phone within the `OTP_REQUESTS_WINDOW_SECONDS` window. */
 export const OTP_MAX_REQUESTS = 10;
 export const OTP_REQUESTS_WINDOW_SECONDS = 3600;
+
+// Counting the attempt, comparing and burning happen in one step: parallel guesses cannot outrun the attempts limit,
+// and of two parallel requests with the right code only one succeeds.
+// The compared values are HMACs under a server secret, so a non-constant-time comparison leaks nothing useful.
+const VERIFY_OTP_SCRIPT = `
+  local stored = redis.call('get', KEYS[1])
+  if not stored then
+    return ${OtpCheck.MISSING}
+  end
+  local attempts = redis.call('incr', KEYS[2])
+  if attempts == 1 then
+    redis.call('expire', KEYS[2], ARGV[3])
+  end
+  if stored == ARGV[1] then
+    redis.call('del', KEYS[1], KEYS[2])
+    return ${OtpCheck.VALID}
+  end
+  if attempts >= tonumber(ARGV[2]) then
+    redis.call('del', KEYS[1], KEYS[2])
+  end
+  return ${OtpCheck.WRONG}
+`;
 
 const redisKeys = {
   otp: (phone: string) => `otp:${phone}`,
@@ -64,11 +92,13 @@ export class RecoveryService {
     }
 
     const requestsKey = redisKeys.otpRequests(phone);
-    const requests = await this.redis.incr(requestsKey);
-    if (requests === 1) {
-      await this.redis.expire(requestsKey, OTP_REQUESTS_WINDOW_SECONDS);
-    }
-    if (requests > OTP_MAX_REQUESTS) {
+    // NX: the TTL is set only on the first request, so the window is fixed and a crash cannot leave a counter without TTL
+    const [[, requests]] = (await this.redis
+      .multi()
+      .incr(requestsKey)
+      .expire(requestsKey, OTP_REQUESTS_WINDOW_SECONDS, 'NX')
+      .exec())!;
+    if ((requests as number) > OTP_MAX_REQUESTS) {
       throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
         message: 'Too many OTP requests within the window',
       });
@@ -77,52 +107,34 @@ export class RecoveryService {
     const otp = this.generateOtp();
     const otpHash = this.hmac(otp);
 
-    await this.redis.set(
-      redisKeys.otp(phone),
-      otpHash,
-      'EX',
-      this.config.get('OTP_TTL')!,
-    );
-    await this.redis.del(redisKeys.otpAttempts(phone));
+    await this.redis
+      .multi()
+      .set(redisKeys.otp(phone), otpHash, 'EX', this.config.get('OTP_TTL')!)
+      .del(redisKeys.otpAttempts(phone))
+      .exec();
 
     return { smsDemoOnly: otp };
   }
 
-  private async registerFailedAttempt(phone: string) {
-    const attemptsKey = redisKeys.otpAttempts(phone);
-    const attempts = await this.redis.incr(attemptsKey);
-
-    if (attempts === 1) {
-      await this.redis.expire(attemptsKey, this.config.get('OTP_TTL')!);
-    }
-
-    if (attempts >= OTP_MAX_ATTEMPTS) {
-      await this.redis.del(redisKeys.otp(phone), attemptsKey);
-    }
-  }
-
   async verifyOtp(phone: string, otp: string) {
-    const stored = await this.redis.get(redisKeys.otp(phone));
-    if (!stored) {
-      throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
-        message: 'OTP was not requested or has expired',
-      });
-    }
-
-    const inputHash = this.hmac(otp);
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(stored),
-      Buffer.from(inputHash),
+    const result = await this.redis.eval(
+      VERIFY_OTP_SCRIPT,
+      2,
+      redisKeys.otp(phone),
+      redisKeys.otpAttempts(phone),
+      this.hmac(otp),
+      OTP_MAX_ATTEMPTS,
+      this.config.get('OTP_TTL')!,
     );
 
-    if (!isValid) {
-      await this.registerFailedAttempt(phone);
+    if (result !== OtpCheck.VALID) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
-        message: 'Wrong OTP',
+        message:
+          result === OtpCheck.MISSING
+            ? 'OTP was not requested or has expired'
+            : 'Wrong OTP',
       });
     }
-
-    await this.redis.del(redisKeys.otp(phone), redisKeys.otpAttempts(phone));
 
     const token = crypto.randomBytes(24).toString('hex');
     await this.redis.set(
