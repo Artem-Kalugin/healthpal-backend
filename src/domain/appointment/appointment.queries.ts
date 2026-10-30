@@ -9,12 +9,12 @@ import {
   medicalCenter,
 } from 'src/db/schema';
 
-/** Момент начала записи в абсолютном времени: `date` и `startTime` заданы по часам центра. */
+/** Absolute start of the appointment: `date` and `startTime` are on the center's clock. */
 export const appointmentStartAt = sql<Date>`((${appointment.date} + ${appointment.startTime}) at time zone ${medicalCenter.timezone})`;
 
 /**
- * Запись с врачом, его категорией и центром (имя, адрес); `where`, сортировку и пагинацию добавляет вызывающий.
- * Drizzle не вкладывает селект глубже одного уровня, поэтому строку нужно пропустить через `nestDoctor`.
+ * Appointment with its doctor, category and center (name, address); the caller adds `where`, ordering and pagination.
+ * Drizzle does not nest a select deeper than one level, so the row must go through `nestDoctor`.
  */
 export const selectAppointments = (db: Database) =>
   db

@@ -29,7 +29,7 @@ export class AppointmentResponseDto {
   doctor: DoctorResponseDto;
 }
 
-// мутации отдают врача без `category`
+// mutations return the doctor without `category`
 class AppointmentMutationDoctorDto extends IntersectionType(
   PickType(DoctorResponseDto, ['id'] as const),
   PartialType(OmitType(DoctorResponseDto, ['id', 'category'] as const)),

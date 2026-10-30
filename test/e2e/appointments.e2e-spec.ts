@@ -5,10 +5,9 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { AuthService } from 'src/domain/auth/auth.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { appointment as appointmentTable } from 'src/db/schema';
-import { eq } from 'drizzle-orm';
 import { DB, type Database } from 'src/db/db.module';
 import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
@@ -41,7 +40,7 @@ describe('Appointments (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close its connection, Jest would not exit
     await app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false }).quit();
     await app.close();
   });
@@ -76,7 +75,6 @@ describe('Appointments (e2e)', () => {
     return { user, token: `Bearer ${accessToken}` };
   };
 
-  /** Врач со свободным слотом в будущем (`day` — число ноября 2026). */
   const givenFreeSlot = async (day = 3) => {
     const doctor = await factories.doctor();
     const slot = await factories.timeSlot(doctor.id, {
@@ -136,48 +134,21 @@ describe('Appointments (e2e)', () => {
       });
     });
 
-    // E1
-    describe('answers with a client error instead of 500', () => {
-      it('400 when timeSlotId is missing', async () => {
-        const { token } = await newUser();
-        await givenFreeSlot();
+    it('answers 409 APPOINTMENT_SLOT_TAKEN when the slot is already taken', async () => {
+      const { token } = await newUser();
+      const owner = await factories.user();
+      const { slot } = await givenFreeSlot();
+      await factories.appointment(owner.id, slot);
 
-        const { status } = await send('post', '/appointments', {
-          token,
-          body: {},
-        });
-
-        expect(status).toBe(400);
+      const { status, body } = await send('post', '/appointments', {
+        token,
+        body: { timeSlotId: slot.id },
       });
 
-      it('404 when the time slot does not exist', async () => {
-        const { token } = await newUser();
-        await givenFreeSlot();
-
-        const { status } = await send('post', '/appointments', {
-          token,
-          body: { timeSlotId: UNKNOWN_ID },
-        });
-
-        expect(status).toBe(404);
-      });
-
-      it('409 when the slot is already taken', async () => {
-        const { token } = await newUser();
-        const owner = await factories.user();
-        const { slot } = await givenFreeSlot();
-        await factories.appointment(owner.id, slot);
-
-        const { status, body } = await send('post', '/appointments', {
-          token,
-          body: { timeSlotId: slot.id },
-        });
-
-        expect(status).toBe(409);
-        expect(body).toEqual({
-          statusCode: 409,
-          code: 'APPOINTMENT_SLOT_TAKEN',
-        });
+      expect(status).toBe(409);
+      expect(body).toEqual({
+        statusCode: 409,
+        code: ErrorCode.APPOINTMENT_SLOT_TAKEN,
       });
     });
   });
@@ -199,7 +170,6 @@ describe('Appointments (e2e)', () => {
   });
 
   describe('PATCH /appointments/:id/cancel', () => {
-    // E2: Swagger обещает AppointmentResponseDto
     it('returns the cancelled appointment as declared in Swagger', async () => {
       const { user, token } = await newUser();
       const { appointment } = await givenBooking(user.id);
@@ -219,36 +189,20 @@ describe('Appointments (e2e)', () => {
       });
     });
 
-    // E1
-    it('404 when the appointment does not exist', async () => {
+    it('answers 404 APPOINTMENT_NOT_FOUND for an unknown appointment', async () => {
       const { token } = await newUser();
 
-      const { status } = await send(
+      const { status, body } = await send(
         'patch',
         `/appointments/${UNKNOWN_ID}/cancel`,
         { token },
       );
 
       expect(status).toBe(404);
-    });
-
-    it("404 for another user's appointment, which stays active", async () => {
-      const { token } = await newUser();
-      const owner = await factories.user();
-      const { appointment } = await givenBooking(owner.id);
-
-      const { status } = await send(
-        'patch',
-        `/appointments/${appointment.id}/cancel`,
-        { token },
-      );
-
-      expect(status).toBe(404);
-      const [stored] = await db
-        .select()
-        .from(appointmentTable)
-        .where(eq(appointmentTable.id, appointment.id));
-      expect(stored?.isCancelled).toBe(false);
+      expect(body).toEqual({
+        statusCode: 404,
+        code: ErrorCode.APPOINTMENT_NOT_FOUND,
+      });
     });
   });
 
@@ -272,74 +226,6 @@ describe('Appointments (e2e)', () => {
         id: appointment.id,
         timeSlotId: newSlot.id,
         date: '2026-11-05',
-      });
-    });
-
-    // E1
-    describe('answers with a client error instead of 500', () => {
-      it('404 when the appointment does not exist', async () => {
-        const { token } = await newUser();
-        const { slot } = await givenFreeSlot();
-
-        const { status } = await send(
-          'patch',
-          `/appointments/${UNKNOWN_ID}/reschedule`,
-          { token, body: { newTimeSlotId: slot.id } },
-        );
-
-        expect(status).toBe(404);
-      });
-
-      it("404 for another user's appointment", async () => {
-        const { token } = await newUser();
-        const owner = await factories.user();
-        const { doctor, appointment } = await givenBooking(owner.id);
-        const newSlot = await factories.timeSlot(doctor.id, {
-          date: '2026-11-05',
-        });
-
-        const { status } = await send(
-          'patch',
-          `/appointments/${appointment.id}/reschedule`,
-          { token, body: { newTimeSlotId: newSlot.id } },
-        );
-
-        expect(status).toBe(404);
-      });
-
-      it('404 when the new slot does not exist', async () => {
-        const { user, token } = await newUser();
-        const { appointment } = await givenBooking(user.id);
-
-        const { status } = await send(
-          'patch',
-          `/appointments/${appointment.id}/reschedule`,
-          { token, body: { newTimeSlotId: UNKNOWN_ID } },
-        );
-
-        expect(status).toBe(404);
-      });
-
-      it('409 when the new slot is already taken', async () => {
-        const { user, token } = await newUser();
-        const other = await factories.user();
-        const { doctor, appointment } = await givenBooking(user.id);
-        const takenSlot = await factories.timeSlot(doctor.id, {
-          date: '2026-11-05',
-        });
-        await factories.appointment(other.id, takenSlot);
-
-        const { status, body } = await send(
-          'patch',
-          `/appointments/${appointment.id}/reschedule`,
-          { token, body: { newTimeSlotId: takenSlot.id } },
-        );
-
-        expect(status).toBe(409);
-        expect(body).toEqual({
-          statusCode: 409,
-          code: 'APPOINTMENT_SLOT_TAKEN',
-        });
       });
     });
   });

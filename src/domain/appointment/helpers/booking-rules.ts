@@ -4,11 +4,11 @@ import { APPOINTMENT_MIN_LEAD_MINUTES } from 'src/common/config';
 import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
 type Startable = { date: string; startTime: string };
 
-/** Приём должен начинаться не раньше `now + APPOINTMENT_MIN_LEAD_MINUTES` по часам центра. */
+/** The start must be no earlier than `now + APPOINTMENT_MIN_LEAD_MINUTES` on the center's clock. */
 export const assertBookingWindow = (
   target: Startable,
   timezone: string,
-  message = 'Слишком мало времени до начала приёма',
+  message = 'Too little time before the start',
 ) => {
   const earliest = addMinutes(new Date(), APPOINTMENT_MIN_LEAD_MINUTES);
 
@@ -17,7 +17,6 @@ export const assertBookingWindow = (
   }
 };
 
-/** Слот принадлежит врачу и попадает в окно записи. */
 export const assertSlotBookable = (
   slot: Startable & { doctorId: string },
   doctorId: string,

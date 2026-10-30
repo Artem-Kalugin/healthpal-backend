@@ -16,7 +16,7 @@ const MOSCOW = 'Europe/Moscow';
 const BERLIN = 'Europe/Berlin';
 const DOCTOR_ID = 'doctor-1';
 
-// NOW = 15:00:00 в Москве; + APPOINTMENT_MIN_LEAD_MINUTES (2 часа) = 17:00:00
+// NOW = 15:00:00 in Moscow; + APPOINTMENT_MIN_LEAD_MINUTES (2 hours) = 17:00:00
 const TOO_SOON = [
   { title: 'started before now', date: '2026-10-29', startTime: '14:59:59' },
   { title: 'starts exactly now', date: '2026-10-29', startTime: '15:00:00' },
@@ -48,7 +48,7 @@ describe('booking-rules', () => {
     });
 
     it.each(TOO_SOON)(
-      'throws AppException when the start $title',
+      'rejects with APPOINTMENT_TOO_SOON when the start $title',
       ({ date, startTime }) => {
         expect(
           codeOf(() => assertBookingWindow({ date, startTime }, MOSCOW)),
@@ -56,8 +56,8 @@ describe('booking-rules', () => {
       },
     );
 
-    // 16:00 по часам центра: в Берлине (UTC+1) это 15:00Z, после границы окна,
-    // в Москве (UTC+3) это 13:00Z, до границы.
+    // 16:00 on the center's clock: in Berlin (UTC+1) it is 15:00Z, after the window boundary,
+    // in Moscow (UTC+3) it is 13:00Z, before it.
     it('measures the window in the timezone of the medical center', () => {
       const start = { date: '2026-10-29', startTime: '16:00:00' };
 
@@ -77,24 +77,6 @@ describe('booking-rules', () => {
 
     it('accepts a slot of the doctor inside the window', () => {
       expect(() => assertSlotBookable(slot(), DOCTOR_ID, MOSCOW)).not.toThrow();
-    });
-
-    it('throws AppException when the slot belongs to another doctor', () => {
-      expect(
-        codeOf(() => assertSlotBookable(slot('doctor-2'), DOCTOR_ID, MOSCOW)),
-      ).toBe(ErrorCode.TIME_SLOT_DOCTOR_MISMATCH);
-    });
-
-    it('throws AppException when the slot is outside the window', () => {
-      expect(
-        codeOf(() =>
-          assertSlotBookable(
-            { ...slot(), date: '2026-10-29', startTime: '16:59:59' },
-            DOCTOR_ID,
-            MOSCOW,
-          ),
-        ),
-      ).toBe(ErrorCode.APPOINTMENT_TOO_SOON);
     });
   });
 });

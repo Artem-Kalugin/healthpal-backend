@@ -1,11 +1,16 @@
 # HealthPal backend
 
-NestJS + TypeORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup: `README.md`.
+NestJS + Drizzle ORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup: `README.md`.
 
 ## Language
 
-- No Russian in code or docs: identifiers, comments, test titles, commit messages, `CLAUDE.md`, `agents/*` notes. Write everything in English.
+- No Russian in code or docs: identifiers, comments, test titles, commit messages, `CLAUDE.md`, `agents/*` notes. Write everything in English. Exception: `seed/`
 - If you come across Russian in code while working, translate it to English once the task is done. Stay within the task: translate only the files you touched or read for it, and do not let it pull you away from the main work.
+
+## Comments
+
+- Comments are optional. Write one only for what the code cannot say: the reasoning, a constraint, a non-obvious trade-off or a pitfall. Do not explain what the code does, names and structure should do that.
+- If you come across comments that only narrate the code (or dangling ones, like `// I1` markers), delete them once the task is done. Same scope rule as for Russian: only the files you touched or read for the task, and do not let it pull you away from the main work.
 
 ## Tests
 
@@ -15,7 +20,7 @@ NestJS + TypeORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup
 
 ## DTOs and serialization
 
-- Validation uses class-validator. Moving to zod was considered and rejected. The pilot (appointment on `nestjs-zod`) lives on as commit `e77967c`, the branch is deleted. Restore with `git checkout e77967c`. If it is not needed, remove this mention after 10 November 2026.
+- Validation uses class-validator.
 - The global `ClassSerializerInterceptor` runs in whitelist mode (`excludeExtraneousValues`): every public field of a response DTO must have `@Expose()`, otherwise it is stripped from the response. Request DTOs do not need `@Expose`.
 - Validation errors are returned as `{ statusCode: 400, code: 'VALIDATION_FAILED', validation: { field: [{ code, params? }] } }`, the client localizes by `code`. Codes and parameter shapes: `ValidationCode` and `ValidationParameters` in `src/common/errors/validation-code.ts`, client catalog in `agents/error-catalog.md`. `ValidationCode` values must not change without agreeing with the client.
 - No text `message` in DTOs: rule options are built with `rule(ValidationCode.X, { limit })` (the code goes into `message`, parameters into `context`), and the limit comes from the same constant as the decorator argument. Rules with parameters (`MinLength`, `Max`, etc.) always go through `rule()`, otherwise the client gets `INVALID_VALUE` without the value. Password on create and change: `@IsPassword()` (`src/common/validators`), the policy is not checked on input (login). Add your own composite decorators to `additionalDecorators` in `eslint.config.mjs`.
@@ -40,7 +45,7 @@ NestJS + TypeORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup
 ## Swagger / OpenAPI
 
 - The `@nestjs/swagger` CLI plugin is enabled. Do not write empty `@ApiProperty()`: the plugin takes the type, optionality and class-validator constraints itself. The decorator is needed for `description`, `example`, `enum`/`enumName`, `type`, `isArray`.
-- The plugin only processes `*.dto.ts` and `*.entity.ts` and does not see fields with a computed name (`[expr]: T`): `@ApiProperty` is mandatory for them.
+- The plugin only processes `*.dto.ts` and does not see fields with a computed name (`[expr]: T`): `@ApiProperty` is mandatory for them.
 - Take the OpenAPI dump for before/after comparison from a real build (`nest build`), not through ts-jest: there the plugin loses `$ref` to classes from other files.
 - The Scalar UI version is pinned via `cdn` in `src/main.ts`, change it manually when updating.
 - Restart the server behind ngrok after changing dependencies, otherwise it serves the old version.
@@ -55,11 +60,11 @@ NestJS + TypeORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup
 - Driver error: `DrizzleQueryError`, the Postgres code, `constraint` and `table` are in `cause`. DB errors become HTTP in one global filter, not in the data layer.
 - `numeric` is read as a string (`rating`), `date`/`time` as strings. Do not change without updating DTOs and tests.
 - Variables and parameters of the data layer are named `db` (an exception in `unicorn/prevent-abbreviations` in `eslint.config.mjs`), the type is `Database`, the DI token is `DB`.
-- Domain TS enums live in `src/db/enums.ts` (the schema builds pgEnum from them), DTOs import from there, not from `src/entities`.
+- Domain TS enums live in `src/db/enums.ts` (the schema builds pgEnum from them), DTOs import from there.
 - The DB schema is applied by migrations. `drizzle-kit push` only for the test DB: it is interactive on conflict with foreign types, recreate the DB before it (`DROP SCHEMA public CASCADE` and then `docker/postgres/init.sql` again).
 
 ## Misc
 
-- `agents/` is in `.gitignore`: working notes and audits, they do not go to git. Leftover of the audit after the Drizzle move: `agents/drizzle-code-quality-audit.md`; simplifications of the shared schema: `agents/complexity-audit.md`, items tied to TypeORM are not carried out.
+- `agents/` is the project memory for agent artifacts: handoffs, plans, analyses, the client error catalog. It is in `.gitignore`, nothing there goes to git. if you asked to save new handoffs, plans and analyses - save them there. 
 - Do not commit seeds (`src/seeds`, `*.seed`) and do not suggest committing them: they are heavy, and the owner does not want to publish the data.
 - When asked to commit, put everything in `git status` into one commit unless told otherwise.

@@ -86,7 +86,7 @@ export class AppointmentService {
         .where(eq(doctorTimeSlot.id, timeSlotId)),
       () =>
         new AppException(ErrorCode.TIME_SLOT_NOT_FOUND, {
-          message: 'Тайм слот недоступен',
+          message: 'Time slot is not available',
         }),
     );
 
@@ -142,7 +142,7 @@ export class AppointmentService {
     assertBookingWindow(
       target,
       target.timezone,
-      'Запись нельзя перенести: слишком мало времени до начала приёма',
+      'Appointment cannot be rescheduled: too little time before the start',
     );
 
     const newSlot = firstOrThrow(
@@ -152,7 +152,7 @@ export class AppointmentService {
         .where(eq(doctorTimeSlot.id, newTimeSlotId)),
       () =>
         new AppException(ErrorCode.TIME_SLOT_NOT_FOUND, {
-          message: 'Новый тайм слот не найден',
+          message: 'New time slot not found',
         }),
     );
 
@@ -162,7 +162,7 @@ export class AppointmentService {
 
     assertSlotBookable(newSlot, target.doctorId, target.timezone);
 
-    // isCancelled в WHERE: параллельная отмена не должна вернуть слот отменённой записи
+    // isCancelled in WHERE: a concurrent cancel must not hand a slot back to a cancelled appointment
     const updated = await this.db
       .update(appointment)
       .set({
@@ -186,7 +186,7 @@ export class AppointmentService {
     return this.findDetailed(appointmentId);
   }
 
-  /** Запись пользователя вместе с поясом центра; чужая запись считается ненайденной. */
+  /** Another user's appointment is reported as not found. */
   private async findOwned(appointmentId: string, userId: string) {
     return firstOrThrow(
       await this.db
