@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, Min, Max } from 'class-validator';
+import { rule, ValidationCode } from 'src/common/errors/validation-code';
 
 export class PaginatedQueryDto {
   @ApiPropertyOptional({
@@ -9,8 +10,8 @@ export class PaginatedQueryDto {
     type: 'number',
   })
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsInt(rule(ValidationCode.INVALID_INTEGER))
+  @Min(1, rule(ValidationCode.VALUE_TOO_SMALL, { limit: 1 }))
   page = 1;
 
   @ApiPropertyOptional({
@@ -19,8 +20,8 @@ export class PaginatedQueryDto {
     type: 'number',
   })
   @Type(() => Number)
-  @IsInt()
-  @Min(10)
-  @Max(40)
+  @IsInt(rule(ValidationCode.INVALID_INTEGER))
+  @Min(10, rule(ValidationCode.VALUE_TOO_SMALL, { limit: 10 }))
+  @Max(40, rule(ValidationCode.VALUE_TOO_BIG, { limit: 40 }))
   size = 10;
 }

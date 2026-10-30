@@ -16,6 +16,7 @@ import {
 } from 'src/db/errors';
 import { AppException } from './app.exception';
 import { ERROR_STATUS, ErrorCode } from './error-code';
+import { ValidationFailedException } from './validation.exception';
 
 /** Ограничения, нарушение которых пользователь может вызвать сам: у них есть публичный код. Остальные уходят клиенту как `INTERNAL_ERROR`. */
 export const CONSTRAINT_CODES: Partial<Record<Constraint, ErrorCode>> = {
@@ -61,7 +62,7 @@ const resolve = (exception: AppException | DrizzleQueryError) => {
   };
 };
 
-/** Единственное место, где `AppException` и ошибка драйвера (`DrizzleQueryError`) превращаются в HTTP-ответ `{ statusCode, code }`. */
+/** Единственное место, где `AppException` и ошибка драйвера (`DrizzleQueryError`) превращаются в HTTP-ответ `{ statusCode, code }` (для валидации ещё `validation`). */
 @Catch(AppException, DrizzleQueryError)
 export class AppErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger(AppErrorFilter.name);
@@ -90,6 +91,12 @@ export class AppErrorFilter implements ExceptionFilter {
       this.logger.warn(line);
     }
 
-    response.status(statusCode).json({ statusCode, code: clientCode });
+    response.status(statusCode).json({
+      statusCode,
+      code: clientCode,
+      ...(exception instanceof ValidationFailedException && {
+        validation: exception.validation,
+      }),
+    });
   }
 }

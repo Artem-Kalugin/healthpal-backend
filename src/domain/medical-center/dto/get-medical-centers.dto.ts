@@ -1,22 +1,21 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { rule, ValidationCode } from 'src/common/errors/validation-code';
+
+const NUMBER_PATTERN = /^[-+]?(?:\d+(\.\d+)?|\.\d+)$/;
 
 export class GetMedicalCentersDto {
-  @IsBoolean()
+  @IsBoolean(rule(ValidationCode.INVALID_BOOLEAN))
   @Transform(({ value }) => value === 'true')
   shouldTake5Only: boolean;
 
   @IsOptional()
-  @IsString({ message: 'lat должно быть строкой' })
-  @Matches(/^[-+]?(?:\d+(\.\d+)?|\.\d+)$/, {
-    message: 'lat должно быть числом',
-  })
+  @IsString(rule(ValidationCode.NOT_STRING))
+  @Matches(NUMBER_PATTERN, rule(ValidationCode.NUMBER_FORMAT))
   lat?: string;
 
   @IsOptional()
-  @IsString({ message: 'lon должно быть строкой' })
-  @Matches(/^[-+]?(?:\d+(\.\d+)?|\.\d+)$/, {
-    message: 'lat должно быть числом',
-  })
+  @IsString(rule(ValidationCode.NOT_STRING))
+  @Matches(NUMBER_PATTERN, rule(ValidationCode.NUMBER_FORMAT))
   lon?: string;
 }

@@ -7,6 +7,8 @@ import { HttpStatus } from '@nestjs/common';
 export enum ErrorCode {
   /** Общий ответ вместо внутренних деталей. */
   INTERNAL_ERROR = 'INTERNAL_ERROR',
+  /** Детали по полям лежат в `validation`, коды в `ValidationCode`. */
+  VALIDATION_FAILED = 'VALIDATION_FAILED',
 
   USER_PHONE_TAKEN = 'USER_PHONE_TAKEN',
   USER_PHONE_INVALID = 'USER_PHONE_INVALID',
@@ -26,6 +28,7 @@ export enum ErrorCode {
 /** HTTP-статус каждого кода; всегда берётся по коду, который уходит клиенту, чтобы статус не выдавал скрытую причину. */
 export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.INTERNAL_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,
+  [ErrorCode.VALIDATION_FAILED]: HttpStatus.BAD_REQUEST,
 
   [ErrorCode.USER_PHONE_TAKEN]: HttpStatus.CONFLICT,
   [ErrorCode.USER_PHONE_INVALID]: HttpStatus.BAD_REQUEST,

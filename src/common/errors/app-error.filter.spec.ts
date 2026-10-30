@@ -5,6 +5,8 @@ import { Constraint } from 'src/db/constraints';
 import { AppErrorFilter } from './app-error.filter';
 import { AppException } from './app.exception';
 import { ErrorCode } from './error-code';
+import { ValidationCode } from './validation-code';
+import { ValidationFailedException } from './validation.exception';
 
 const pgError = (code: string, constraint?: string) =>
   Object.assign(new DatabaseError('db error', 0, 'error'), {
@@ -156,6 +158,29 @@ describe('AppErrorFilter', () => {
       expect(error).toHaveBeenCalledWith(
         expect.stringMatching(/DB_ERROR -> INTERNAL_ERROR.*storage down/),
         expect.any(String),
+      );
+    });
+  });
+
+  describe('ValidationFailedException', () => {
+    it('кладёт validation рядом с statusCode и code, лог warn', () => {
+      const validation = {
+        password: [
+          { code: ValidationCode.PASSWORD_TOO_SHORT, params: { limit: 8 } },
+          { code: ValidationCode.PASSWORD_WEAK },
+        ],
+      };
+
+      expect(run(new ValidationFailedException(validation))).toEqual({
+        status: 400,
+        body: {
+          statusCode: 400,
+          code: ErrorCode.VALIDATION_FAILED,
+          validation,
+        },
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('password: PASSWORD_TOO_SHORT,PASSWORD_WEAK'),
       );
     });
   });

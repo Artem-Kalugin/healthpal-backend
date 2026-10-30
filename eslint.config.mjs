@@ -37,6 +37,19 @@ export default tseslint.config(
   },
   eslintNestJs.configs.flatRecommended,
   {
+    rules: {
+      // Составной декоратор из `src/common/validators`.
+      '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
+        'error',
+        { additionalDecorators: ['IsPassword'] },
+      ],
+      '@darraghor/nestjs-typed/all-properties-have-explicit-defined': [
+        'error',
+        { additionalDecorators: ['IsPassword'] },
+      ],
+    },
+  },
+  {
     files: [
       '**/*.spec.ts',
       '**/*.int-spec.ts',

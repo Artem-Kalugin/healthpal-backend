@@ -8,6 +8,7 @@ import {
   IsEnum,
   IsUUID,
 } from 'class-validator';
+import { rule, ValidationCode } from 'src/common/errors/validation-code';
 import { SortOrder } from 'src/common/config';
 import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
 
@@ -18,8 +19,8 @@ export class DoctorSearchQueryDto extends PaginatedQueryDto {
   })
   @IsOptional()
   @IsString()
-  @MinLength(3)
-  @MaxLength(100)
+  @MinLength(3, rule(ValidationCode.TEXT_TOO_SHORT, { limit: 3 }))
+  @MaxLength(100, rule(ValidationCode.TEXT_TOO_LONG, { limit: 100 }))
   searchFor?: string;
 
   @ApiPropertyOptional({ description: 'Фильтр по категории врача' })

@@ -88,4 +88,45 @@ describe('Auth (e2e)', () => {
     expect(me.status).toBe(200);
     expect((me.body as { id: string }).id).toBe(loggedInBody.user.id);
   });
+
+  describe('ошибки валидации', () => {
+    it('регистрация со слабым паролем: все нарушенные правила с params', async () => {
+      const response = await post('/auth/register', {
+        phone: PHONE,
+        password: 'abc',
+        name: 'Иван',
+        surname: 'Иванов',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          password: [
+            { code: 'PASSWORD_TOO_SHORT', params: { limit: 8 } },
+            { code: 'PASSWORD_WEAK' },
+          ],
+        },
+      });
+    });
+
+    it('логин: политика пароля не проверяется, лишнее поле даёт UNKNOWN_FIELD', async () => {
+      const response = await post('/auth/login', {
+        phone: 'bad',
+        password: 'abc',
+        extra: 1,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          phone: [{ code: 'PHONE_FORMAT' }],
+          extra: [{ code: 'UNKNOWN_FIELD' }],
+        },
+      });
+    });
+  });
 });

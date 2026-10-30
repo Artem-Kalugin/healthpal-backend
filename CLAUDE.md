@@ -12,7 +12,8 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 
 - Валидация на class-validator. Переход на zod рассмотрен и отклонён. Пилот (appointment на `nestjs-zod`) остался коммитом `e77967c`, ветка удалена. Достать: `git checkout e77967c`. Если не понадобится, убрать это упоминание после 10 ноября 2026.
 - Глобальный `ClassSerializerInterceptor` работает в режиме белого списка (`excludeExtraneousValues`): у каждого публичного поля response-DTO должен быть `@Expose()`, иначе оно вырежется из ответа. В request-DTO `@Expose` не нужен.
-- Формат ошибок валидации `{ validation: { поле: [сообщения] } }` менять нельзя: от него зависит RN-клиент.
+- Ошибки валидации отдаются как `{ statusCode: 400, code: 'VALIDATION_FAILED', validation: { поле: [{ code, params? }] } }`, клиент локализует по `code`. Коды и форма параметров: `ValidationCode` и `ValidationParameters` в `src/common/errors/validation-code.ts`, каталог для клиента `agents/error-catalog.md`. Значения `ValidationCode` менять нельзя без согласования с клиентом.
+- В DTO `message` с текстом не пишем: опции правил строит `rule(ValidationCode.X, { limit })` (код идёт в `message`, параметры в `context`), лимит берётся из одной константы с аргументом декоратора. Правила с параметрами (`MinLength`, `Max` и т. п.) всегда через `rule()`, иначе клиент получит `INVALID_VALUE` без значения. Пароль при создании и смене: `@IsPassword()` (`src/common/validators`), на входе политику не проверяем. Свои составные декораторы добавлять в `additionalDecorators` в `eslint.config.mjs`.
 - Описывать в Swagger надо то, что реально отдаёт эндпоинт. Если ответ неполный, делать отдельный DTO, а не обещать полный.
 
 ## Swagger / OpenAPI
