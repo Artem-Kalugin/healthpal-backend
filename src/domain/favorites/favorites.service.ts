@@ -1,15 +1,12 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteDoctor, userFavoriteMedicalCenter } from 'src/db/schema';
 import { DoctorService } from '../doctor/doctor.service';
 import { MedicalCentersService } from '../medical-center/medical-center.service';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class FavoritesService {
@@ -21,7 +18,7 @@ export class FavoritesService {
 
   async addDoctorToFavorites(userId: string, doctorId: string) {
     if (!(await this.doctorService.existsById(doctorId))) {
-      throw new NotFoundException('Доктор не найден');
+      throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 
     // Пустой результат значит, что связь уже была (в том числе при гонке запросов)
@@ -32,7 +29,9 @@ export class FavoritesService {
       .returning({ doctorId: userFavoriteDoctor.doctorId });
 
     if (inserted.length === 0) {
-      throw new ConflictException('Доктор уже в избранном');
+      throw new AppException(ErrorCode.FAVORITE_ALREADY_EXISTS, {
+        message: 'Доктор уже в избранном',
+      });
     }
 
     return { success: true, doctorId };
@@ -40,7 +39,7 @@ export class FavoritesService {
 
   async addMedicalCenterToFavorites(userId: string, medicalCenterId: string) {
     if (!(await this.medicalCenterService.existsById(medicalCenterId))) {
-      throw new NotFoundException('Медицинский центр не найден');
+      throw new AppException(ErrorCode.MEDICAL_CENTER_NOT_FOUND);
     }
 
     const inserted = await this.db
@@ -52,7 +51,9 @@ export class FavoritesService {
       });
 
     if (inserted.length === 0) {
-      throw new ConflictException('Медицинский центр уже в избранном');
+      throw new AppException(ErrorCode.FAVORITE_ALREADY_EXISTS, {
+        message: 'Медицинский центр уже в избранном',
+      });
     }
 
     return { success: true, medicalCenterId };

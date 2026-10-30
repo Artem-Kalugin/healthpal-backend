@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { APPOINTMENT_MIN_LEAD_MINUTES } from 'src/common/config';
 import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
 type Startable = { date: string; startTime: string };
@@ -12,7 +13,7 @@ export const assertBookingWindow = (
   const earliest = addMinutes(new Date(), APPOINTMENT_MIN_LEAD_MINUTES);
 
   if (getSlotStart(target.date, target.startTime, timezone) < earliest) {
-    throw new BadRequestException(message);
+    throw new AppException(ErrorCode.APPOINTMENT_TOO_SOON, { message });
   }
 };
 
@@ -23,7 +24,7 @@ export const assertSlotBookable = (
   timezone: string,
 ) => {
   if (slot.doctorId !== doctorId) {
-    throw new BadRequestException('Тайм слот не принадлежит этому врачу');
+    throw new AppException(ErrorCode.TIME_SLOT_DOCTOR_MISMATCH);
   }
 
   assertBookingWindow(slot, timezone);

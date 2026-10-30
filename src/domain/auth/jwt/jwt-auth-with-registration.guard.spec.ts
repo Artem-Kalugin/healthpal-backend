@@ -1,4 +1,6 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { Reflector } from '@nestjs/core';
 import { AuthGuardsByRegistration } from 'src/common/config';
 import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
@@ -86,7 +88,7 @@ describe('JwtAuthWithRegistrationGuard', () => {
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(Error);
-      expect(error).not.toBeInstanceOf(ForbiddenException);
+      expect(error).not.toBeInstanceOf(AppException);
     });
 
     it('читает уровень с класса, если на методе его нет', async () => {
@@ -94,9 +96,9 @@ describe('JwtAuthWithRegistrationGuard', () => {
         registrationComplete: false,
       });
 
-      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ErrorCode.REGISTRATION_INCOMPLETE,
+      });
     });
 
     it('уровень на методе перекрывает уровень класса', async () => {
@@ -118,10 +120,10 @@ describe('JwtAuthWithRegistrationGuard', () => {
     ).resolves.toBe(false);
   });
 
-  it('passport пропустил, но пользователя в запросе нет: Forbidden', async () => {
+  it('passport пропустил, но пользователя в запросе нет: Unauthorized', async () => {
     await expect(
       guard.canActivate(contextFor(AnyOnHandler, undefined)),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toMatchObject({ code: ErrorCode.UNAUTHORIZED });
   });
 
   describe.each<
@@ -161,7 +163,7 @@ describe('JwtAuthWithRegistrationGuard', () => {
       );
 
       if (outcome === 'allow') await expect(result).resolves.toBe(true);
-      else await expect(result).rejects.toBeInstanceOf(ForbiddenException);
+      else await expect(result).rejects.toBeInstanceOf(AppException);
     });
   });
 });

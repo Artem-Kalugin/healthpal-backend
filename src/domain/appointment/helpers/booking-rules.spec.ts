@@ -1,5 +1,14 @@
-import { BadRequestException } from '@nestjs/common';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { assertBookingWindow, assertSlotBookable } from './booking-rules';
+
+const codeOf = (run: () => void) => {
+  try {
+    run();
+  } catch (error) {
+    return (error as AppException).code;
+  }
+};
 
 const NOW = new Date('2026-10-29T12:00:00.000Z');
 
@@ -39,11 +48,11 @@ describe('booking-rules', () => {
     });
 
     it.each(TOO_SOON)(
-      'throws BadRequest when the start $title',
+      'throws AppException when the start $title',
       ({ date, startTime }) => {
-        expect(() => assertBookingWindow({ date, startTime }, MOSCOW)).toThrow(
-          BadRequestException,
-        );
+        expect(
+          codeOf(() => assertBookingWindow({ date, startTime }, MOSCOW)),
+        ).toBe(ErrorCode.APPOINTMENT_TOO_SOON);
       },
     );
 
@@ -53,8 +62,8 @@ describe('booking-rules', () => {
       const start = { date: '2026-10-29', startTime: '16:00:00' };
 
       expect(() => assertBookingWindow(start, BERLIN)).not.toThrow();
-      expect(() => assertBookingWindow(start, MOSCOW)).toThrow(
-        BadRequestException,
+      expect(codeOf(() => assertBookingWindow(start, MOSCOW))).toBe(
+        ErrorCode.APPOINTMENT_TOO_SOON,
       );
     });
   });
@@ -70,20 +79,22 @@ describe('booking-rules', () => {
       expect(() => assertSlotBookable(slot(), DOCTOR_ID, MOSCOW)).not.toThrow();
     });
 
-    it('throws BadRequest when the slot belongs to another doctor', () => {
-      expect(() =>
-        assertSlotBookable(slot('doctor-2'), DOCTOR_ID, MOSCOW),
-      ).toThrow(BadRequestException);
+    it('throws AppException when the slot belongs to another doctor', () => {
+      expect(
+        codeOf(() => assertSlotBookable(slot('doctor-2'), DOCTOR_ID, MOSCOW)),
+      ).toBe(ErrorCode.TIME_SLOT_DOCTOR_MISMATCH);
     });
 
-    it('throws BadRequest when the slot is outside the window', () => {
-      expect(() =>
-        assertSlotBookable(
-          { ...slot(), date: '2026-10-29', startTime: '16:59:59' },
-          DOCTOR_ID,
-          MOSCOW,
+    it('throws AppException when the slot is outside the window', () => {
+      expect(
+        codeOf(() =>
+          assertSlotBookable(
+            { ...slot(), date: '2026-10-29', startTime: '16:59:59' },
+            DOCTOR_ID,
+            MOSCOW,
+          ),
         ),
-      ).toThrow(BadRequestException);
+      ).toBe(ErrorCode.APPOINTMENT_TOO_SOON);
     });
   });
 });

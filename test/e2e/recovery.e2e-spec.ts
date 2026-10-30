@@ -81,7 +81,7 @@ describe('Recovery (e2e)', () => {
     expect((await login(OLD_PASSWORD)).status).toBe(401);
   });
 
-  it('пароли не совпадают → 401, пароль не меняется, токен остаётся валидным', async () => {
+  it('пароли не совпадают → 400 PASSWORDS_MISMATCH, пароль не меняется, токен остаётся валидным', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {
@@ -90,7 +90,11 @@ describe('Recovery (e2e)', () => {
       confirmPassword: 'Different123',
     });
 
-    expect(reset.status).toBe(401);
+    expect(reset.status).toBe(400);
+    expect(reset.body).toEqual({
+      statusCode: 400,
+      code: 'PASSWORDS_MISMATCH',
+    });
     expect((await login(OLD_PASSWORD)).status).toBe(201);
     expect(await redis.get(`recovery:${token}`)).toBe(phone);
   });

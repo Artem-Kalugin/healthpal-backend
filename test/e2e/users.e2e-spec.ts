@@ -75,11 +75,12 @@ describe('Users (e2e)', () => {
   it('PATCH /users/me при незавершённой регистрации → 403', async () => {
     const user = await factories.user({ registrationComplete: false });
 
-    const { status } = await me('patch', await tokenFor(user), {
+    const { status, body } = await me('patch', await tokenFor(user), {
       name: 'Пётр',
     });
 
     expect(status).toBe(403);
+    expect(body).toEqual({ statusCode: 403, code: 'REGISTRATION_INCOMPLETE' });
   });
 
   it('PATCH /users/me обновляет профиль и не отдаёт пароль', async () => {
@@ -99,9 +100,10 @@ describe('Users (e2e)', () => {
     const token = await tokenFor(user);
     await db.delete(userTable).where(eq(userTable.id, user.id));
 
-    const { status } = await me('get', token);
+    const { status, body } = await me('get', token);
 
     expect(status).toBe(401);
+    expect(body).toEqual({ statusCode: 401, code: 'UNAUTHORIZED' });
   });
 
   it('PATCH /users/me с занятым nickname → 409 USER_NICKNAME_TAKEN', async () => {

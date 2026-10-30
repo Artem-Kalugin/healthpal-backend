@@ -8,7 +8,8 @@ import {
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { RecoveryService } from './recovery.service';
 import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { AuthError } from 'src/common/errors/auth.error';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -50,7 +51,7 @@ export class RecoveryController {
     const { token, password, confirmPassword } = body;
 
     if (password !== confirmPassword) {
-      throw new AuthError('Пароли не совпадают');
+      throw new AppException(ErrorCode.PASSWORDS_MISMATCH);
     }
 
     return this.recoveryService.resetPassword(token, password);

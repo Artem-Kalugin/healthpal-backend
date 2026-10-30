@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteDoctor, userFavoriteMedicalCenter } from 'src/db/schema';
@@ -56,7 +56,7 @@ describe('FavoritesService (integration)', () => {
     it('несуществующий врач: NotFound, связь не создаётся', async () => {
       await expect(
         service.addDoctorToFavorites(userId, MISSING_ID),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
       expect(await doctorLinks()).toHaveLength(0);
     });
 
@@ -66,7 +66,7 @@ describe('FavoritesService (integration)', () => {
 
       await expect(
         service.addDoctorToFavorites(userId, doctor.id),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toMatchObject({ code: ErrorCode.FAVORITE_ALREADY_EXISTS });
       expect(await doctorLinks()).toHaveLength(1);
     });
 
@@ -99,7 +99,7 @@ describe('FavoritesService (integration)', () => {
     it('несуществующий центр: NotFound, связь не создаётся', async () => {
       await expect(
         service.addMedicalCenterToFavorites(userId, MISSING_ID),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.MEDICAL_CENTER_NOT_FOUND });
       expect(await centerLinks()).toHaveLength(0);
     });
 
@@ -109,7 +109,7 @@ describe('FavoritesService (integration)', () => {
 
       await expect(
         service.addMedicalCenterToFavorites(userId, center.id),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toMatchObject({ code: ErrorCode.FAVORITE_ALREADY_EXISTS });
       expect(await centerLinks()).toHaveLength(1);
     });
   });

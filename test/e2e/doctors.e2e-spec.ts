@@ -156,12 +156,24 @@ describe('Doctors (e2e)', () => {
       expect(body).toMatchObject({ id: doctor.id, isFavorite: false });
     });
 
-    it('несуществующий врач → 404', async () => {
+    it('несуществующий врач → 404 DOCTOR_NOT_FOUND', async () => {
       const { token } = await newUser();
 
-      const { status } = await send(`/doctors/${UNKNOWN_ID}`, undefined, token);
+      const { status, body } = await send(
+        `/doctors/${UNKNOWN_ID}`,
+        undefined,
+        token,
+      );
 
       expect(status).toBe(404);
+      expect(body).toEqual({ statusCode: 404, code: 'DOCTOR_NOT_FOUND' });
+    });
+
+    it('неизвестный маршрут → 404 NOT_FOUND в общем формате', async () => {
+      const { status, body } = await send('/doctors/no/such/route');
+
+      expect(status).toBe(404);
+      expect(body).toEqual({ statusCode: 404, code: 'NOT_FOUND' });
     });
   });
 

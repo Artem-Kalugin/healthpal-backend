@@ -16,6 +16,14 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 - В DTO `message` с текстом не пишем: опции правил строит `rule(ValidationCode.X, { limit })` (код идёт в `message`, параметры в `context`), лимит берётся из одной константы с аргументом декоратора. Правила с параметрами (`MinLength`, `Max` и т. п.) всегда через `rule()`, иначе клиент получит `INVALID_VALUE` без значения. Пароль при создании и смене: `@IsPassword()` (`src/common/validators`), на входе политику не проверяем. Свои составные декораторы добавлять в `additionalDecorators` в `eslint.config.mjs`.
 - Описывать в Swagger надо то, что реально отдаёт эндпоинт. Если ответ неполный, делать отдельный DTO, а не обещать полный.
 
+## Ошибки
+
+- Ошибки приложения бросаем как `new AppException(ErrorCode.X, { message?, cause?, clientCode? })` (`src/common/errors`), `*Exception('текст')` из Nest не используем. Любой ответ с ошибкой имеет вид `{ statusCode, code }` (у валидации ещё `validation`), текста в ответе нет: `message` и `cause` только для лога.
+- Новый код добавляется в `ErrorCode` и в `ERROR_STATUS` (без статуса не соберётся) и в `agents/error-catalog.md`. Статус отдельным аргументом не задаётся: он берётся по коду, который уходит клиенту. Значения `ErrorCode` менять нельзя без согласования с клиентом.
+- Если внутренняя причина должна отличаться от клиентской, `code` для лога, `clientCode` для ответа (`ErrorCode.INTERNAL_ERROR` скрывает причину целиком). Разные внутренние ситуации с одним клиентским кодом различаются `message`, отдельный код не заводим.
+- Единственный глобальный `AppErrorFilter` (`@Catch()`) приводит к этому формату всё: `AppException`, ошибки БД, прочие `HttpException` (код по статусу) и неизвестные ошибки (500 `INTERNAL_ERROR`, стек в логе).
+- Тесты сервисов проверяют `toMatchObject({ code: ErrorCode.X })`, не класс исключения. В `@Api*Response` в `description` начинать с кода.
+
 ## Swagger / OpenAPI
 
 - Подключён CLI-плагин `@nestjs/swagger`. Пустые `@ApiProperty()` не писать: тип, обязательность и ограничения class-validator плагин берёт сам. Декоратор нужен для `description`, `example`, `enum`/`enumName`, `type`, `isArray`.

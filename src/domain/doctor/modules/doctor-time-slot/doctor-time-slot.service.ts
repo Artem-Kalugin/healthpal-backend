@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, between, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { getZonedNowParts } from 'src/common/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
@@ -17,6 +12,8 @@ import {
   medicalCenter,
 } from 'src/db/schema';
 import { centerOfDoctor } from '../../doctor.queries';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class DoctorTimeSlotService {
@@ -28,7 +25,7 @@ export class DoctorTimeSlotService {
     endDate: string,
   ) {
     if (mayBeOverridedStartDate > endDate) {
-      throw new BadRequestException('startDate не может быть позже endDate');
+      throw new AppException(ErrorCode.INVALID_DATE_RANGE);
     }
 
     const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
@@ -94,7 +91,7 @@ export class DoctorTimeSlotService {
       );
 
     if (!range?.minDate || !range?.maxDate) {
-      throw new NotFoundException('Нет доступного времени записи');
+      throw new AppException(ErrorCode.NO_AVAILABLE_SLOTS);
     }
 
     return { minDate: range.minDate, maxDate: range.maxDate };
@@ -107,7 +104,7 @@ export class DoctorTimeSlotService {
         .from(doctor)
         .innerJoin(medicalCenter, centerOfDoctor)
         .where(eq(doctor.id, doctorId)),
-      () => new NotFoundException('Врач не найден'),
+      () => new AppException(ErrorCode.DOCTOR_NOT_FOUND),
     );
 
     return row.timezone;

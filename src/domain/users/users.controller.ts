@@ -52,7 +52,9 @@ export class UsersController {
   @Get('me')
   @ApiOkResponse({ type: UserResponseDto })
   @SerializeOptions({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'Пользователь не найден' })
+  @ApiNotFoundResponse({
+    description: 'USER_NOT_FOUND: пользователь не найден',
+  })
   @AuthRegistrationGuardType(AuthGuardsByRegistration.ANY)
   async getCurrent(@Req() request: Request): Promise<UserResponseDto> {
     return this.usersService.findOne(request.user!.id);

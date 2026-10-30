@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
@@ -11,6 +11,8 @@ import { doctor, medicalCenter, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
 import { selectDoctors } from './doctor.queries';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 const sortColumns = {
   rating: doctor.rating,
@@ -84,7 +86,7 @@ export class DoctorService {
   async findOneForUser(userId: string, doctorId: string) {
     return firstOrThrow(
       await selectDoctors(this.db, userId).where(eq(doctor.id, doctorId)),
-      () => new NotFoundException(),
+      () => new AppException(ErrorCode.DOCTOR_NOT_FOUND),
     );
   }
 }

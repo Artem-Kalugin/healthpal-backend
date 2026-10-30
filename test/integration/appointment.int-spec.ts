@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
@@ -153,7 +153,7 @@ describe('AppointmentService (integration)', () => {
           doctorId: MISSING_ID,
           timeSlotId: slot.id,
         }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
 
     it('throws NotFound when the time slot does not exist', async () => {
@@ -165,7 +165,7 @@ describe('AppointmentService (integration)', () => {
           doctorId: doctor.id,
           timeSlotId: MISSING_ID,
         }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
     });
 
     it("throws BadRequest for another doctor's slot", async () => {
@@ -179,7 +179,7 @@ describe('AppointmentService (integration)', () => {
           doctorId: doctor.id,
           timeSlotId: slot.id,
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_DOCTOR_MISMATCH });
       expect(await countOnSlot(slot.id)).toBe(0);
     });
 
@@ -197,7 +197,7 @@ describe('AppointmentService (integration)', () => {
           doctorId: doctor.id,
           timeSlotId: slot.id,
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
     });
   });
 
@@ -209,7 +209,9 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.cancelAppointment(appointment.id, user.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_ALREADY_CANCELLED,
+      });
     });
 
     it('throws NotFound for a missing appointment', async () => {
@@ -217,7 +219,7 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.cancelAppointment(MISSING_ID, user.id),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
     });
 
     it('marks the appointment cancelled, releases the slot and returns the doctor', async () => {
@@ -245,7 +247,9 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.cancelAppointment(past.id, user.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL,
+      });
       expect((await stored(past.id)).isCancelled).toBe(false);
     });
 
@@ -278,7 +282,9 @@ describe('AppointmentService (integration)', () => {
       ).resolves.toMatchObject({ isCancelled: true });
       await expect(
         service.cancelAppointment(inMoscow.id, user.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL,
+      });
     });
     // I2
     it("does not cancel another user's appointment and leaves it active", async () => {
@@ -288,7 +294,7 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.cancelAppointment(appointment.id, stranger.id),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
       const row = await stored(appointment.id);
       expect(row.isCancelled).toBe(false);
@@ -321,10 +327,10 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(MISSING_ID, user.id, MISSING_ID),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
       await expect(
         service.rescheduleAppointment(appointment.id, user.id, MISSING_ID),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
     });
 
     it('throws BadRequest for a cancelled appointment', async () => {
@@ -337,7 +343,9 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(appointment.id, user.id, newSlot.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
+      });
     });
 
     it('throws BadRequest when the current appointment is inside the booking window', async () => {
@@ -350,7 +358,7 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(soon.id, user.id, newSlot.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
       expect((await stored(soon.id)).timeSlotId).toBe(soon.timeSlotId);
     });
 
@@ -364,7 +372,7 @@ describe('AppointmentService (integration)', () => {
           user.id,
           appointment.timeSlotId!,
         ),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_SAME_SLOT });
     });
 
     it("throws BadRequest for another doctor's slot", async () => {
@@ -377,7 +385,7 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(appointment.id, user.id, otherSlot.id),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_DOCTOR_MISMATCH });
     });
     it("does not move another user's appointment and leaves it unchanged", async () => {
       const owner = await factories.user();
@@ -389,7 +397,7 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(appointment.id, stranger.id, newSlot.id),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
       const row = await stored(appointment.id);
       expect(row.timeSlotId).toBe(appointment.timeSlotId);

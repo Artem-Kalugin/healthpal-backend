@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, getTableColumns, sql } from 'drizzle-orm';
 import { getSlotStart } from 'src/common/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
@@ -32,6 +27,8 @@ import {
   assertBookingWindow,
   assertSlotBookable,
 } from './helpers/booking-rules';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class AppointmentService {
@@ -82,7 +79,7 @@ export class AppointmentService {
     const { doctorId, timeSlotId } = dto;
 
     if (!(await this.doctorService.existsById(doctorId))) {
-      throw new NotFoundException('Врач не найден');
+      throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 
     const slot = firstOrThrow(
@@ -95,7 +92,10 @@ export class AppointmentService {
         .innerJoin(doctor, eq(doctor.id, doctorTimeSlot.doctorId))
         .innerJoin(medicalCenter, centerOfDoctor)
         .where(eq(doctorTimeSlot.id, timeSlotId)),
-      () => new NotFoundException('Тайм слот недоступен'),
+      () =>
+        new AppException(ErrorCode.TIME_SLOT_NOT_FOUND, {
+          message: 'Тайм слот недоступен',
+        }),
     );
 
     assertSlotBookable(slot, doctorId, slot.timezone);
@@ -119,13 +119,13 @@ export class AppointmentService {
     const target = await this.findOwned(appointmentId, userId);
 
     if (target.isCancelled) {
-      throw new BadRequestException('Запись уже отменена');
+      throw new AppException(ErrorCode.APPOINTMENT_ALREADY_CANCELLED);
     }
 
     if (
       getSlotStart(target.date, target.startTime, target.timezone) <= new Date()
     ) {
-      throw new BadRequestException('Прошедшую запись нельзя отменить');
+      throw new AppException(ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL);
     }
 
     await this.db
@@ -144,7 +144,7 @@ export class AppointmentService {
     const target = await this.findOwned(appointmentId, userId);
 
     if (target.isCancelled) {
-      throw new BadRequestException('Отменённую запись нельзя перенести');
+      throw new AppException(ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE);
     }
 
     assertBookingWindow(
@@ -158,11 +158,14 @@ export class AppointmentService {
         .select()
         .from(doctorTimeSlot)
         .where(eq(doctorTimeSlot.id, newTimeSlotId)),
-      () => new NotFoundException('Новый тайм слот не найден'),
+      () =>
+        new AppException(ErrorCode.TIME_SLOT_NOT_FOUND, {
+          message: 'Новый тайм слот не найден',
+        }),
     );
 
     if (newSlot.id === target.timeSlotId) {
-      throw new BadRequestException('Запись уже назначена на это время');
+      throw new AppException(ErrorCode.APPOINTMENT_SAME_SLOT);
     }
 
     assertSlotBookable(newSlot, target.doctorId, target.timezone);
@@ -197,7 +200,7 @@ export class AppointmentService {
             eq(appointment.userId, userId),
           ),
         ),
-      () => new NotFoundException('Запись не найдена'),
+      () => new AppException(ErrorCode.APPOINTMENT_NOT_FOUND),
     );
   }
 
@@ -206,7 +209,7 @@ export class AppointmentService {
       await selectAppointments(this.db).where(
         eq(appointment.id, appointmentId),
       ),
-      () => new NotFoundException('Запись не найдена'),
+      () => new AppException(ErrorCode.APPOINTMENT_NOT_FOUND),
     );
 
     return nestDoctor(row);

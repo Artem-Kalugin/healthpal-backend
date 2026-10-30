@@ -1,7 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
-export class UserNotFoundException extends NotFoundException {
+export class UserNotFoundException extends AppException {
   constructor() {
-    super('Пользователь не найден');
+    super(ErrorCode.USER_NOT_FOUND);
   }
 }

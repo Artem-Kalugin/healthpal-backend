@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { ScheduleDay } from 'src/db/enums';
@@ -87,6 +87,6 @@ describe('DoctorScheduleService (integration)', () => {
   it('несуществующий врач → NotFound', async () => {
     await expect(
       service.getScheduleByDoctorId(MISSING_ID),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
   });
 });

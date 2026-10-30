@@ -5,7 +5,8 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import type { User } from 'src/db/schema';
-import { AuthError } from 'src/common/errors/auth.error';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables } from 'declarations';
@@ -42,7 +43,9 @@ export class AuthService {
 
     const user = await this.usersService.findOneByPhone(phone).catch(error => {
       throw error instanceof UserNotFoundException
-        ? new AuthError('Неверный телефон или пароль')
+        ? new AppException(ErrorCode.INVALID_CREDENTIALS, {
+            message: 'Пользователь не найден',
+          })
         : error;
     });
 
@@ -52,7 +55,9 @@ export class AuthService {
     );
 
     if (!isPasswordCorrect) {
-      throw new AuthError('Неверный телефон или пароль');
+      throw new AppException(ErrorCode.INVALID_CREDENTIALS, {
+        message: 'Неверный пароль',
+      });
     }
 
     return this.generateTokens(user);
@@ -95,8 +100,7 @@ export class AuthService {
   }
 
   async refresh(userId: string, refreshToken: string) {
-    const invalid = () =>
-      new AuthError('Refresh токен недействителен или истек');
+    const invalid = () => new AppException(ErrorCode.REFRESH_TOKEN_INVALID);
 
     let payload: { id: string; sid?: string };
     try {

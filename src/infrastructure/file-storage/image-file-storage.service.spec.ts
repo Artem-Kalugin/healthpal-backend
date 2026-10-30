@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import sharp from 'sharp';
 import type { FileStorageService } from './file-storage.service';
 import { ImageFileStorageService } from './image-file-storage.service';
@@ -82,7 +82,7 @@ describe('ImageFileStorageService', () => {
     it('битый буфер → BadRequest, ничего не сохраняется', async () => {
       await expect(
         service.processAndSave(Buffer.from('not an image'), 'avatar'),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.IMAGE_INVALID });
 
       expect(storage.saveFile).not.toHaveBeenCalled();
       expect(storage.deleteFile).not.toHaveBeenCalled();

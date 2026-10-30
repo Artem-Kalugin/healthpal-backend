@@ -29,8 +29,10 @@ export class FavoritesController {
   @Post('doctors/:doctorId')
   @ApiOkResponse({ description: 'Доктор добавлен в избранное' })
   @ApiParam({ name: 'doctorId', type: 'string' })
-  @ApiConflictResponse({ description: 'Доктор уже в избранном' })
-  @ApiNotFoundResponse({ description: 'Доктор не найден' })
+  @ApiConflictResponse({
+    description: 'FAVORITE_ALREADY_EXISTS: доктор уже в избранном',
+  })
+  @ApiNotFoundResponse({ description: 'DOCTOR_NOT_FOUND: доктор не найден' })
   async addDoctor(
     @Req() request: Request,
     @Param('doctorId', ParseUUIDPipe) doctorId: string,
@@ -57,8 +59,12 @@ export class FavoritesController {
   @Post('medical-centers/:medicalCenterId')
   @ApiOkResponse({ description: 'Медицинский центр добавлен в избранное' })
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
-  @ApiConflictResponse({ description: 'Медицинский центр уже в избранном' })
-  @ApiNotFoundResponse({ description: 'Медицинский центр не найден' })
+  @ApiConflictResponse({
+    description: 'FAVORITE_ALREADY_EXISTS: центр уже в избранном',
+  })
+  @ApiNotFoundResponse({
+    description: 'MEDICAL_CENTER_NOT_FOUND: центр не найден',
+  })
   async addMedicalCenter(
     @Req() request: Request,
     @Param('medicalCenterId', ParseUUIDPipe) medicalCenterId: string,

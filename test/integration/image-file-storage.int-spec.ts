@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -66,7 +66,7 @@ describe('ImageFileStorageService (integration)', () => {
 
     await expect(
       service.processAndSave(source, 'avatar'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({ code: ErrorCode.IMAGE_INVALID });
 
     expect(filesIn('protected')).toHaveLength(0);
   });

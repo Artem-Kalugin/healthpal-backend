@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import { toHourMinute } from 'src/common/helpers/to-hour-minute';
 import { DB } from 'src/db/db.module';
@@ -7,6 +7,8 @@ import { ScheduleDay } from 'src/db/enums';
 import { doctorSchedule } from 'src/db/schema';
 import { DoctorService } from '../../doctor.service';
 import { ScheduleRecord } from './dto/doctor-schedule-response.dto';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 const WEEKDAYS = Object.values(ScheduleDay).filter(
   (day): day is ScheduleDay => typeof day === 'number',
@@ -21,7 +23,7 @@ export class DoctorScheduleService {
 
   async getScheduleByDoctorId(doctorId: string) {
     if (!(await this.doctorService.existsById(doctorId))) {
-      throw new NotFoundException('Врач не найден');
+      throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 
     const schedules = await this.db

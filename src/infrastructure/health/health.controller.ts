@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Inject,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
@@ -18,6 +12,8 @@ import { Redis } from 'ioredis';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @ApiExcludeController()
 @Controller('health')
@@ -56,14 +52,11 @@ export class HealthController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        {
-          status: 'error',
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          message: error.message,
-        },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        message: error.message,
+        cause: error,
+      });
     }
   }
 

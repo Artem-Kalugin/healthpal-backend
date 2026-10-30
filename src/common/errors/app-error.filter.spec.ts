@@ -1,4 +1,12 @@
-import { ArgumentsHost, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  ForbiddenException,
+  HttpException,
+  Logger,
+  NotFoundException,
+  PayloadTooLargeException,
+} from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { DrizzleQueryError } from 'drizzle-orm';
 import { DatabaseError } from 'pg';
 import { Constraint } from 'src/db/constraints';
@@ -27,7 +35,7 @@ describe('AppErrorFilter', () => {
     error.mockClear();
   });
 
-  const run = (exception: AppException | DrizzleQueryError) => {
+  const run = (exception: unknown) => {
     const json = jest.fn();
     const status = jest.fn(() => ({ json }));
     const host = {
@@ -182,6 +190,52 @@ describe('AppErrorFilter', () => {
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining('password: PASSWORD_TOO_SHORT,PASSWORD_WEAK'),
       );
+    });
+  });
+
+  describe('исключения Nest', () => {
+    it.each([
+      [new NotFoundException('Cannot GET /x'), 404, ErrorCode.NOT_FOUND],
+      [new ForbiddenException('текст'), 403, ErrorCode.FORBIDDEN],
+      [new ThrottlerException(), 429, ErrorCode.TOO_MANY_REQUESTS],
+      [new PayloadTooLargeException(), 413, ErrorCode.PAYLOAD_TOO_LARGE],
+      [new HttpException('teapot', 418), 400, ErrorCode.BAD_REQUEST],
+    ])('%s → %s %s без message в теле', (exception, status, code) => {
+      expect(run(exception)).toEqual({
+        status,
+        body: { statusCode: status, code },
+      });
+    });
+
+    it('5xx без записи → INTERNAL_ERROR, лог error', () => {
+      expect(run(new HttpException('boom', 502))).toEqual({
+        status: 500,
+        body: { statusCode: 500, code: ErrorCode.INTERNAL_ERROR },
+      });
+      expect(error).toHaveBeenCalled();
+    });
+  });
+
+  describe('неизвестные ошибки', () => {
+    it('Error → 500 INTERNAL_ERROR, текст и стек только в логе', () => {
+      const { status, body } = run(new Error('secret detail'));
+
+      expect(status).toBe(500);
+      expect(body).toEqual({
+        statusCode: 500,
+        code: ErrorCode.INTERNAL_ERROR,
+      });
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining('secret detail'),
+        expect.stringContaining('Error: secret detail'),
+      );
+    });
+
+    it('не Error (строка) → 500 INTERNAL_ERROR', () => {
+      expect(run('oops')).toEqual({
+        status: 500,
+        body: { statusCode: 500, code: ErrorCode.INTERNAL_ERROR },
+      });
     });
   });
 });

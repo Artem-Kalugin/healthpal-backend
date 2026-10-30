@@ -1,3 +1,4 @@
+import { ErrorCode } from 'src/common/errors/error-code';
 import { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from 'declarations';
@@ -5,7 +6,6 @@ import type { EnvironmentVariables } from 'declarations';
 import type Redis from 'ioredis';
 import { eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
-import { AuthError } from 'src/common/errors/auth.error';
 import type { Database } from 'src/db/db.module';
 import { user as userTable } from 'src/db/schema';
 import type { User } from 'src/db/schema';
@@ -125,10 +125,10 @@ describe('AuthService (integration)', () => {
         name: 'неизвестный телефон',
         dto: () => ({ phone: '+70000000000', password: PASSWORD }),
       },
-    ])('$name → AuthError, сессия не создаётся', async ({ dto }) => {
+    ])('$name → код ошибки, сессия не создаётся', async ({ dto }) => {
       const error = await rejection(service.login(dto()));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.INVALID_CREDENTIALS });
       expect(await redis.keys('refresh:*')).toEqual([]);
     });
   });
@@ -205,7 +205,7 @@ describe('AuthService (integration)', () => {
       expect(await redis.get(refreshKey())).toBe(result.refreshToken);
     });
 
-    it('токен одноразовый: повторное использование → AuthError', async () => {
+    it('токен одноразовый: повторное использование → код ошибки', async () => {
       // в одну секунду refresh выдал бы тот же JWT и «старый» токен снова стал бы валидным
       freezeDate(T0);
       const { refreshToken } = await service.generateTokens(user, SID);
@@ -214,7 +214,7 @@ describe('AuthService (integration)', () => {
 
       const error = await rejection(service.refresh(user.id, refreshToken));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
 
     it('параллельные запросы с одним токеном: проходит ровно один', async () => {
@@ -228,32 +228,32 @@ describe('AuthService (integration)', () => {
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     });
 
-    it('чужой токен → AuthError и сессия владельца остаётся рабочей', async () => {
+    it('чужой токен → код ошибки и сессия владельца остаётся рабочей', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
 
       const error = await rejection(service.refresh(user.id, 'garbage'));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
       expect(await redis.get(refreshKey())).toBe(refreshToken);
     });
 
-    it('нет сессии (ключ удалён или истёк срок) → AuthError', async () => {
+    it('нет сессии (ключ удалён или истёк срок) → код ошибки', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
       await redis.del(refreshKey());
 
       const error = await rejection(service.refresh(user.id, refreshToken));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
 
-    it('токен другого пользователя в запросе → AuthError, сессия остаётся', async () => {
+    it('токен другого пользователя в запросе → код ошибки, сессия остаётся', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
 
       const error = await rejection(
         service.refresh('00000000-0000-4000-8000-000000000000', refreshToken),
       );
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
       expect(await redis.get(refreshKey())).toBe(refreshToken);
     });
 
@@ -268,13 +268,13 @@ describe('AuthService (integration)', () => {
       expect(await redis.keys('refresh:*')).toEqual([refreshKey()]);
     });
 
-    it('пользователь удалён → AuthError, а не 404', async () => {
+    it('пользователь удалён → код ошибки, а не 404', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
       await db.delete(userTable).where(eq(userTable.id, user.id));
 
       const error = await rejection(service.refresh(user.id, refreshToken));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
   });
 });

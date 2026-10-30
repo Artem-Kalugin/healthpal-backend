@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
-import { AuthError } from 'src/common/errors/auth.error';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables } from 'declarations';
@@ -48,9 +49,9 @@ export class RecoveryService {
     const lockSet = await this.redis.set(otpLockKey, '1', 'EX', 10, 'NX');
 
     if (!lockSet) {
-      throw new AuthError(
-        'Повторный запрос OTP возможен только через 10 секунд',
-      );
+      throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
+        message: 'Повторный запрос OTP возможен только через 10 секунд',
+      });
     }
 
     const requestsKey = `otp_requests:${phone}`;
@@ -59,7 +60,9 @@ export class RecoveryService {
       await this.redis.expire(requestsKey, OTP_REQUESTS_WINDOW_SECONDS);
     }
     if (requests > OTP_MAX_REQUESTS) {
-      throw new AuthError('Слишком много запросов OTP, попробуйте позже');
+      throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
+        message: 'Слишком много запросов OTP за окно',
+      });
     }
 
     const otp = this.generateOtp();
@@ -86,7 +89,11 @@ export class RecoveryService {
 
   async verifyOtp(phone: string, otp: string) {
     const stored = await this.redis.get(`otp:${phone}`);
-    if (!stored) throw new AuthError('Срок действия временного пароля истек');
+    if (!stored) {
+      throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
+        message: 'OTP не запрашивали или он истёк',
+      });
+    }
 
     const inputHash = this.hmac(otp);
     const isValid = crypto.timingSafeEqual(
@@ -96,7 +103,9 @@ export class RecoveryService {
 
     if (!isValid) {
       await this.registerFailedAttempt(phone);
-      throw new AuthError('Срок действия временного пароля истек');
+      throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
+        message: 'Неверный OTP',
+      });
     }
 
     await this.redis.del(`otp:${phone}`, `otp_attempts:${phone}`);
@@ -115,8 +124,11 @@ export class RecoveryService {
   async resetPassword(recoveryToken: string, newPassword: string) {
     const phone = await this.redis.get(`recovery:${recoveryToken}`);
 
-    if (!phone)
-      throw new AuthError('Ваш временный пароль истек, попробуйте заново');
+    if (!phone) {
+      throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
+        message: 'Токен восстановления неизвестен или истёк',
+      });
+    }
 
     const user = await this.usersService.findOneByPhone(phone);
 

@@ -1,9 +1,9 @@
+import { ErrorCode } from 'src/common/errors/error-code';
 import crypto from 'crypto';
 import type { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import type Redis from 'ioredis';
-import { AuthError } from 'src/common/errors/auth.error';
 import type { AuthService } from 'src/domain/auth/auth.service';
 import {
   OTP_MAX_ATTEMPTS,
@@ -111,23 +111,23 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(ttl).toBeLessThanOrEqual(OTP_TTL);
     });
 
-    it('повторный запрос в пределах лока → AuthError, прежний OTP не перезаписан', async () => {
+    it('повторный запрос в пределах лока → код ошибки, прежний OTP не перезаписан', async () => {
       await service.requestOtp(PHONE);
       const before = await redis.get(`otp:${PHONE}`);
 
       const error = await rejection(service.requestOtp(PHONE));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.OTP_RATE_LIMITED });
       expect(await redis.get(`otp:${PHONE}`)).toBe(before);
     });
 
-    it('сверх OTP_MAX_REQUESTS запросов в окне → AuthError, OTP не перезаписан', async () => {
+    it('сверх OTP_MAX_REQUESTS запросов в окне → код ошибки, OTP не перезаписан', async () => {
       for (let index = 0; index < OTP_MAX_REQUESTS; index++) await requestOtp();
       const before = await redis.get(`otp:${PHONE}`);
 
       const error = await rejection(requestOtp());
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.OTP_RATE_LIMITED });
       expect(await redis.get(`otp:${PHONE}`)).toBe(before);
     });
   });
@@ -144,27 +144,27 @@ describe('RecoveryService (integration, Redis)', () => {
       );
     });
 
-    it('OTP одноразовый: повторная проверка того же кода → AuthError', async () => {
+    it('OTP одноразовый: повторная проверка того же кода → код ошибки', async () => {
       const otp = await requestOtp();
       await service.verifyOtp(PHONE, otp);
 
       const error = await rejection(service.verifyOtp(PHONE, otp));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
     });
 
-    it('OTP не запрашивали или он истёк → AuthError', async () => {
+    it('OTP не запрашивали или он истёк → код ошибки', async () => {
       const error = await rejection(service.verifyOtp(PHONE, '12345'));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
     });
 
-    it('неверный код → AuthError, токен не создан, настоящий OTP ещё валиден', async () => {
+    it('неверный код → код ошибки, токен не создан, настоящий OTP ещё валиден', async () => {
       const otp = await requestOtp();
 
       const error = await rejection(service.verifyOtp(PHONE, wrongOtp(otp)));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
       expect(await redis.keys('recovery:*')).toEqual([]);
       await expect(service.verifyOtp(PHONE, otp)).resolves.toHaveProperty(
         'recoveryToken',
@@ -179,7 +179,7 @@ describe('RecoveryService (integration, Redis)', () => {
 
       const error = await rejection(service.verifyOtp(PHONE, otp));
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
       expect(await redis.keys('recovery:*')).toEqual([]);
     });
 
@@ -234,12 +234,12 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
     });
 
-    it('неизвестный или истёкший токен → AuthError, пароль не меняется', async () => {
+    it('неизвестный или истёкший токен → код ошибки, пароль не меняется', async () => {
       const error = await rejection(
         service.resetPassword('unknown', 'NewPassword1'),
       );
 
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
       expect(usersService.changeUserPassword).not.toHaveBeenCalled();
     });
   });

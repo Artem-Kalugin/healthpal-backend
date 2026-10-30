@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import type { doctorTimeSlot } from 'src/db/schema';
@@ -194,13 +194,13 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('несуществующий врач → NotFoundException', async () => {
+    it('несуществующий врач → NO_AVAILABLE_SLOTS', async () => {
       await expect(
         service.getSlotsForDoctor(
           '00000000-0000-4000-8000-000000000000',
           ...WIDE_RANGE,
         ),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
   });
 
@@ -258,14 +258,14 @@ describe('DoctorTimeSlotService (integration)', () => {
       });
     });
 
-    it('нет свободных будущих слотов (заняты или прошли) → NotFoundException', async () => {
+    it('нет свободных будущих слотов (заняты или прошли) → NO_AVAILABLE_SLOTS', async () => {
       const doctor = await doctorIn();
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-10-28', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.getSlotsRange(doctor.id)).rejects.toMatchObject({
+        code: ErrorCode.NO_AVAILABLE_SLOTS,
+      });
     });
   });
 });
