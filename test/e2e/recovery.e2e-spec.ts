@@ -81,7 +81,7 @@ describe('Recovery (e2e)', () => {
     expect((await login(OLD_PASSWORD)).status).toBe(401);
   });
 
-  it('passwords do not match → 400 PASSWORDS_MISMATCH, the password is unchanged, the token stays valid', async () => {
+  it('passwords do not match → 400 VALIDATION_FAILED on confirmPassword, the password is unchanged, the token stays valid', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {
@@ -93,7 +93,8 @@ describe('Recovery (e2e)', () => {
     expect(reset.status).toBe(400);
     expect(reset.body).toEqual({
       statusCode: 400,
-      code: 'PASSWORDS_MISMATCH',
+      code: 'VALIDATION_FAILED',
+      validation: { confirmPassword: [{ code: 'VALUES_MISMATCH' }] },
     });
     expect((await login(OLD_PASSWORD)).status).toBe(201);
     expect(await redis.get(`recovery:${token}`)).toBe(phone);

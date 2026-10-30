@@ -56,12 +56,11 @@ export class MedicalCentersService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
 
-    return paginate({ page, size }, ({ limit, offset }) =>
+    return paginate(
       selectCenters(this.db, userId)
         .where(userFavorites)
-        .orderBy(desc(favoritedAt), asc(medicalCenter.id))
-        .limit(limit)
-        .offset(offset),
+        .orderBy(desc(favoritedAt), asc(medicalCenter.id)),
+      { page, size },
     );
   }
 }

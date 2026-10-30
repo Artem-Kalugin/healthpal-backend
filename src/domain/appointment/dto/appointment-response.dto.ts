@@ -1,9 +1,3 @@
-import {
-  IntersectionType,
-  OmitType,
-  PartialType,
-  PickType,
-} from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 import { DoctorResponseDto } from 'src/domain/doctor/dto/doctor-response.dto';
 
@@ -27,19 +21,4 @@ export class AppointmentResponseDto {
   @Expose()
   @Type(() => DoctorResponseDto)
   doctor: DoctorResponseDto;
-}
-
-// mutations return the doctor without `category`
-class AppointmentMutationDoctorDto extends IntersectionType(
-  PickType(DoctorResponseDto, ['id'] as const),
-  PartialType(OmitType(DoctorResponseDto, ['id', 'category'] as const)),
-) {}
-
-export class AppointmentMutationResponseDto extends OmitType(
-  AppointmentResponseDto,
-  ['doctor'] as const,
-) {
-  @Expose()
-  @Type(() => AppointmentMutationDoctorDto)
-  doctor: AppointmentMutationDoctorDto;
 }

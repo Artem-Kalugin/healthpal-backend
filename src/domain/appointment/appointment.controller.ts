@@ -14,20 +14,9 @@ import {
 import { ApiTags, ApiParam } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import {
-  AppointmentMutationResponseDto,
-  AppointmentResponseDto,
-} from './dto/appointment-response.dto';
+import { AppointmentResponseDto } from './dto/appointment-response.dto';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
-import {
-  PaginatedResponseDto,
-  PaginatedResponseOf,
-} from 'src/common/helpers/pagination/paginated-response.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
-
-const PaginatedAppointmentResponse = PaginatedResponseOf(
-  AppointmentResponseDto,
-);
 
 @ApiTags('Appointments')
 @Authenticated()
@@ -36,33 +25,26 @@ export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) {}
 
   @Post()
-  @ApiSerialized(AppointmentMutationResponseDto, { created: true })
+  @ApiSerialized(AppointmentResponseDto, { created: true })
   async createAppointment(
     @CurrentUserId() userId: string,
     @Body() dto: CreateAppointmentDto,
-  ): Promise<AppointmentMutationResponseDto> {
+  ) {
     return await this.appointmentService.createAppointment(userId, dto);
   }
 
   @Get()
-  @ApiSerialized(PaginatedAppointmentResponse, {
-    swaggerType: PaginatedResponseDto<AppointmentResponseDto>,
-  })
+  @ApiSerialized(AppointmentResponseDto, { paginated: true })
   async getAppointments(
     @CurrentUserId() userId: string,
     @Query() query: AppointmentQueryDto,
-  ): Promise<PaginatedResponseDto<AppointmentResponseDto>> {
-    const result = await this.appointmentService.getAppointmentsForUser(
-      userId,
-      query,
-    );
-
-    return new PaginatedAppointmentResponse(result);
+  ) {
+    return await this.appointmentService.getAppointmentsForUser(userId, query);
   }
 
   @Patch(':id/cancel')
   @ApiParam({ name: 'id', type: String })
-  @ApiSerialized(AppointmentMutationResponseDto)
+  @ApiSerialized(AppointmentResponseDto)
   async cancelAppointment(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
@@ -71,7 +53,7 @@ export class AppointmentController {
   }
 
   @Patch(':id/reschedule')
-  @ApiSerialized(AppointmentMutationResponseDto)
+  @ApiSerialized(AppointmentResponseDto)
   async rescheduleAppointment(
     @Param('id', ParseUUIDPipe) appointmentId: string,
     @Body() dto: RescheduleAppointmentDto,

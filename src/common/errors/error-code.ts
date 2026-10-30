@@ -39,7 +39,6 @@ export enum ErrorCode {
   REFRESH_TOKEN_INVALID = 'REFRESH_TOKEN_INVALID',
   TEMP_PASSWORD_EXPIRED = 'TEMP_PASSWORD_EXPIRED',
   OTP_RATE_LIMITED = 'OTP_RATE_LIMITED',
-  PASSWORDS_MISMATCH = 'PASSWORDS_MISMATCH',
 
   /** Generic codes by HTTP status for errors that did not go through `AppException` (Nest, Throttler, Multer). */
   BAD_REQUEST = 'BAD_REQUEST',
@@ -97,7 +96,6 @@ export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.REFRESH_TOKEN_INVALID]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.TEMP_PASSWORD_EXPIRED]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.OTP_RATE_LIMITED]: HttpStatus.TOO_MANY_REQUESTS,
-  [ErrorCode.PASSWORDS_MISMATCH]: HttpStatus.BAD_REQUEST,
 
   [ErrorCode.BAD_REQUEST]: HttpStatus.BAD_REQUEST,
   [ErrorCode.UNAUTHORIZED]: HttpStatus.UNAUTHORIZED,

@@ -16,7 +16,7 @@ export interface EnvironmentVariables {
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   JWT_EXPIRES_IN: string;
-  JWT_REFRESH_TTL: string;
+  JWT_REFRESH_TTL: number;
 
   DATABASE_HOST?: string;
   DATABASE_PORT?: number;

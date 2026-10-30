@@ -60,12 +60,11 @@ export class AppointmentService {
 
     const where = and(eq(appointment.userId, userId), byType.where);
 
-    const result = await paginate({ page, size }, ({ limit, offset }) =>
+    const result = await paginate(
       selectAppointments(this.db)
         .where(where)
-        .orderBy(byType.order, asc(appointment.id))
-        .limit(limit)
-        .offset(offset),
+        .orderBy(byType.order, asc(appointment.id)),
+      { page, size },
     );
 
     return { ...result, data: result.data.map(nestDoctor) };

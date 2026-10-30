@@ -1,7 +1,10 @@
 import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
 import { Controller, Post, Delete, Param, ParseUUIDPipe } from '@nestjs/common';
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
 import { FavoritesService } from './favorites.service';
+import { FavoriteDoctorResponseDto } from './dto/favorite-doctor-response.dto';
+import { FavoriteMedicalCenterResponseDto } from './dto/favorite-medical-center-response.dto';
 import {
   ApiTags,
   ApiConflictResponse,
@@ -17,7 +20,10 @@ export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
   @Post('doctors/:doctorId')
-  @ApiOkResponse({ description: 'Doctor added to favorites' })
+  @ApiSerialized(FavoriteDoctorResponseDto, {
+    created: true,
+    description: 'Doctor added to favorites',
+  })
   @ApiParam({ name: 'doctorId', type: 'string' })
   @ApiConflictResponse({
     description: 'FAVORITE_ALREADY_EXISTS: doctor is already in favorites',
@@ -41,7 +47,10 @@ export class FavoritesController {
   }
 
   @Post('medical-centers/:medicalCenterId')
-  @ApiOkResponse({ description: 'Medical center added to favorites' })
+  @ApiSerialized(FavoriteMedicalCenterResponseDto, {
+    created: true,
+    description: 'Medical center added to favorites',
+  })
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
   @ApiConflictResponse({
     description: 'FAVORITE_ALREADY_EXISTS: center is already in favorites',

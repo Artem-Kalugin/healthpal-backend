@@ -17,6 +17,14 @@ export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_MAX_REQUESTS = 10;
 export const OTP_REQUESTS_WINDOW_SECONDS = 3600;
 
+const redisKeys = {
+  otp: (phone: string) => `otp:${phone}`,
+  otpLock: (phone: string) => `otp_lock:${phone}`,
+  otpRequests: (phone: string) => `otp_requests:${phone}`,
+  otpAttempts: (phone: string) => `otp_attempts:${phone}`,
+  recovery: (token: string) => `recovery:${token}`,
+};
+
 @Injectable()
 export class RecoveryService {
   constructor(
@@ -43,10 +51,13 @@ export class RecoveryService {
   async requestOtp(phone: string) {
     await this.usersService.findOneByPhone(phone);
 
-    const otpKey = `otp:${phone}`;
-    const otpLockKey = `otp_lock:${phone}`;
-
-    const lockSet = await this.redis.set(otpLockKey, '1', 'EX', 10, 'NX');
+    const lockSet = await this.redis.set(
+      redisKeys.otpLock(phone),
+      '1',
+      'EX',
+      10,
+      'NX',
+    );
 
     if (!lockSet) {
       throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
@@ -54,7 +65,7 @@ export class RecoveryService {
       });
     }
 
-    const requestsKey = `otp_requests:${phone}`;
+    const requestsKey = redisKeys.otpRequests(phone);
     const requests = await this.redis.incr(requestsKey);
     if (requests === 1) {
       await this.redis.expire(requestsKey, OTP_REQUESTS_WINDOW_SECONDS);
@@ -68,14 +79,19 @@ export class RecoveryService {
     const otp = this.generateOtp();
     const otpHash = this.hmac(otp);
 
-    await this.redis.set(otpKey, otpHash, 'EX', this.config.get('OTP_TTL')!);
-    await this.redis.del(`otp_attempts:${phone}`);
+    await this.redis.set(
+      redisKeys.otp(phone),
+      otpHash,
+      'EX',
+      this.config.get('OTP_TTL')!,
+    );
+    await this.redis.del(redisKeys.otpAttempts(phone));
 
     return { smsDemoOnly: otp };
   }
 
   private async registerFailedAttempt(phone: string) {
-    const attemptsKey = `otp_attempts:${phone}`;
+    const attemptsKey = redisKeys.otpAttempts(phone);
     const attempts = await this.redis.incr(attemptsKey);
 
     if (attempts === 1) {
@@ -83,12 +99,12 @@ export class RecoveryService {
     }
 
     if (attempts >= OTP_MAX_ATTEMPTS) {
-      await this.redis.del(`otp:${phone}`, attemptsKey);
+      await this.redis.del(redisKeys.otp(phone), attemptsKey);
     }
   }
 
   async verifyOtp(phone: string, otp: string) {
-    const stored = await this.redis.get(`otp:${phone}`);
+    const stored = await this.redis.get(redisKeys.otp(phone));
     if (!stored) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
         message: 'OTP was not requested or has expired',
@@ -108,11 +124,11 @@ export class RecoveryService {
       });
     }
 
-    await this.redis.del(`otp:${phone}`, `otp_attempts:${phone}`);
+    await this.redis.del(redisKeys.otp(phone), redisKeys.otpAttempts(phone));
 
     const token = crypto.randomBytes(24).toString('hex');
     await this.redis.set(
-      `recovery:${token}`,
+      redisKeys.recovery(token),
       phone,
       'EX',
       this.config.get('RECOVERY_TTL')!,
@@ -123,7 +139,7 @@ export class RecoveryService {
 
   async resetPassword(recoveryToken: string, newPassword: string) {
     // GETDEL: the token is single-use, a parallel request with the same token gets null
-    const phone = await this.redis.getdel(`recovery:${recoveryToken}`);
+    const phone = await this.redis.getdel(redisKeys.recovery(recoveryToken));
 
     if (!phone) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {

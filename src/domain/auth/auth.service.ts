@@ -3,6 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/domain/users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { CreateUserDto } from 'src/domain/users/dto/create-user.dto';
+import { UpdateUserDto } from 'src/domain/users/dto/update-user.dto';
 import { UserResponseDto } from 'src/domain/users/dto/user-response.dto';
 import type { User } from 'src/db/schema';
 import { AppException } from 'src/common/errors/app.exception';
@@ -24,6 +26,8 @@ const CONSUME_REFRESH_TOKEN_SCRIPT = `
   return 0
 `;
 
+const refreshKey = (userId: string, sid: string) => `refresh:${userId}:${sid}`;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -33,6 +37,22 @@ export class AuthService {
     private readonly config: ConfigService<EnvironmentVariables>,
     @Inject(REDIS_PROVIDER_KEY) private readonly redis: Redis,
   ) {}
+
+  async register(createUserDto: CreateUserDto) {
+    const user = await this.usersService.create(createUserDto);
+
+    return this.generateTokens(user);
+  }
+
+  async completeRegistration(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+    avatar?: Buffer,
+  ) {
+    const user = await this.usersService.update(userId, updateUserDto, avatar);
+
+    return this.generateTokens(user);
+  }
 
   async login(loginDto: LoginDto): Promise<{
     accessToken: string;
@@ -74,22 +94,22 @@ export class AuthService {
   // refresh extends the existing one.
   async generateTokens(user: User, sid: string = randomUUID()) {
     const payload = this.getJwtPayload(user);
+    const refreshTtl = this.config.get('JWT_REFRESH_TTL', { infer: true })!;
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(
       { ...payload, sid },
       {
         secret: this.config.get('JWT_REFRESH_SECRET')!,
-        expiresIn: this.config.get('JWT_REFRESH_TTL')!,
+        expiresIn: refreshTtl,
       },
     );
 
-    const redisKey = `refresh:${user.id}:${sid}`;
     await this.redis.set(
-      redisKey,
+      refreshKey(user.id, sid),
       refreshToken,
       'EX',
-      this.config.get('JWT_REFRESH_TTL')!,
+      refreshTtl,
     );
 
     return {
@@ -105,7 +125,7 @@ export class AuthService {
       const [next, keys] = await this.redis.scan(
         cursor,
         'MATCH',
-        `refresh:${userId}:*`,
+        refreshKey(userId, '*'),
         'COUNT',
         100,
       );
@@ -133,11 +153,10 @@ export class AuthService {
     }
 
     const sid = payload.sid;
-    const redisKey = `refresh:${userId}:${sid}`;
     const consumed = await this.redis.eval(
       CONSUME_REFRESH_TOKEN_SCRIPT,
       1,
-      redisKey,
+      refreshKey(userId, sid),
       refreshToken,
     );
 

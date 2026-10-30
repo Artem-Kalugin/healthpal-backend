@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
@@ -9,15 +10,18 @@ import type { Database } from 'src/db/db.module';
 import { existsById } from 'src/db/exists';
 import { doctor, medicalCenter, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
-import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
+import {
+  DoctorSearchQueryDto,
+  DoctorSort,
+} from './dto/doctor-search-query.dto';
 import { selectDoctors } from './doctor.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 
-const sortColumns = {
-  rating: doctor.rating,
-  reviews: doctor.reviewsCount,
-  practiceStartYear: doctor.practiceStartYear,
+const sortColumns: Record<DoctorSort, PgColumn> = {
+  [DoctorSort.RATING]: doctor.rating,
+  [DoctorSort.REVIEWS]: doctor.reviewsCount,
+  [DoctorSort.PRACTICE_START_YEAR]: doctor.practiceStartYear,
 };
 
 @Injectable()
@@ -52,15 +56,14 @@ export class DoctorService {
     );
     const direction = order === SortOrder.ASC ? asc : desc;
 
-    return paginate({ page, size }, ({ limit, offset }) =>
+    return paginate(
       selectDoctors(this.db, userId)
         .where(where)
         .orderBy(
           ...(sort ? [direction(sortColumns[sort])] : []),
           asc(doctor.id),
-        )
-        .limit(limit)
-        .offset(offset),
+        ),
+      { page, size },
     );
   }
 
@@ -70,12 +73,11 @@ export class DoctorService {
     const { userId, page, size } = parameters;
     const userFavorites = eq(userFavoriteDoctor.userId, userId);
 
-    return paginate({ page, size }, ({ limit, offset }) =>
+    return paginate(
       selectDoctors(this.db, userId)
         .where(userFavorites)
-        .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id))
-        .limit(limit)
-        .offset(offset),
+        .orderBy(desc(userFavoriteDoctor.createdAt), asc(doctor.id)),
+      { page, size },
     );
   }
 

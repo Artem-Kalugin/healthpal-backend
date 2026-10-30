@@ -46,11 +46,15 @@ export default tseslint.config(
       // Composite decorator from `src/common/validators`.
       '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
         'error',
-        { additionalDecorators: ['IsPassword', 'IsNotFutureDate'] },
+        {
+          additionalDecorators: ['IsPassword', 'IsNotFutureDate', 'IsSameAs'],
+        },
       ],
       '@darraghor/nestjs-typed/all-properties-have-explicit-defined': [
         'error',
-        { additionalDecorators: ['IsPassword', 'IsNotFutureDate'] },
+        {
+          additionalDecorators: ['IsPassword', 'IsNotFutureDate', 'IsSameAs'],
+        },
       ],
     },
   },
@@ -72,7 +76,8 @@ export default tseslint.config(
           patterns: [
             {
               group: ['../../*'],
-              message: 'Import across folders from the root (src/...), ../ only for one level up.',
+              message:
+                'Import across folders from the root (src/...), ../ only for one level up.',
             },
           ],
         },

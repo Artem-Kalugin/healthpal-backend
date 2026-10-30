@@ -1,10 +1,8 @@
 import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Body, Controller, Post } from '@nestjs/common';
+import { AuthThrottle } from 'src/common/helpers/decorators/auth-throttle.decorator';
 import { RecoveryService } from './recovery.service';
-import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { AppException } from 'src/common/errors/app.exception';
-import { ErrorCode } from 'src/common/errors/error-code';
+import { ApiCreatedResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -20,13 +18,12 @@ class DemoOnly_SMSResponse {
 }
 @ApiTags('Auth')
 @Public()
-@UseGuards(ThrottlerGuard)
-@Throttle({ default: { limit: 10, ttl: 60_000 } })
+@AuthThrottle()
 @Controller('auth/recovery')
 export class RecoveryController {
   constructor(private readonly recoveryService: RecoveryService) {}
 
-  @ApiOkResponse({ type: DemoOnly_SMSResponse })
+  @ApiCreatedResponse({ type: DemoOnly_SMSResponse })
   @Post('otp/request')
   requestOtp(@Body() body: RequestOtpDto) {
     return this.recoveryService.requestOtp(body.phone);
@@ -40,13 +37,7 @@ export class RecoveryController {
 
   @Post('reset-password')
   @ApiSerialized(LoginResponseDto, { created: true })
-  async resetPassword(@Body() body: ResetPasswordDto) {
-    const { token, password, confirmPassword } = body;
-
-    if (password !== confirmPassword) {
-      throw new AppException(ErrorCode.PASSWORDS_MISMATCH);
-    }
-
-    return this.recoveryService.resetPassword(token, password);
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.recoveryService.resetPassword(body.token, body.password);
   }
 }

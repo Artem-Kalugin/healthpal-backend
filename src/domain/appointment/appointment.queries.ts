@@ -1,5 +1,4 @@
 import { eq, getTableColumns, sql } from 'drizzle-orm';
-import { getTableColumnsExcluding } from 'src/db/columns';
 import type { Database } from 'src/db/db.module';
 import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 import {
@@ -20,10 +19,7 @@ export const selectAppointments = (db: Database) =>
   db
     .select({
       ...getTableColumns(appointment),
-      doctor: getTableColumnsExcluding(doctor, [
-        'categoryId',
-        'medicalCenterId',
-      ]),
+      doctor: getTableColumns(doctor),
       category: { type: doctorCategory.type },
       medicalCenter: {
         name: medicalCenter.name,

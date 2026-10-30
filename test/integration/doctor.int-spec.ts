@@ -4,7 +4,10 @@ import type { Database } from 'src/db/db.module';
 import { DoctorCategoryType } from 'src/db/enums';
 import { userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
-import { DoctorSearchQueryDto } from 'src/domain/doctor/dto/doctor-search-query.dto';
+import {
+  DoctorSearchQueryDto,
+  DoctorSort,
+} from 'src/domain/doctor/dto/doctor-search-query.dto';
 import { SortOrder } from 'src/common/config';
 import { createTestDb } from './db';
 import { createFactories } from './factories';
@@ -220,13 +223,13 @@ describe('DoctorService (integration)', () => {
     );
 
     it.each([
-      ['rating', SortOrder.DESC, [D1, D2, D3, D4]],
-      ['rating', undefined, [D1, D2, D3, D4]],
-      ['rating', SortOrder.ASC, [D4, D2, D3, D1]],
-      ['reviews', SortOrder.DESC, [D1, D3, D2, D4]],
-      ['reviews', SortOrder.ASC, [D2, D4, D3, D1]],
-      ['practiceStartYear', SortOrder.DESC, [D4, D2, D3, D1]],
-      ['practiceStartYear', SortOrder.ASC, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, SortOrder.DESC, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, undefined, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, SortOrder.ASC, [D4, D2, D3, D1]],
+      [DoctorSort.REVIEWS, SortOrder.DESC, [D1, D3, D2, D4]],
+      [DoctorSort.REVIEWS, SortOrder.ASC, [D2, D4, D3, D1]],
+      [DoctorSort.PRACTICE_START_YEAR, SortOrder.DESC, [D4, D2, D3, D1]],
+      [DoctorSort.PRACTICE_START_YEAR, SortOrder.ASC, [D1, D2, D3, D4]],
     ] as const)(
       'sort=%s order=%s (descending by default), equal values are ordered by id',
       async (sort, order, expected) => {
@@ -235,7 +238,11 @@ describe('DoctorService (integration)', () => {
     );
 
     it('pages with a join do not overlap and together give all doctors', async () => {
-      const query = { sort: 'rating', order: SortOrder.ASC, size: 2 } as const;
+      const query = {
+        sort: DoctorSort.RATING,
+        order: SortOrder.ASC,
+        size: 2,
+      } as const;
 
       const first = await search({ ...query, page: 1 });
       const second = await search({ ...query, page: 2 });

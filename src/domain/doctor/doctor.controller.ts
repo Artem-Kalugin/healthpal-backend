@@ -5,14 +5,8 @@ import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiParam } from '@nestjs/swagger';
 import { DoctorService } from './doctor.service';
 import { DoctorResponseDto } from './dto/doctor-response.dto';
-import {
-  PaginatedResponseDto,
-  PaginatedResponseOf,
-} from 'src/common/helpers/pagination/paginated-response.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
-
-const PaginatedDoctorResponse = PaginatedResponseOf(DoctorResponseDto);
 
 @ApiTags('Doctors')
 @Authenticated()
@@ -21,35 +15,27 @@ export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
   @Get('search')
-  @ApiSerialized(PaginatedDoctorResponse, {
-    swaggerType: PaginatedResponseDto<DoctorResponseDto>,
-  })
+  @ApiSerialized(DoctorResponseDto, { paginated: true })
   async searchDoctors(
     @CurrentUserId() userId: string,
     @Query() query: DoctorSearchQueryDto,
-  ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
-    const result = await this.doctorService.searchDoctorsForUser({
+  ) {
+    return await this.doctorService.searchDoctorsForUser({
       ...query,
       userId,
     });
-
-    return new PaginatedDoctorResponse(result);
   }
 
   @Get('/favorites')
-  @ApiSerialized(PaginatedDoctorResponse, {
-    swaggerType: PaginatedResponseDto<DoctorResponseDto>,
-  })
+  @ApiSerialized(DoctorResponseDto, { paginated: true })
   async favoritesForUser(
     @CurrentUserId() userId: string,
     @Query() query: DoctorFavoritesQueryDto,
-  ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
-    const result = await this.doctorService.findFavoritesForUser({
+  ) {
+    return await this.doctorService.findFavoritesForUser({
       ...query,
       userId,
     });
-
-    return new PaginatedDoctorResponse(result);
   }
 
   @Get(':id')

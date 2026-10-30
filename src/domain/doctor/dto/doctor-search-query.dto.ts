@@ -3,7 +3,6 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  IsIn,
   MinLength,
   IsEnum,
   IsUUID,
@@ -11,6 +10,12 @@ import {
 import { rule, ValidationCode } from 'src/common/errors/validation-code';
 import { SortOrder } from 'src/common/config';
 import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
+
+export enum DoctorSort {
+  RATING = 'rating',
+  REVIEWS = 'reviews',
+  PRACTICE_START_YEAR = 'practiceStartYear',
+}
 
 export class DoctorSearchQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
@@ -37,12 +42,13 @@ export class DoctorSearchQueryDto extends PaginatedQueryDto {
 
   @ApiPropertyOptional({
     description: 'Sort field',
-    enum: ['rating', 'reviews', 'practiceStartYear'],
+    enum: DoctorSort,
+    enumName: 'DoctorSort',
     example: 'rating',
   })
   @IsOptional()
-  @IsIn(['rating', 'reviews', 'practiceStartYear'])
-  sort?: 'rating' | 'reviews' | 'practiceStartYear';
+  @IsEnum(DoctorSort)
+  sort?: DoctorSort;
 
   @ApiPropertyOptional({
     description: 'Sort direction',

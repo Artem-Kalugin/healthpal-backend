@@ -18,15 +18,11 @@ export class PaginatedResponseDto<T> {
   @ApiProperty({ isArray: true, description: 'Array of data' })
   @Type(() => Object)
   data: T[];
-
-  constructor(partial: Partial<PaginatedResponseDto<T>>) {
-    Object.assign(this, partial);
-  }
 }
 
 export function PaginatedResponseOf<T>(
   classReference: new () => T,
-): new (partial: Partial<PaginatedResponseDto<T>>) => PaginatedResponseDto<T> {
+): new () => PaginatedResponseDto<T> {
   class PaginatedResponseWithType extends PaginatedResponseDto<T> {
     @Expose()
     @Type(() => classReference)

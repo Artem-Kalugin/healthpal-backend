@@ -31,6 +31,7 @@ export enum ValidationCode {
   DATE_IN_FUTURE = 'DATE_IN_FUTURE',
   NAME_FORMAT = 'NAME_FORMAT',
   NICKNAME_HAS_SPACES = 'NICKNAME_HAS_SPACES',
+  VALUES_MISMATCH = 'VALUES_MISMATCH',
 }
 
 /** Parameter shape of each code; `undefined` means no parameters. */
@@ -59,6 +60,7 @@ export interface ValidationParameters {
   [ValidationCode.DATE_IN_FUTURE]: undefined;
   [ValidationCode.NAME_FORMAT]: undefined;
   [ValidationCode.NICKNAME_HAS_SPACES]: undefined;
+  [ValidationCode.VALUES_MISMATCH]: undefined;
 }
 
 type RuleArguments<C extends ValidationCode> =
