@@ -1,3 +1,4 @@
+import { ApiClientContext } from 'src/common/decorators/api-client-context.decorator';
 import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/decorators/authenticated.decorator';
@@ -29,6 +30,7 @@ export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) {}
 
   @Post()
+  @ApiClientContext()
   @ApiSerialized(AppointmentResponseDto, { created: true })
   create(
     @CurrentUserId() userId: string,
@@ -39,6 +41,7 @@ export class AppointmentController {
   }
 
   @Get()
+  @ApiClientContext()
   @ApiSerialized(AppointmentResponseDto, { paginated: true })
   list(
     @CurrentUserId() userId: string,
@@ -49,6 +52,7 @@ export class AppointmentController {
   }
 
   @Patch(':id/cancel')
+  @ApiClientContext()
   @ApiSerialized(AppointmentResponseDto)
   cancel(
     @CurrentUserId() userId: string,
@@ -59,6 +63,7 @@ export class AppointmentController {
   }
 
   @Patch(':id/reschedule')
+  @ApiClientContext()
   @ApiSerialized(AppointmentResponseDto)
   reschedule(
     @Param('id', ParseUUIDPipe) appointmentId: string,

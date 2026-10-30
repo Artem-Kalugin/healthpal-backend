@@ -15,6 +15,7 @@ import {
 } from './dto/doctor-search-query.dto';
 import { localized } from 'src/common/i18n/locale';
 import type { RequestContext } from 'src/common/i18n/request-context';
+import { unaccent, unaccentedTerm } from 'src/common/i18n/search';
 import { selectDoctors } from './doctor.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
@@ -44,18 +45,22 @@ export class DoctorService {
       order = SortOrder.DESC,
     } = query;
 
-    const term = searchFor ? `%${escapeLike(searchFor)}%` : undefined;
+    const term = searchFor
+      ? unaccentedTerm(`%${escapeLike(searchFor)}%`)
+      : undefined;
     const where = and(
       categoryId ? eq(doctor.categoryId, categoryId) : undefined,
       medicalCenterId ? eq(doctor.medicalCenterId, medicalCenterId) : undefined,
       term
         ? or(
             ilike(
-              sql`concat(${localized(doctor.name, locale)}, ' ', ${localized(doctor.surname, locale)})`,
+              unaccent(
+                sql`(${localized(doctor.name, locale)} || ' ' || ${localized(doctor.surname, locale)})`,
+              ),
               term,
             ),
-            ilike(localized(medicalCenter.name, locale), term),
-            ilike(localized(medicalCenter.address, locale), term),
+            ilike(unaccent(localized(medicalCenter.name, locale)), term),
+            ilike(unaccent(localized(medicalCenter.address, locale)), term),
           )
         : undefined,
     );

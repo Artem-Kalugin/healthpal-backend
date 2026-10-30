@@ -1,3 +1,4 @@
+import { ApiClientContext } from 'src/common/decorators/api-client-context.decorator';
 import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ export class OnboardingSlidesController {
 
   @Public()
   @Get('/slides')
+  @ApiClientContext()
   @ApiSerialized(OnboardingSlideResponseDto, {
     description: 'List of active onboarding slides',
     isArray: true,

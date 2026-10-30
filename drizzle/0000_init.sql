@@ -1,6 +1,13 @@
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS "unaccent";--> statement-breakpoint
+-- unaccent() is only STABLE, an index expression needs IMMUTABLE. The dictionary is pinned, so the wrapper is safe.
+CREATE FUNCTION immutable_unaccent(text) RETURNS text
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+  RETURN public.unaccent('public.unaccent'::regdictionary, $1);--> statement-breakpoint
 CREATE TYPE "public"."doctor_category_type" AS ENUM('dentistry', 'cardiology', 'pulmonology', 'general', 'neurology', 'gastroenterology', 'laboratory', 'vaccination');--> statement-breakpoint
 CREATE TYPE "public"."gender" AS ENUM('MALE', 'FEMALE');--> statement-breakpoint
 CREATE TYPE "public"."medical_center_type" AS ENUM('hospital', 'clinic', 'cabinet');--> statement-breakpoint
+CREATE TYPE "public"."region" AS ENUM('RU', 'EU');--> statement-breakpoint
 CREATE TABLE "appointment" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -15,14 +22,14 @@ CREATE TABLE "appointment" (
 --> statement-breakpoint
 CREATE TABLE "doctor" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" varchar(255) NOT NULL,
-	"surname" varchar(255) NOT NULL,
+	"name" jsonb NOT NULL,
+	"surname" jsonb NOT NULL,
 	"practice_start_year" integer NOT NULL,
 	"patients_count" integer NOT NULL,
 	"reviews_count" integer NOT NULL,
 	"image" jsonb NOT NULL,
 	"rating" numeric(2, 1) NOT NULL,
-	"description" varchar(1000) NOT NULL,
+	"description" jsonb NOT NULL,
 	"category_id" uuid NOT NULL,
 	"medical_center_id" uuid NOT NULL
 );
@@ -53,21 +60,22 @@ CREATE TABLE "doctor_time_slot" (
 --> statement-breakpoint
 CREATE TABLE "medical_center" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" varchar NOT NULL,
-	"address" varchar NOT NULL,
-	"city" varchar NOT NULL,
+	"name" jsonb NOT NULL,
+	"address" jsonb NOT NULL,
+	"city" jsonb NOT NULL,
 	"image" jsonb NOT NULL,
 	"lat" double precision NOT NULL,
 	"lon" double precision NOT NULL,
 	"timezone" varchar DEFAULT 'Europe/Moscow' NOT NULL,
-	"type" "medical_center_type" DEFAULT 'clinic' NOT NULL
+	"type" "medical_center_type" DEFAULT 'clinic' NOT NULL,
+	"region" "region" DEFAULT 'RU' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "onboarding_slide" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"image" jsonb NOT NULL,
-	"title" varchar(128) NOT NULL,
-	"text" text NOT NULL,
+	"title" jsonb NOT NULL,
+	"text" jsonb NOT NULL,
 	"order" integer DEFAULT 0 NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL
 );
@@ -87,7 +95,7 @@ CREATE TABLE "user" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "user_phone_unique" UNIQUE("phone"),
 	CONSTRAINT "user_nickname_unique" UNIQUE("nickname"),
-	CONSTRAINT "user_phone_format_check" CHECK ("user"."phone" ~ '^\+\d{11}$'),
+	CONSTRAINT "user_phone_format_check" CHECK ("user"."phone" ~ '^\+[1-9]\d{6,14}$'),
 	CONSTRAINT "user_birthday_past_check" CHECK ("user"."birthday" <= CURRENT_DATE)
 );
 --> statement-breakpoint
@@ -118,5 +126,11 @@ ALTER TABLE "user_favorite_medical_center" ADD CONSTRAINT "user_favorite_medical
 ALTER TABLE "user_favorite_medical_center" ADD CONSTRAINT "user_favorite_medical_center_center_fk" FOREIGN KEY ("medical_center_id") REFERENCES "public"."medical_center"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "appointment_user_idx" ON "appointment" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "doctor_medical_center_idx" ON "doctor" USING btree ("medical_center_id");--> statement-breakpoint
+CREATE INDEX "doctor_search_name_ru_idx" ON "doctor" USING gin (immutable_unaccent((("name" ->> 'ru') || ' ' || ("surname" ->> 'ru'))) gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "doctor_search_name_en_idx" ON "doctor" USING gin (immutable_unaccent((("name" ->> 'en') || ' ' || ("surname" ->> 'en'))) gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "doctor_schedule_doctor_idx" ON "doctor_schedule" USING btree ("doctor_id");--> statement-breakpoint
-CREATE INDEX "doctor_time_slot_doctor_date_idx" ON "doctor_time_slot" USING btree ("doctor_id","date","start_time");
+CREATE INDEX "doctor_time_slot_doctor_date_idx" ON "doctor_time_slot" USING btree ("doctor_id","date","start_time");--> statement-breakpoint
+CREATE INDEX "medical_center_search_name_ru_idx" ON "medical_center" USING gin (immutable_unaccent(("name" ->> 'ru')) gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "medical_center_search_address_ru_idx" ON "medical_center" USING gin (immutable_unaccent(("address" ->> 'ru')) gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "medical_center_search_name_en_idx" ON "medical_center" USING gin (immutable_unaccent(("name" ->> 'en')) gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "medical_center_search_address_en_idx" ON "medical_center" USING gin (immutable_unaccent(("address" ->> 'en')) gin_trgm_ops);

@@ -1,3 +1,4 @@
+import { ApiClientContext } from 'src/common/decorators/api-client-context.decorator';
 import {
   ClientContext,
   type RequestContext,
@@ -32,6 +33,7 @@ export class MedicalCenterFavoriteController {
   constructor(private readonly service: MedicalCenterFavoriteService) {}
 
   @Get('/favorites')
+  @ApiClientContext()
   @ApiSerialized(MedicalCenterResponseDto, { paginated: true })
   listFavorites(
     @CurrentUserId() userId: string,

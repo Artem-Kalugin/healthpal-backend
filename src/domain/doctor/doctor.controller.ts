@@ -1,3 +1,4 @@
+import { ApiClientContext } from 'src/common/decorators/api-client-context.decorator';
 import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/decorators/authenticated.decorator';
@@ -18,6 +19,7 @@ export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
   @Get('search')
+  @ApiClientContext()
   @ApiSerialized(DoctorResponseDto, { paginated: true })
   search(
     @CurrentUserId() userId: string,
@@ -28,6 +30,7 @@ export class DoctorController {
   }
 
   @Get(':id')
+  @ApiClientContext()
   @ApiSerialized(DoctorResponseDto)
   getById(
     @CurrentUserId() userId: string,

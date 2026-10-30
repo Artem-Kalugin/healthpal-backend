@@ -1,5 +1,5 @@
 {
-  "id": "428a7b19-9d66-41b5-9a79-6dd9a0e77063",
+  "id": "a48d1623-d078-49eb-bf6c-2ce6385a0fe2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -144,13 +144,13 @@
         },
         "name": {
           "name": "name",
-          "type": "varchar(255)",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
         "surname": {
           "name": "surname",
-          "type": "varchar(255)",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -186,7 +186,7 @@
         },
         "description": {
           "name": "description",
-          "type": "varchar(1000)",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -217,6 +217,36 @@
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
+          "with": {}
+        },
+        "doctor_search_name_ru_idx": {
+          "name": "doctor_search_name_ru_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent(((\"name\" ->> 'ru') || ' ' || (\"surname\" ->> 'ru'))) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "doctor_search_name_en_idx": {
+          "name": "doctor_search_name_en_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent(((\"name\" ->> 'en') || ' ' || (\"surname\" ->> 'en'))) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
           "with": {}
         }
       },
@@ -472,19 +502,19 @@
         },
         "name": {
           "name": "name",
-          "type": "varchar",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
         "address": {
           "name": "address",
-          "type": "varchar",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
         "city": {
           "name": "city",
-          "type": "varchar",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -520,9 +550,78 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'clinic'"
+        },
+        "region": {
+          "name": "region",
+          "type": "region",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RU'"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "medical_center_search_name_ru_idx": {
+          "name": "medical_center_search_name_ru_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent((\"name\" ->> 'ru')) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "medical_center_search_address_ru_idx": {
+          "name": "medical_center_search_address_ru_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent((\"address\" ->> 'ru')) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "medical_center_search_name_en_idx": {
+          "name": "medical_center_search_name_en_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent((\"name\" ->> 'en')) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "medical_center_search_address_en_idx": {
+          "name": "medical_center_search_address_en_idx",
+          "columns": [
+            {
+              "expression": "immutable_unaccent((\"address\" ->> 'en')) gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -549,13 +648,13 @@
         },
         "title": {
           "name": "title",
-          "type": "varchar(128)",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
         "text": {
           "name": "text",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -686,7 +785,7 @@
       "checkConstraints": {
         "user_phone_format_check": {
           "name": "user_phone_format_check",
-          "value": "\"user\".\"phone\" ~ '^\\+\\d{11}$'"
+          "value": "\"user\".\"phone\" ~ '^\\+[1-9]\\d{6,14}$'"
         },
         "user_birthday_past_check": {
           "name": "user_birthday_past_check",
@@ -860,6 +959,14 @@
         "hospital",
         "clinic",
         "cabinet"
+      ]
+    },
+    "public.region": {
+      "name": "region",
+      "schema": "public",
+      "values": [
+        "RU",
+        "EU"
       ]
     }
   },

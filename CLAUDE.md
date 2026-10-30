@@ -67,6 +67,7 @@ NestJS + Drizzle ORM + PostgreSQL + Redis. Package manager: pnpm. Overview and s
 - `numeric` is read as a string (`rating`), `date`/`time` as strings. Do not change without updating DTOs and tests.
 - Variables and parameters of the data layer are named `db` (an exception in `unicorn/prevent-abbreviations` in `eslint.config.mjs`), the type is `Database`, the DI token is `DB`.
 - Domain TS enums that the schema turns into `pgEnum` live in `src/db/enums.ts`, DTOs import from there. Enums that are not stored in the DB (query filters, derived states such as `AppointmentType`) do not belong there: keep them next to the single consumer (usually the DTO) and move to `common/` only when a second domain needs them.
+- The database is not production yet: it may be dropped and rewritten freely, and there is no need to keep a migration history. Squash or regenerate migrations instead of stacking new ones when that is simpler. Revisit this rule before the first real deployment.
 - The DB schema is applied by migrations. `drizzle-kit push` only for the test DB: it is interactive on conflict with foreign types, recreate the DB before it (`DROP SCHEMA public CASCADE` and then `docker/postgres/init.sql` again).
 
 ## Code placement

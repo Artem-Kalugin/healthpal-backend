@@ -1,3 +1,4 @@
+import { ApiClientContext } from 'src/common/decorators/api-client-context.decorator';
 import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/decorators/authenticated.decorator';
@@ -18,6 +19,7 @@ export class MedicalCenterController {
   constructor(private readonly service: MedicalCenterService) {}
 
   @Get()
+  @ApiClientContext()
   @ApiSerialized(MedicalCenterResponseDto, { isArray: true })
   list(
     @CurrentUserId() userId: string,

@@ -21,12 +21,14 @@ describe('localized catalog (integration)', () => {
   let centers: MedicalCenterService;
   let appointments: AppointmentService;
   let onboarding: OnboardingSlidesService;
+  let factories: ReturnType<typeof createFactories>;
+  let centerId: string;
   let userId: string;
   let doctorId: string;
 
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
-    const factories = createFactories(db);
+    factories = createFactories(db);
     doctors = new DoctorService(db);
     centers = new MedicalCenterService(db);
     appointments = new AppointmentService(db);
@@ -37,6 +39,7 @@ describe('localized catalog (integration)', () => {
       address: { ru: 'ул. Ленина, 5', en: '5 Lenin St.' },
       city: { ru: 'Москва', en: 'Moscow' },
     });
+    centerId = center.id;
     const doctor = await factories.doctor({
       name: { ru: 'Анна', en: 'Anna' },
       surname: { ru: 'Смирнова', en: 'Smirnova' },
@@ -58,6 +61,15 @@ describe('localized catalog (integration)', () => {
     await pool.end();
   });
 
+  const search = async (searchFor: string, context: RequestContext) =>
+    (
+      await doctors.searchForUser(
+        userId,
+        { page: 1, size: 10, searchFor },
+        context,
+      )
+    ).data.map(item => item.id);
+
   it('returns a doctor and the center in the request language', async () => {
     await expect(
       doctors.findOneForUser(userId, doctorId, RU),
@@ -78,20 +90,24 @@ describe('localized catalog (integration)', () => {
   });
 
   it('searches over the request language only', async () => {
-    const search = async (searchFor: string, context: RequestContext) =>
-      (
-        await doctors.searchForUser(
-          userId,
-          { page: 1, size: 10, searchFor },
-          context,
-        )
-      ).data.map(item => item.id);
-
     await expect(search('smirn', EN)).resolves.toEqual([doctorId]);
     await expect(search('north', EN)).resolves.toEqual([doctorId]);
     await expect(search('смирн', EN)).resolves.toEqual([]);
     await expect(search('смирн', RU)).resolves.toEqual([doctorId]);
     await expect(search('smirn', RU)).resolves.toEqual([]);
+  });
+
+  it('searches regardless of accents and ё', async () => {
+    const { id } = await factories.doctor({
+      name: { ru: 'Ёжик', en: 'Jürgen' },
+      surname: { ru: 'Лесной', en: 'Müller' },
+      medicalCenterId: centerId,
+    });
+    await expect(search('muller', EN)).resolves.toEqual([id]);
+    await expect(search('JURGEN MULLER', EN)).resolves.toEqual([id]);
+    await expect(search('Müller', EN)).resolves.toEqual([id]);
+    await expect(search('ежик', RU)).resolves.toEqual([id]);
+    await expect(search('Ёжик', RU)).resolves.toEqual([id]);
   });
 
   it('returns centers in the request language', async () => {

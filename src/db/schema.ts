@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import {
   boolean,
   check,
@@ -21,7 +21,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import type { Localized } from 'src/common/i18n/locale';
+import { Locale, type Localized } from 'src/common/i18n/locale';
+import { unaccent } from 'src/common/i18n/search';
 import { Constraint } from './constraints';
 import {
   DoctorCategoryType,
@@ -57,23 +58,44 @@ export const doctorCategory = pgTable('doctor_category', {
   icon: text().notNull(),
 });
 
-export const medicalCenter = pgTable('medical_center', {
-  id: uuid().primaryKey().defaultRandom(),
-  name: jsonb().$type<Localized>().notNull(),
-  address: jsonb().$type<Localized>().notNull(),
-  city: jsonb().$type<Localized>().notNull(),
-  image: jsonb().$type<StoredImage>().notNull(),
-  lat: doublePrecision().notNull(),
-  lon: doublePrecision().notNull(),
-  /** IANA time zone name (`Europe/Moscow`): the center slot `date`/`startTime` are given in it. */
-  timezone: varchar().notNull().default('Europe/Moscow'),
-  type: medicalCenterType()
-    .$type<MedicalCenterType>()
-    .notNull()
-    .default(MedicalCenterType.CLINIC),
-  /** Doctors have no region of their own, they inherit it from the center. */
-  region: region().$type<Region>().notNull().default(Region.RU),
-});
+/** Index expressions need a literal key, a bound parameter is not allowed there. */
+const key = (locale: Locale) => sql.raw(`'${locale}'`);
+
+/** Trigram index over the accent-stripped text of one locale; the search queries must use the same expression. */
+const searchIndex = (name: string, text: SQL) =>
+  index(name).using('gin', sql`${unaccent(text)} gin_trgm_ops`);
+
+export const medicalCenter = pgTable(
+  'medical_center',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: jsonb().$type<Localized>().notNull(),
+    address: jsonb().$type<Localized>().notNull(),
+    city: jsonb().$type<Localized>().notNull(),
+    image: jsonb().$type<StoredImage>().notNull(),
+    lat: doublePrecision().notNull(),
+    lon: doublePrecision().notNull(),
+    /** IANA time zone name (`Europe/Moscow`): the center slot `date`/`startTime` are given in it. */
+    timezone: varchar().notNull().default('Europe/Moscow'),
+    type: medicalCenterType()
+      .$type<MedicalCenterType>()
+      .notNull()
+      .default(MedicalCenterType.CLINIC),
+    /** Doctors have no region of their own, they inherit it from the center. */
+    region: region().$type<Region>().notNull().default(Region.RU),
+  },
+  t =>
+    Object.values(Locale).flatMap(locale => [
+      searchIndex(
+        `medical_center_search_name_${locale}_idx`,
+        sql`(${t.name} ->> ${key(locale)})`,
+      ),
+      searchIndex(
+        `medical_center_search_address_${locale}_idx`,
+        sql`(${t.address} ->> ${key(locale)})`,
+      ),
+    ]),
+);
 
 export const doctor = pgTable(
   'doctor',
@@ -102,6 +124,12 @@ export const doctor = pgTable(
       foreignColumns: [medicalCenter.id],
     }),
     index('doctor_medical_center_idx').on(t.medicalCenterId),
+    ...Object.values(Locale).map(locale =>
+      searchIndex(
+        `doctor_search_name_${locale}_idx`,
+        sql`((${t.name} ->> ${key(locale)}) || ' ' || (${t.surname} ->> ${key(locale)}))`,
+      ),
+    ),
   ],
 );
 
