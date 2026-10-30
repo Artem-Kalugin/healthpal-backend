@@ -30,11 +30,11 @@ export class MedicalCenterFavoriteController {
 
   @Get('/favorites')
   @ApiSerialized(MedicalCenterResponseDto, { paginated: true })
-  async listFavorites(
+  listFavorites(
     @CurrentUserId() userId: string,
     @Query() query: MedicalCenterFavoritesQueryDto,
   ) {
-    return await this.service.findFavoritesForUser(userId, query);
+    return this.service.findFavoritesForUser(userId, query);
   }
 
   @Post(':id/favorite')
@@ -49,20 +49,20 @@ export class MedicalCenterFavoriteController {
   @ApiNotFoundResponse({
     description: 'MEDICAL_CENTER_NOT_FOUND: center not found',
   })
-  async addToFavorites(
+  addToFavorites(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return await this.service.addToFavoritesForUser(userId, id);
+    return this.service.addToFavoritesForUser(userId, id);
   }
 
   @Delete(':id/favorite')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Medical center removed from favorites' })
-  async removeFromFavorites(
+  removeFromFavorites(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return await this.service.removeFromFavoritesForUser(userId, id);
+    return this.service.removeFromFavoritesForUser(userId, id);
   }
 }

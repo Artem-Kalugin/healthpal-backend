@@ -5,14 +5,17 @@ import { ErrorCode } from 'src/common/errors/error-code';
 import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { existsById } from 'src/db/exists';
 import { doctor, userFavoriteDoctor } from 'src/db/schema';
+import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { selectDoctors } from 'src/domain/doctor/doctor.queries';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 
 @Injectable()
 export class DoctorFavoriteService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly doctorService: DoctorService,
+  ) {}
 
   async findFavoritesForUser(userId: string, query: DoctorFavoritesQueryDto) {
     const { page, size } = query;
@@ -27,7 +30,7 @@ export class DoctorFavoriteService {
   }
 
   async addToFavoritesForUser(userId: string, doctorId: string) {
-    if (!(await existsById(this.db, doctor, doctorId))) {
+    if (!(await this.doctorService.existsById(doctorId))) {
       throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 

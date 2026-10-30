@@ -25,7 +25,7 @@ describe('MedicalCenterService (integration)', () => {
     ({ db, pool } = await createTestDb());
     const factories = createFactories(db);
     service = new MedicalCenterService(db);
-    favoriteService = new MedicalCenterFavoriteService(db);
+    favoriteService = new MedicalCenterFavoriteService(db, service);
 
     const center = (centerId: string, lat: number, lon: number) =>
       factories.medicalCenter({ id: centerId, name: centerId, lat, lon });
@@ -75,21 +75,22 @@ describe('MedicalCenterService (integration)', () => {
     await pool.end();
   });
 
-  const byRating = async (userId = userWithoutFavorites, top5Only = false) =>
-    service.findByRatingForUser(userId, top5Only);
+  const byRating = async (
+    userId = userWithoutFavorites,
+    shouldTake5Only = false,
+  ) => service.findForUser(userId, { shouldTake5Only });
 
   const byDistance = async (
     point: { lat: number; lon: number } = EQUATOR_ORIGIN,
-    top5Only = false,
+    shouldTake5Only = false,
   ) =>
-    service.findWithDistanceForUser(
-      userWithoutFavorites,
-      point.lat,
-      point.lon,
-      top5Only,
-    );
+    service.findForUser(userWithoutFavorites, {
+      lat: String(point.lat),
+      lon: String(point.lon),
+      shouldTake5Only,
+    });
 
-  describe('findByRatingForUser', () => {
+  describe('findForUser without coordinates (by rating)', () => {
     it('rating is the average weighted by reviews, reviewsCount is their sum; centers without doctors or reviews stay with rating = null and reviewsCount = 0', async () => {
       const centers = await byRating();
       const aggregates = Object.fromEntries(
@@ -143,14 +144,14 @@ describe('MedicalCenterService (integration)', () => {
       });
     });
 
-    it('top5Only limits the result to the five best', async () => {
+    it('shouldTake5Only limits the result to the five best', async () => {
       const top5 = await byRating(userWithoutFavorites, true);
 
       expect(top5.map(item => item.id)).toEqual([C2, C1, C5, C6, C3]);
     });
   });
 
-  describe('findWithDistanceForUser', () => {
+  describe('findForUser with coordinates (by distance)', () => {
     it('computes the distance in km with one decimal and the walking time, nearest first', async () => {
       const centers = await byDistance();
 
@@ -169,7 +170,7 @@ describe('MedicalCenterService (integration)', () => {
       expect(centers[5].distance).toBeGreaterThan(5000);
     });
 
-    it('top5Only returns the five nearest, not the first five by id', async () => {
+    it('shouldTake5Only returns the five nearest, not the first five by id', async () => {
       const centers = await byDistance(EQUATOR_ORIGIN, true);
 
       expect(centers.map(item => item.id)).toEqual([C2, C3, C4, C5, C6]);

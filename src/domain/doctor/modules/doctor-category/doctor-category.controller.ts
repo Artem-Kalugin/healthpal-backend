@@ -16,7 +16,7 @@ export class DoctorCategoryController {
     description: 'List of doctor categories',
     isArray: true,
   })
-  async list() {
-    return await this.service.find();
+  list() {
+    return this.service.find();
   }
 }

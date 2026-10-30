@@ -16,7 +16,7 @@ export class OnboardingSlidesController {
     description: 'List of active onboarding slides',
     isArray: true,
   })
-  async list() {
-    return await this.service.findActive();
+  list() {
+    return this.service.findActive();
   }
 }

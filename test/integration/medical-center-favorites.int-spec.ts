@@ -2,6 +2,7 @@ import { ErrorCode } from 'src/common/errors/error-code';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteMedicalCenter } from 'src/db/schema';
+import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
 import { MedicalCenterFavoriteService } from 'src/domain/medical-center/modules/medical-center-favorite/medical-center-favorite.service';
 import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
@@ -21,7 +22,10 @@ describe('MedicalCenterFavoriteService (integration)', () => {
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
     factories = createFactories(db);
-    service = new MedicalCenterFavoriteService(db);
+    service = new MedicalCenterFavoriteService(
+      db,
+      new MedicalCenterService(db),
+    );
   });
 
   beforeEach(async () => {

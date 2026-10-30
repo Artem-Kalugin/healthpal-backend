@@ -43,7 +43,7 @@ describe('DoctorService (integration)', () => {
     ({ db, pool } = await createTestDb());
     const factories = createFactories(db);
     service = new DoctorService(db);
-    favoriteService = new DoctorFavoriteService(db);
+    favoriteService = new DoctorFavoriteService(db, service);
 
     const north = await factories.medicalCenter({
       name: 'Клиника Север',

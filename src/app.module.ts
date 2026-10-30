@@ -6,7 +6,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthWithRegistrationGuard } from './domain/auth/jwt/jwt-auth-with-registration.guard';
 import { environmentValidationSchema } from './env.schema';
 import { OnboardingSlidesModule } from './domain/onboarding-slides/onboarding-slides.module';
-import { PasswordModule } from './infrastructure/password/password.module';
 import { MedicalCenterModule } from './domain/medical-center/medical-center.module';
 import { LoggerMiddleware } from './common/middlewares/console.logger';
 import { DoctorModule } from './domain/doctor/doctor.module';
@@ -34,7 +33,6 @@ import { DbModule } from './db/db.module';
     OnboardingSlidesModule,
     DoctorModule,
     MedicalCenterModule,
-    PasswordModule,
     HealthModule,
   ],
   providers: [

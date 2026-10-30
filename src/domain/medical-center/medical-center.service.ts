@@ -2,23 +2,49 @@ import { Inject, Injectable } from '@nestjs/common';
 import { asc } from 'drizzle-orm';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
 import { descNullsLast } from 'src/db/order';
 import { medicalCenter } from 'src/db/schema';
+import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
 import { distanceTo, rating, selectCenters } from './medical-center.queries';
 
 const TOP_LIMIT = 5;
 /** Average walking speed, km/h. */
 const WALKING_SPEED = 5;
 
+type CenterRow = typeof medicalCenter.$inferSelect & {
+  reviewsCount: string;
+  rating: string | null;
+  isFavorite: boolean;
+  distance?: number;
+  walkingTimeMinutes?: number;
+};
+
 @Injectable()
 export class MedicalCenterService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async findWithDistanceForUser(
+  async existsById(medicalCenterId: string) {
+    return existsById(this.db, medicalCenter, medicalCenterId);
+  }
+
+  /** With coordinates, centers are sorted by distance; without, by rating. */
+  async findForUser(
+    userId: string,
+    query: GetMedicalCentersDto,
+  ): Promise<CenterRow[]> {
+    const { lat, lon, shouldTake5Only } = query;
+
+    return lat && lon
+      ? this.findWithDistance(userId, +lat, +lon, shouldTake5Only)
+      : this.findByRating(userId, shouldTake5Only);
+  }
+
+  private async findWithDistance(
     userId: string,
     lat: number,
     lon: number,
-    top5Only: boolean,
+    shouldTake5Only: boolean,
   ) {
     const distance = distanceTo({ lat, lon });
     const query = selectCenters(this.db, userId, { distance }).orderBy(
@@ -26,7 +52,7 @@ export class MedicalCenterService {
       asc(medicalCenter.id),
     );
 
-    const rows = await (top5Only ? query.limit(TOP_LIMIT) : query);
+    const rows = await (shouldTake5Only ? query.limit(TOP_LIMIT) : query);
 
     return rows.map(center => ({
       ...center,
@@ -34,12 +60,12 @@ export class MedicalCenterService {
     }));
   }
 
-  async findByRatingForUser(userId: string, top5Only: boolean) {
+  private async findByRating(userId: string, shouldTake5Only: boolean) {
     const query = selectCenters(this.db, userId).orderBy(
       descNullsLast(rating),
       asc(medicalCenter.id),
     );
 
-    return top5Only ? query.limit(TOP_LIMIT) : query;
+    return shouldTake5Only ? query.limit(TOP_LIMIT) : query;
   }
 }

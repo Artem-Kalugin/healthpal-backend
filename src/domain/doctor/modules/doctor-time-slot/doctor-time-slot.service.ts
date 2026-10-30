@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, between, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, between, eq, sql } from 'drizzle-orm';
 import { getZonedNowParts } from 'src/common/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { toHourMinute } from 'src/common/helpers/to-hour-minute';
@@ -12,6 +12,7 @@ import {
   medicalCenter,
 } from 'src/db/schema';
 import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
+import { freeUpcomingSlotsOf } from './doctor-time-slot.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 
@@ -37,10 +38,8 @@ export class DoctorTimeSlotService {
       .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
       .where(
         and(
-          eq(doctorTimeSlot.doctorId, doctorId),
+          freeUpcomingSlotsOf(doctorId, now),
           between(doctorTimeSlot.date, startDate, endDate),
-          isNull(appointment.id),
-          isUpcoming(now),
         ),
       )
       .orderBy(
@@ -78,13 +77,7 @@ export class DoctorTimeSlotService {
       })
       .from(doctorTimeSlot)
       .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
-      .where(
-        and(
-          eq(doctorTimeSlot.doctorId, doctorId),
-          isNull(appointment.id),
-          isUpcoming(now),
-        ),
-      );
+      .where(freeUpcomingSlotsOf(doctorId, now));
 
     if (!range?.minDate || !range?.maxDate) {
       throw new AppException(ErrorCode.NO_AVAILABLE_SLOTS);
@@ -106,10 +99,3 @@ export class DoctorTimeSlotService {
     return row.timezone;
   }
 }
-
-/** The slot starts strictly after "now" (date and time on the center clock). */
-const isUpcoming = ({ date, time }: { date: string; time: string }) =>
-  or(
-    gt(doctorTimeSlot.date, date),
-    and(eq(doctorTimeSlot.date, date), gt(doctorTimeSlot.startTime, time)),
-  );

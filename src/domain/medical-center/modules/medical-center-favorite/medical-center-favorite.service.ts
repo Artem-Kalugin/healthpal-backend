@@ -5,15 +5,18 @@ import { ErrorCode } from 'src/common/errors/error-code';
 import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { existsById } from 'src/db/exists';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';
+import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
 import { selectCenters } from 'src/domain/medical-center/medical-center.queries';
 import { favoritedAt } from './medical-center-favorite.queries';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 
 @Injectable()
 export class MedicalCenterFavoriteService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly medicalCenterService: MedicalCenterService,
+  ) {}
 
   async findFavoritesForUser(
     userId: string,
@@ -31,7 +34,7 @@ export class MedicalCenterFavoriteService {
   }
 
   async addToFavoritesForUser(userId: string, medicalCenterId: string) {
-    if (!(await existsById(this.db, medicalCenter, medicalCenterId))) {
+    if (!(await this.medicalCenterService.existsById(medicalCenterId))) {
       throw new AppException(ErrorCode.MEDICAL_CENTER_NOT_FOUND);
     }
 

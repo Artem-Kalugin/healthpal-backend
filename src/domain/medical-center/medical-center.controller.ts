@@ -15,21 +15,7 @@ export class MedicalCenterController {
 
   @Get()
   @ApiSerialized(MedicalCenterResponseDto, { isArray: true })
-  async list(
-    @CurrentUserId() userId: string,
-    @Query() query: GetMedicalCentersDto,
-  ) {
-    const { lat, lon, shouldTake5Only } = query;
-
-    if (lat && lon) {
-      return await this.service.findWithDistanceForUser(
-        userId,
-        +lat,
-        +lon,
-        shouldTake5Only,
-      );
-    }
-
-    return await this.service.findByRatingForUser(userId, shouldTake5Only);
+  list(@CurrentUserId() userId: string, @Query() query: GetMedicalCentersDto) {
+    return this.service.findForUser(userId, query);
   }
 }

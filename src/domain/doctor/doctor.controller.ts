@@ -15,20 +15,20 @@ export class DoctorController {
 
   @Get('search')
   @ApiSerialized(DoctorResponseDto, { paginated: true })
-  async search(
+  search(
     @CurrentUserId() userId: string,
     @Query() query: DoctorSearchQueryDto,
   ) {
-    return await this.doctorService.searchForUser(userId, query);
+    return this.doctorService.searchForUser(userId, query);
   }
 
   @Get(':id')
   @ApiParam({ name: 'id', type: String })
   @ApiSerialized(DoctorResponseDto)
-  async getById(
+  getById(
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DoctorResponseDto> {
-    return await this.doctorService.findOneForUser(userId, id);
+    return this.doctorService.findOneForUser(userId, id);
   }
 }
