@@ -1,59 +1,65 @@
 # HealthPal backend
 
-NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. Обзор и запуск: `README.md`.
+NestJS + TypeORM + PostgreSQL + Redis. Package manager: pnpm. Overview and setup: `README.md`.
 
-## Тесты
+## Language
 
-- Для e2e и integration нужны тестовые Postgres и Redis: `pnpm test:db:up`.
-- Полный прогон: `pnpm test:all`. Гонять одним процессом: два параллельных `jest` на одну тестовую БД мешают друг другу.
-- Каждый e2e/int-спек закрывает Redis и приложение в `afterAll`, иначе jest не выходит. Временные спеки в `test/e2e` попадают под `testRegex` и запускаются в `test:all`, не оставлять их там.
+- No Russian in code or docs: identifiers, comments, test titles, commit messages, `CLAUDE.md`, `agents/*` notes. Write everything in English.
+- If you come across Russian in code while working, translate it to English once the task is done. Stay within the task: translate only the files you touched or read for it, and do not let it pull you away from the main work.
 
-## DTO и сериализация
+## Tests
 
-- Валидация на class-validator. Переход на zod рассмотрен и отклонён. Пилот (appointment на `nestjs-zod`) остался коммитом `e77967c`, ветка удалена. Достать: `git checkout e77967c`. Если не понадобится, убрать это упоминание после 10 ноября 2026.
-- Глобальный `ClassSerializerInterceptor` работает в режиме белого списка (`excludeExtraneousValues`): у каждого публичного поля response-DTO должен быть `@Expose()`, иначе оно вырежется из ответа. В request-DTO `@Expose` не нужен.
-- Ошибки валидации отдаются как `{ statusCode: 400, code: 'VALIDATION_FAILED', validation: { поле: [{ code, params? }] } }`, клиент локализует по `code`. Коды и форма параметров: `ValidationCode` и `ValidationParameters` в `src/common/errors/validation-code.ts`, каталог для клиента `agents/error-catalog.md`. Значения `ValidationCode` менять нельзя без согласования с клиентом.
-- В DTO `message` с текстом не пишем: опции правил строит `rule(ValidationCode.X, { limit })` (код идёт в `message`, параметры в `context`), лимит берётся из одной константы с аргументом декоратора. Правила с параметрами (`MinLength`, `Max` и т. п.) всегда через `rule()`, иначе клиент получит `INVALID_VALUE` без значения. Пароль при создании и смене: `@IsPassword()` (`src/common/validators`), на входе политику не проверяем. Свои составные декораторы добавлять в `additionalDecorators` в `eslint.config.mjs`.
-- Описывать в Swagger надо то, что реально отдаёт эндпоинт. Если ответ неполный, делать отдельный DTO, а не обещать полный.
+- e2e and integration tests need test Postgres and Redis: `pnpm test:db:up`.
+- Full run: `pnpm test:all`. Run it in a single process: two parallel `jest` runs against one test DB interfere with each other.
+- Every e2e/int spec closes Redis and the app in `afterAll`, otherwise jest does not exit. Temporary specs in `test/e2e` match `testRegex` and run in `test:all`, do not leave them there.
 
-## Ошибки
+## DTOs and serialization
 
-- Ошибки приложения бросаем как `new AppException(ErrorCode.X, { message?, cause?, clientCode? })` (`src/common/errors`), `*Exception('текст')` из Nest не используем. Любой ответ с ошибкой имеет вид `{ statusCode, code }` (у валидации ещё `validation`), текста в ответе нет: `message` и `cause` только для лога.
-- Новый код добавляется в `ErrorCode` и в `ERROR_STATUS` (без статуса не соберётся) и в `agents/error-catalog.md`. Статус отдельным аргументом не задаётся: он берётся по коду, который уходит клиенту. Значения `ErrorCode` менять нельзя без согласования с клиентом.
-- Если внутренняя причина должна отличаться от клиентской, `code` для лога, `clientCode` для ответа (`ErrorCode.INTERNAL_ERROR` скрывает причину целиком). Разные внутренние ситуации с одним клиентским кодом различаются `message`, отдельный код не заводим.
-- Единственный глобальный `AppErrorFilter` (`@Catch()`) приводит к этому формату всё: `AppException`, ошибки БД, прочие `HttpException` (код по статусу) и неизвестные ошибки (500 `INTERNAL_ERROR`, стек в логе).
-- `UserNotFoundException` (`src/domain/users/exceptions`, наследник `AppException`) не баг и не недоделка, в `new AppException(ErrorCode.X)` не переводить. Вызывающие (`auth.service.ts`, `jwt.strategy.ts`) выбирают ветку через `instanceof UserNotFoundException` (логин: неверные данные вместо 404, JWT: 401), другого способа отличить «пользователя нет» от прочих ошибок нет. Отдельный класс заводим только в таком случае, когда вызывающему нужна своя ветка.
-- Тесты сервисов проверяют `toMatchObject({ code: ErrorCode.X })`, не класс исключения. В `@Api*Response` в `description` начинать с кода.
+- Validation uses class-validator. Moving to zod was considered and rejected. The pilot (appointment on `nestjs-zod`) lives on as commit `e77967c`, the branch is deleted. Restore with `git checkout e77967c`. If it is not needed, remove this mention after 10 November 2026.
+- The global `ClassSerializerInterceptor` runs in whitelist mode (`excludeExtraneousValues`): every public field of a response DTO must have `@Expose()`, otherwise it is stripped from the response. Request DTOs do not need `@Expose`.
+- Validation errors are returned as `{ statusCode: 400, code: 'VALIDATION_FAILED', validation: { field: [{ code, params? }] } }`, the client localizes by `code`. Codes and parameter shapes: `ValidationCode` and `ValidationParameters` in `src/common/errors/validation-code.ts`, client catalog in `agents/error-catalog.md`. `ValidationCode` values must not change without agreeing with the client.
+- No text `message` in DTOs: rule options are built with `rule(ValidationCode.X, { limit })` (the code goes into `message`, parameters into `context`), and the limit comes from the same constant as the decorator argument. Rules with parameters (`MinLength`, `Max`, etc.) always go through `rule()`, otherwise the client gets `INVALID_VALUE` without the value. Password on create and change: `@IsPassword()` (`src/common/validators`), the policy is not checked on input (login). Add your own composite decorators to `additionalDecorators` in `eslint.config.mjs`.
+- Swagger must describe what the endpoint actually returns. If the response is partial, make a separate DTO instead of promising the full one.
 
-## Контроллеры
+## Errors
 
-- Авторизация: `@Authenticated()` на класс (JWT + завершённая регистрация + `ApiBearerAuth`), другой этап: `@Authenticated(AuthGuardsByRegistration.X)`. Глобальный guard без `@Public()` или этапа регистрации падает, так что забытая защита заметна сразу.
-- Id пользователя: `@CurrentUserId() userId: string`, не `@Req()`.
-- Ответ: `@ApiSerialized(Dto, { isArray?, description?, created?, swaggerType? })` вместо пары `@ApiOkResponse` + `@SerializeOptions`. `created: true` для POST, которые отдают 201 (по умолчанию в Nest так и есть), `swaggerType` для пагинации (в Swagger `PaginatedResponseDto<Dto>`, сериализуем динамическим классом). Плагин swagger ищет `@ApiOkResponse` в тексте метода и обёртку не видит, поэтому POST без `created: true` получит в доке лишний 201. Если ответ без сериализации, остаётся обычный `@ApiOkResponse`.
-- Декоратор-обёртка над ответом регистрируется в `additionalCustomApiResponseDecorators` в `eslint.config.mjs` (правило `api-method-should-specify-api-response`).
+- Throw application errors as `new AppException(ErrorCode.X, { message?, cause?, clientCode? })` (`src/common/errors`), do not use Nest's `*Exception('text')`. Every error response has the shape `{ statusCode, code }` (validation adds `validation`), there is no text in the response: `message` and `cause` are for the log only.
+- A new code is added to `ErrorCode`, to `ERROR_STATUS` (it will not compile without a status) and to `agents/error-catalog.md`. The status is not passed as a separate argument: it is derived from the code sent to the client. `ErrorCode` values must not change without agreeing with the client.
+- If the internal cause must differ from the client-facing one, `code` is for the log and `clientCode` for the response (`ErrorCode.INTERNAL_ERROR` hides the cause entirely). Different internal situations with the same client code are told apart by `message`, do not add a separate code.
+- The single global `AppErrorFilter` (`@Catch()`) brings everything to this shape: `AppException`, DB errors, other `HttpException`s (code by status) and unknown errors (500 `INTERNAL_ERROR`, stack in the log).
+- `UserNotFoundException` (`src/domain/users/exceptions`, extends `AppException`) is not a bug or an unfinished job, do not convert it to `new AppException(ErrorCode.X)`. Callers (`auth.service.ts`, `jwt.strategy.ts`) pick the branch via `instanceof UserNotFoundException` (login: invalid credentials instead of 404, JWT: 401), there is no other way to tell "no such user" from other errors. A dedicated class is created only in such a case, when the caller needs its own branch.
+- Service tests assert `toMatchObject({ code: ErrorCode.X })`, not the exception class. In `@Api*Response` start the `description` with the code.
+
+## Controllers
+
+- Authorization: `@Authenticated()` on the class (JWT + completed registration + `ApiBearerAuth`), another stage: `@Authenticated(AuthGuardsByRegistration.X)`. The global guard fails without `@Public()` or a registration stage, so forgotten protection is noticed immediately.
+- User id: `@CurrentUserId() userId: string`, not `@Req()`.
+- Response: `@ApiSerialized(Dto, { isArray?, description?, created?, swaggerType? })` instead of the `@ApiOkResponse` + `@SerializeOptions` pair. `created: true` for POSTs that return 201 (the Nest default), `swaggerType` for pagination (`PaginatedResponseDto<Dto>` in Swagger, serialized with a dynamic class). The swagger plugin looks for `@ApiOkResponse` in the method text and does not see the wrapper, so a POST without `created: true` gets an extra 201 in the docs. If the response is not serialized, a plain `@ApiOkResponse` stays.
+- A decorator wrapping the response is registered in `additionalCustomApiResponseDecorators` in `eslint.config.mjs` (rule `api-method-should-specify-api-response`).
 
 ## Swagger / OpenAPI
 
-- Подключён CLI-плагин `@nestjs/swagger`. Пустые `@ApiProperty()` не писать: тип, обязательность и ограничения class-validator плагин берёт сам. Декоратор нужен для `description`, `example`, `enum`/`enumName`, `type`, `isArray`.
-- Плагин обрабатывает только `*.dto.ts` и `*.entity.ts` и не видит поля с вычисляемым именем (`[expr]: T`): для них `@ApiProperty` обязателен.
-- Дамп OpenAPI для сравнения до/после снимать из настоящей сборки (`nest build`), а не через ts-jest: в нём плагин теряет `$ref` на классы из других файлов.
-- Версия UI Scalar закреплена через `cdn` в `src/main.ts`, при обновлении менять вручную.
-- Сервер за ngrok перезапускать после смены зависимостей, иначе отдаёт старую версию.
+- The `@nestjs/swagger` CLI plugin is enabled. Do not write empty `@ApiProperty()`: the plugin takes the type, optionality and class-validator constraints itself. The decorator is needed for `description`, `example`, `enum`/`enumName`, `type`, `isArray`.
+- The plugin only processes `*.dto.ts` and `*.entity.ts` and does not see fields with a computed name (`[expr]: T`): `@ApiProperty` is mandatory for them.
+- Take the OpenAPI dump for before/after comparison from a real build (`nest build`), not through ts-jest: there the plugin loses `$ref` to classes from other files.
+- The Scalar UI version is pinned via `cdn` in `src/main.ts`, change it manually when updating.
+- Restart the server behind ngrok after changing dependencies, otherwise it serves the old version.
 
-## База данных (Drizzle)
+## Database (Drizzle)
 
-- Drizzle `0.45.x` закреплён, rc/beta не берём. Схема в `src/db/schema.ts`, подключение через `DbModule` (токен `DB`), миграции в `drizzle/` (`pnpm db:generate` создаёт, `pnpm db:migrate` применяет; в Docker миграции идут перед стартом). `casing: 'snake_case'` стоит и в `drizzle()`, и в `drizzle.config.ts`.
-- Запросы пишутся в сервисе. Большой или переиспользуемый запрос выносится функцией в `*.queries.ts` рядом, не в класс. Классов-репозиториев по умолчанию нет, заводить только при реальной причине.
-- Условие связи двух таблиц (join по FK) лежит у домена со стороны FK (`centerOfDoctor` в `doctor.queries.ts`), остальные домены импортируют его, а не переписывают. Запрос под сценарий лежит у домена, чей это сценарий, и переезжает к владельцу таблицы только когда нужен двум и более потребителям.
-- Сырой SQL только как ``sql`...` `` фрагмент внутри билдера, ссылаться на колонки через схему, не строками.
-- Имена ограничений (FK, unique, check, pk) задаются только через enum `Constraint` (`src/db/constraints.ts`), строковые литералы в схеме, коде и тестах не писать. Публичные коды ошибок (`ErrorCode`, клиент локализует по ним) отделены от имён ограничений: связь лежит в `CONSTRAINT_CODES` в `src/common/errors/app-error.filter.ts`. Значения `ErrorCode` менять нельзя без согласования с клиентом; ограничения без записи в мапе клиенту уходят как `INTERNAL_ERROR`.
-- Ошибка драйвера: `DrizzleQueryError`, код Postgres, `constraint` и `table` лежат в `cause`. Ошибки БД в HTTP превращает один глобальный фильтр, не слой данных.
-- `numeric` читается строкой (`rating`), `date`/`time` строками. Не менять без правки DTO и тестов.
-- Переменные и параметры слоя данных называются `db` (исключение в `unicorn/prevent-abbreviations` в `eslint.config.mjs`), тип `Database`, токен DI `DB`.
-- TS-enum'ы доменов лежат в `src/db/enums.ts` (схема строит pgEnum из них), DTO импортируют оттуда, не из `src/entities`.
-- Схему в БД применяем миграциями. `drizzle-kit push` только для тестовой БД: он интерактивен при конфликте с чужими типами, перед ним БД пересоздавать (`DROP SCHEMA public CASCADE` и заново `docker/postgres/init.sql`).
+- Drizzle `0.45.x` is pinned, no rc/beta. Schema in `src/db/schema.ts`, connection through `DbModule` (token `DB`), migrations in `drizzle/` (`pnpm db:generate` creates, `pnpm db:migrate` applies; in Docker migrations run before start). `casing: 'snake_case'` is set both in `drizzle()` and in `drizzle.config.ts`.
+- Queries are written in the service. A large or reusable query is extracted as a function into a neighbouring `*.queries.ts`, not into a class. There are no repository classes by default, add one only for a real reason.
+- The join condition of two tables (join by FK) lives with the domain on the FK side (`centerOfDoctor` in `doctor.queries.ts`), other domains import it instead of rewriting it. A scenario-specific query lives with the domain that owns the scenario, and moves to the table owner only when two or more consumers need it.
+- Raw SQL only as a ``sql`...` `` fragment inside the builder, reference columns through the schema, not by strings.
+- Constraint names (FK, unique, check, pk) are set only through the `Constraint` enum (`src/db/constraints.ts`), do not write string literals in the schema, code or tests. Public error codes (`ErrorCode`, the client localizes by them) are separate from constraint names: the link is `CONSTRAINT_CODES` in `src/common/errors/app-error.filter.ts`. `ErrorCode` values must not change without agreeing with the client; constraints without an entry in the map reach the client as `INTERNAL_ERROR`.
+- Driver error: `DrizzleQueryError`, the Postgres code, `constraint` and `table` are in `cause`. DB errors become HTTP in one global filter, not in the data layer.
+- `numeric` is read as a string (`rating`), `date`/`time` as strings. Do not change without updating DTOs and tests.
+- Variables and parameters of the data layer are named `db` (an exception in `unicorn/prevent-abbreviations` in `eslint.config.mjs`), the type is `Database`, the DI token is `DB`.
+- Domain TS enums live in `src/db/enums.ts` (the schema builds pgEnum from them), DTOs import from there, not from `src/entities`.
+- The DB schema is applied by migrations. `drizzle-kit push` only for the test DB: it is interactive on conflict with foreign types, recreate the DB before it (`DROP SCHEMA public CASCADE` and then `docker/postgres/init.sql` again).
 
-## Прочее
+## Misc
 
-- `agents/` в `.gitignore`: рабочие заметки и аудиты, в git не попадают. Остаток аудита после переезда на Drizzle: `agents/drizzle-code-quality-audit.md`; упрощения общей схемы: `agents/complexity-audit.md`, пункты, завязанные на TypeORM, не выполняются.
-- Сиды (`src/seeds`, `*.seed`) не коммитить и не предлагать коммитить: много весят, владелец не хочет публиковать данные.
+- `agents/` is in `.gitignore`: working notes and audits, they do not go to git. Leftover of the audit after the Drizzle move: `agents/drizzle-code-quality-audit.md`; simplifications of the shared schema: `agents/complexity-audit.md`, items tied to TypeORM are not carried out.
+- Do not commit seeds (`src/seeds`, `*.seed`) and do not suggest committing them: they are heavy, and the owner does not want to publish the data.
+- When asked to commit, put everything in `git status` into one commit unless told otherwise.
