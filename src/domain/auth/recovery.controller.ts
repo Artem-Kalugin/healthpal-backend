@@ -1,10 +1,5 @@
-import {
-  Body,
-  Controller,
-  Post,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { RecoveryService } from './recovery.service';
 import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
@@ -37,16 +32,14 @@ export class RecoveryController {
     return this.recoveryService.requestOtp(body.phone);
   }
 
-  @ApiOkResponse({ type: VerifyOtpResponseDto })
   @Post('otp/verify')
-  @SerializeOptions({ type: VerifyOtpResponseDto })
+  @ApiSerialized(VerifyOtpResponseDto, { created: true })
   verifyOtp(@Body() body: VerifyOtpDto) {
     return this.recoveryService.verifyOtp(body.phone, body.otp);
   }
 
   @Post('reset-password')
-  @ApiOkResponse({ type: LoginResponseDto })
-  @SerializeOptions({ type: LoginResponseDto })
+  @ApiSerialized(LoginResponseDto, { created: true })
   async resetPassword(@Body() body: ResetPasswordDto) {
     const { token, password, confirmPassword } = body;
 

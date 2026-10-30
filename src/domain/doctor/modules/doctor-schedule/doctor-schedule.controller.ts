@@ -1,16 +1,13 @@
+import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
 import { DoctorScheduleResponseDto } from './dto/doctor-schedule-response.dto';
 // src/domain/doctor-schedule/doctor-schedule.controller.ts
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { DoctorScheduleService } from './doctor-schedule.service';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 
 @ApiTags('Doctors')
-@ApiBearerJwtAuth()
+@Authenticated()
 @Controller('doctors/:doctorId/schedule')
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
 export class DoctorScheduleController {
   constructor(private readonly service: DoctorScheduleService) {}
 

@@ -1,11 +1,10 @@
-import { Controller, Get, Query, Req, SerializeOptions } from '@nestjs/common';
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOkResponse } from '@nestjs/swagger';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { MedicalCenterResponseDto } from './dto/medical-center-response.dto';
 import { MedicalCentersService } from './medical-center.service';
-import type { Request } from 'express';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
 import {
   PaginatedResponseDto,
@@ -18,20 +17,18 @@ const PaginatedMedicalCenterResponse = PaginatedResponseOf(
 );
 
 @ApiTags('Medical Centers')
-@ApiBearerJwtAuth()
+@Authenticated()
 @Controller('medical-centers')
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
 export class MedicalCentersController {
   constructor(private readonly service: MedicalCentersService) {}
 
   @Get()
   @ApiOkResponse({ type: MedicalCenterResponseDto, isArray: true })
   async getMedicalCenters(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Query() query: GetMedicalCentersDto,
   ): Promise<MedicalCenterResponseDto[]> {
     const { lat, lon, shouldTake5Only } = query;
-    const userId = request.user!.id;
 
     if (lat && lon) {
       const res = await this.service.findWithDistanceForUser(
@@ -50,17 +47,16 @@ export class MedicalCentersController {
   }
 
   @Get('/favorites')
-  @ApiOkResponse({ type: PaginatedResponseDto<MedicalCenterResponseDto> })
-  @SerializeOptions({
-    type: PaginatedMedicalCenterResponse,
+  @ApiSerialized(PaginatedMedicalCenterResponse, {
+    swaggerType: PaginatedResponseDto<MedicalCenterResponseDto>,
   })
   async favoritesForUser(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Query() query: MedicalCenterFavoritesQueryDto,
   ): Promise<PaginatedResponseDto<MedicalCenterResponseDto>> {
     const result = await this.service.findFavoritesForUser({
       ...query,
-      userId: request.user!.id,
+      userId,
     });
 
     return new PaginatedMedicalCenterResponse(result);

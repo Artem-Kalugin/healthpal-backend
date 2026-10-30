@@ -1,64 +1,52 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  Req,
-  SerializeOptions,
-  ParseUUIDPipe,
-} from '@nestjs/common';
-import { ApiTags, ApiOkResponse, ApiParam } from '@nestjs/swagger';
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
+import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
+import { ApiTags, ApiParam } from '@nestjs/swagger';
 import { DoctorService } from './doctor.service';
 import { DoctorResponseDto } from './dto/doctor-response.dto';
 import {
   PaginatedResponseDto,
   PaginatedResponseOf,
 } from 'src/common/helpers/pagination/paginated-response.dto';
-import type { Request } from 'express';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
 
 const PaginatedDoctorResponse = PaginatedResponseOf(DoctorResponseDto);
 
 @ApiTags('Doctors')
-@ApiBearerJwtAuth()
+@Authenticated()
 @Controller('doctors')
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
   @Get('search')
-  @ApiOkResponse({ type: PaginatedResponseDto<DoctorResponseDto> })
-  @SerializeOptions({
-    type: PaginatedDoctorResponse,
+  @ApiSerialized(PaginatedDoctorResponse, {
+    swaggerType: PaginatedResponseDto<DoctorResponseDto>,
   })
   async searchDoctors(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Query() query: DoctorSearchQueryDto,
   ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
     const result = await this.doctorService.searchDoctorsForUser({
       ...query,
-      userId: request.user!.id,
+      userId,
     });
 
     return new PaginatedDoctorResponse(result);
   }
 
   @Get('/favorites')
-  @ApiOkResponse({ type: PaginatedResponseDto<DoctorResponseDto> })
-  @SerializeOptions({
-    type: PaginatedDoctorResponse,
+  @ApiSerialized(PaginatedDoctorResponse, {
+    swaggerType: PaginatedResponseDto<DoctorResponseDto>,
   })
   async favoritesForUser(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Query() query: DoctorFavoritesQueryDto,
   ): Promise<PaginatedResponseDto<DoctorResponseDto>> {
     const result = await this.doctorService.findFavoritesForUser({
       ...query,
-      userId: request.user!.id,
+      userId,
     });
 
     return new PaginatedDoctorResponse(result);
@@ -66,14 +54,11 @@ export class DoctorController {
 
   @Get(':id')
   @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ type: DoctorResponseDto })
-  @SerializeOptions({
-    type: DoctorResponseDto,
-  })
+  @ApiSerialized(DoctorResponseDto)
   async getDoctorById(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DoctorResponseDto> {
-    return await this.doctorService.findOneForUser(request.user!.id, id);
+    return await this.doctorService.findOneForUser(userId, id);
   }
 }

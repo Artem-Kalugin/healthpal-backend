@@ -22,7 +22,15 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 - Новый код добавляется в `ErrorCode` и в `ERROR_STATUS` (без статуса не соберётся) и в `agents/error-catalog.md`. Статус отдельным аргументом не задаётся: он берётся по коду, который уходит клиенту. Значения `ErrorCode` менять нельзя без согласования с клиентом.
 - Если внутренняя причина должна отличаться от клиентской, `code` для лога, `clientCode` для ответа (`ErrorCode.INTERNAL_ERROR` скрывает причину целиком). Разные внутренние ситуации с одним клиентским кодом различаются `message`, отдельный код не заводим.
 - Единственный глобальный `AppErrorFilter` (`@Catch()`) приводит к этому формату всё: `AppException`, ошибки БД, прочие `HttpException` (код по статусу) и неизвестные ошибки (500 `INTERNAL_ERROR`, стек в логе).
+- `UserNotFoundException` (`src/domain/users/exceptions`, наследник `AppException`) не баг и не недоделка, в `new AppException(ErrorCode.X)` не переводить. Вызывающие (`auth.service.ts`, `jwt.strategy.ts`) выбирают ветку через `instanceof UserNotFoundException` (логин: неверные данные вместо 404, JWT: 401), другого способа отличить «пользователя нет» от прочих ошибок нет. Отдельный класс заводим только в таком случае, когда вызывающему нужна своя ветка.
 - Тесты сервисов проверяют `toMatchObject({ code: ErrorCode.X })`, не класс исключения. В `@Api*Response` в `description` начинать с кода.
+
+## Контроллеры
+
+- Авторизация: `@Authenticated()` на класс (JWT + завершённая регистрация + `ApiBearerAuth`), другой этап: `@Authenticated(AuthGuardsByRegistration.X)`. Глобальный guard без `@Public()` или этапа регистрации падает, так что забытая защита заметна сразу.
+- Id пользователя: `@CurrentUserId() userId: string`, не `@Req()`.
+- Ответ: `@ApiSerialized(Dto, { isArray?, description?, created?, swaggerType? })` вместо пары `@ApiOkResponse` + `@SerializeOptions`. `created: true` для POST, которые отдают 201 (по умолчанию в Nest так и есть), `swaggerType` для пагинации (в Swagger `PaginatedResponseDto<Dto>`, сериализуем динамическим классом). Плагин swagger ищет `@ApiOkResponse` в тексте метода и обёртку не видит, поэтому POST без `created: true` получит в доке лишний 201. Если ответ без сериализации, остаётся обычный `@ApiOkResponse`.
+- Декоратор-обёртка над ответом регистрируется в `additionalCustomApiResponseDecorators` в `eslint.config.mjs` (правило `api-method-should-specify-api-response`).
 
 ## Swagger / OpenAPI
 

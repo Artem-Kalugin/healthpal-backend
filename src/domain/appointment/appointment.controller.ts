@@ -1,3 +1,6 @@
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
 import {
   Controller,
   Post,
@@ -6,16 +9,9 @@ import {
   Body,
   Query,
   Param,
-  Req,
-  SerializeOptions,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOkResponse,
-  ApiCreatedResponse,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiParam } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import {
@@ -27,10 +23,6 @@ import {
   PaginatedResponseDto,
   PaginatedResponseOf,
 } from 'src/common/helpers/pagination/paginated-response.dto';
-import type { Request } from 'express';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 const PaginatedAppointmentResponse = PaginatedResponseOf(
@@ -38,38 +30,30 @@ const PaginatedAppointmentResponse = PaginatedResponseOf(
 );
 
 @ApiTags('Appointments')
-@ApiBearerJwtAuth()
+@Authenticated()
 @Controller('appointments')
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
 export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) {}
 
   @Post()
-  @ApiCreatedResponse({ type: AppointmentMutationResponseDto })
-  @SerializeOptions({
-    type: AppointmentMutationResponseDto,
-  })
+  @ApiSerialized(AppointmentMutationResponseDto, { created: true })
   async createAppointment(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateAppointmentDto,
   ): Promise<AppointmentMutationResponseDto> {
-    return await this.appointmentService.createAppointment(
-      request.user!.id,
-      dto,
-    );
+    return await this.appointmentService.createAppointment(userId, dto);
   }
 
   @Get()
-  @ApiOkResponse({ type: PaginatedResponseDto<AppointmentResponseDto> })
-  @SerializeOptions({
-    type: PaginatedAppointmentResponse,
+  @ApiSerialized(PaginatedAppointmentResponse, {
+    swaggerType: PaginatedResponseDto<AppointmentResponseDto>,
   })
   async getAppointments(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Query() query: AppointmentQueryDto,
   ): Promise<PaginatedResponseDto<AppointmentResponseDto>> {
     const result = await this.appointmentService.getAppointmentsForUser(
-      request.user!.id,
+      userId,
       query,
     );
 
@@ -78,33 +62,24 @@ export class AppointmentController {
 
   @Patch(':id/cancel')
   @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ type: AppointmentMutationResponseDto })
-  @SerializeOptions({
-    type: AppointmentMutationResponseDto,
-  })
+  @ApiSerialized(AppointmentMutationResponseDto)
   async cancelAppointment(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return await this.appointmentService.cancelAppointment(
-      id,
-      request.user!.id,
-    );
+    return await this.appointmentService.cancelAppointment(id, userId);
   }
 
   @Patch(':id/reschedule')
-  @ApiOkResponse({ type: AppointmentMutationResponseDto })
-  @SerializeOptions({
-    type: AppointmentMutationResponseDto,
-  })
+  @ApiSerialized(AppointmentMutationResponseDto)
   async rescheduleAppointment(
     @Param('id', ParseUUIDPipe) appointmentId: string,
     @Body() dto: RescheduleAppointmentDto,
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
   ) {
     return await this.appointmentService.rescheduleAppointment(
       appointmentId,
-      request.user!.id,
+      userId,
       dto.newTimeSlotId,
     );
   }

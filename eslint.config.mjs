@@ -38,6 +38,11 @@ export default tseslint.config(
   eslintNestJs.configs.flatRecommended,
   {
     rules: {
+      // Составной декоратор из `src/common/helpers/decorators`.
+      '@darraghor/nestjs-typed/api-method-should-specify-api-response': [
+        'error',
+        { additionalCustomApiResponseDecorators: ['ApiSerialized'] },
+      ],
       // Составной декоратор из `src/common/validators`.
       '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
         'error',

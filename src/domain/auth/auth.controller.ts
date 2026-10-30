@@ -1,14 +1,15 @@
+import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
 import {
   Body,
   Controller,
   Post,
-  Req,
-  SerializeOptions,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
@@ -16,11 +17,8 @@ import { AuthService } from './auth.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { avatarValidator } from 'src/infrastructure/file-storage/image-file-storage.service';
-import type { Request } from 'express';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
 import { Public } from 'src/common/helpers/decorators/public.decorator';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -35,8 +33,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
-  @ApiOkResponse({ type: LoginResponseDto })
-  @SerializeOptions({ type: LoginResponseDto })
+  @ApiSerialized(LoginResponseDto, { created: true })
   async register(
     @Body() createUserDto: CreateUserDto,
   ): Promise<LoginResponseDto> {
@@ -49,27 +46,22 @@ export class AuthController {
   @Public()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiOkResponse({ type: LoginResponseDto })
-  @SerializeOptions({ type: LoginResponseDto })
+  @ApiSerialized(LoginResponseDto, { created: true })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(loginDto);
   }
 
   @Post('complete-registration')
-  @ApiBearerJwtAuth()
-  @ApiOkResponse({ type: LoginResponseDto })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('avatar'))
-  @AuthRegistrationGuardType(AuthGuardsByRegistration.INCOMPLETE_REGISTRATION)
-  @SerializeOptions({ type: LoginResponseDto })
+  @Authenticated(AuthGuardsByRegistration.INCOMPLETE_REGISTRATION)
+  @ApiSerialized(LoginResponseDto, { created: true })
   async update(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Body() updateUserDto: UpdateUserDto,
     @UploadedFile(avatarValidator)
     avatar?: Express.Multer.File,
   ): Promise<LoginResponseDto> {
-    const userId = request.user!.id;
-
     const updatedUser = await this.usersService.update(
       userId,
       updateUserDto,
@@ -83,8 +75,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
-  @ApiOkResponse({ type: LoginResponseDto })
-  @SerializeOptions({ type: LoginResponseDto })
+  @ApiSerialized(LoginResponseDto, { created: true })
   async refresh(
     @Body() { userId, refreshToken }: RefreshDto,
   ): Promise<LoginResponseDto> {
