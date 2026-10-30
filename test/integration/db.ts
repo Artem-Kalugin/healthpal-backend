@@ -40,7 +40,7 @@ export const createTestDb = async (): Promise<TestDb> => {
     password: process.env.TEST_DATABASE_PASSWORD ?? 'test',
     database,
   });
-  const db = drizzle(pool, { schema, casing: 'snake_case' });
+  const db = drizzle(pool, { casing: 'snake_case' });
 
   await resetSchema(db);
 

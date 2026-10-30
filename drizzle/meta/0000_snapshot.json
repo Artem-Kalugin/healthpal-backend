@@ -1,5 +1,5 @@
 {
-  "id": "64426199-8855-4aad-9fe2-8cb2efd64250",
+  "id": "428a7b19-9d66-41b5-9a79-6dd9a0e77063",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -59,7 +59,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "appointment_user_idx": {
+          "name": "appointment_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "appointment_user_fk": {
           "name": "appointment_user_fk",
@@ -187,7 +203,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "doctor_medical_center_idx": {
+          "name": "doctor_medical_center_idx",
+          "columns": [
+            {
+              "expression": "medical_center_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "doctor_category_fk": {
           "name": "doctor_category_fk",
@@ -298,7 +330,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "doctor_schedule_doctor_idx": {
+          "name": "doctor_schedule_doctor_idx",
+          "columns": [
+            {
+              "expression": "doctor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "doctor_schedule_doctor_fk": {
           "name": "doctor_schedule_doctor_fk",
@@ -361,7 +409,35 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "doctor_time_slot_doctor_date_idx": {
+          "name": "doctor_time_slot_doctor_date_idx",
+          "columns": [
+            {
+              "expression": "doctor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "doctor_time_slot_doctor_fk": {
           "name": "doctor_time_slot_doctor_fk",

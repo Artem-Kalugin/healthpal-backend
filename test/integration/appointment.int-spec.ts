@@ -1,13 +1,11 @@
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import dayjs from 'dayjs';
 import { eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
+import { Constraint } from 'src/db/constraints';
 import type { Database } from 'src/db/db.module';
 import { DoctorCategoryType } from 'src/db/enums';
+import { getPgError } from 'src/db/errors';
 import { appointment as appointmentTable } from 'src/db/schema';
 import { AppointmentService } from 'src/domain/appointment/appointment.service';
 import { AppointmentType } from 'src/domain/appointment/dto/appointment-query.dto';
@@ -27,6 +25,10 @@ const sorted = (ids: string[]) => [...ids].sort((a, b) => a.localeCompare(b));
 
 const addHalfHour = (time: string) =>
   dayjs(`2000-01-01T${time}`).add(30, 'minute').format('HH:mm:ss');
+
+/** Ошибка драйвера о занятом слоте; в HTTP-ответ её превращает `AppErrorFilter` (проверяется в e2e). */
+const isSlotTaken = (error: unknown) =>
+  getPgError(error)?.constraint === Constraint.APPOINTMENT_TIME_SLOT_UNIQUE;
 
 describe('AppointmentService (integration)', () => {
   let db: Database;
@@ -424,7 +426,7 @@ describe('AppointmentService (integration)', () => {
   });
 
   describe('booking the same slot twice', () => {
-    it('answers 409 to the second create and keeps a single appointment', async () => {
+    it('rejects with slot-taken violation on the second create and keeps a single appointment', async () => {
       const first = await factories.user();
       const second = await factories.user();
       const winner = await bookFuture(first.id, 3);
@@ -435,13 +437,12 @@ describe('AppointmentService (integration)', () => {
           timeSlotId: winner.timeSlotId!,
         }),
       ).rejects.toMatchObject({
-        status: 409,
-        message: 'Время записи уже занято',
+        cause: { constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE },
       });
       expect(await countOnSlot(winner.timeSlotId!)).toBe(1);
     });
 
-    it('answers 409 to the reschedule onto a taken slot and leaves the appointment unchanged', async () => {
+    it('rejects the reschedule onto a taken slot and leaves the appointment unchanged', async () => {
       const first = await factories.user();
       const second = await factories.user();
       const taken = await bookFuture(first.id, 3);
@@ -449,12 +450,14 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.rescheduleAppointment(mover.id, second.id, taken.timeSlotId!),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toMatchObject({
+        cause: { constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE },
+      });
 
       expect((await stored(mover.id)).timeSlotId).toBe(mover.timeSlotId);
     });
 
-    it('lets exactly one of two parallel creates win, the other gets a 409', async () => {
+    it('lets exactly one of two parallel creates win, the other is rejected with slot-taken violation', async () => {
       const first = await factories.user();
       const second = await factories.user();
       const doctor = await factories.doctor();
@@ -469,7 +472,7 @@ describe('AppointmentService (integration)', () => {
       const rejected = results.filter(r => r.status === 'rejected');
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect(rejected[0].reason).toBeInstanceOf(ConflictException);
+      expect(isSlotTaken(rejected[0].reason)).toBe(true);
       expect(await countOnSlot(slot.id)).toBe(1);
     });
   });

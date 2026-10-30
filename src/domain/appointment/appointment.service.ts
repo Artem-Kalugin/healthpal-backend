@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -11,7 +10,6 @@ import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { isUniqueViolation } from 'src/db/errors';
 import {
   appointment,
   doctor,
@@ -34,8 +32,6 @@ import {
   assertBookingWindow,
   assertSlotBookable,
 } from './helpers/booking-rules';
-
-const SLOT_TAKEN_CONSTRAINT = 'appointment_time_slot_unique';
 
 @Injectable()
 export class AppointmentService {
@@ -114,8 +110,7 @@ export class AppointmentService {
         startTime: slot.startTime,
         endTime: slot.endTime,
       })
-      .returning({ id: appointment.id })
-      .catch(rethrowSlotTaken);
+      .returning({ id: appointment.id });
 
     return this.findDetailed(created.id);
   }
@@ -180,8 +175,7 @@ export class AppointmentService {
         startTime: newSlot.startTime,
         endTime: newSlot.endTime,
       })
-      .where(eq(appointment.id, appointmentId))
-      .catch(rethrowSlotTaken);
+      .where(eq(appointment.id, appointmentId));
 
     return this.findDetailed(appointmentId);
   }
@@ -218,12 +212,3 @@ export class AppointmentService {
     return nestDoctor(row);
   }
 }
-
-// Отмена освобождает слот (`timeSlotId = null`), поэтому занятость слота целиком держится на unique-ограничении
-const rethrowSlotTaken = (error: unknown): never => {
-  if (isUniqueViolation(error, SLOT_TAKEN_CONSTRAINT)) {
-    throw new ConflictException('Время записи уже занято');
-  }
-
-  throw error;
-};

@@ -1,3 +1,4 @@
+import { Constraint } from 'src/db/constraints';
 import { DrizzleQueryError, eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
@@ -104,7 +105,7 @@ describe('UsersService (integration)', () => {
 
     expect(violation(error)).toEqual({
       code: '23505',
-      constraint: 'user_phone_unique',
+      constraint: Constraint.USER_PHONE_UNIQUE,
     });
   });
 
@@ -118,7 +119,7 @@ describe('UsersService (integration)', () => {
 
     expect(violation(error)).toEqual({
       code: '23505',
-      constraint: 'user_nickname_unique',
+      constraint: Constraint.USER_NICKNAME_UNIQUE,
     });
   });
 

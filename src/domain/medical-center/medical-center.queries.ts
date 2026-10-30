@@ -1,11 +1,4 @@
-import {
-  and,
-  getTableColumns,
-  eq,
-  sql,
-  type SQL,
-  type SQLWrapper,
-} from 'drizzle-orm';
+import { and, getTableColumns, eq, sql, type SQL } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -36,17 +29,14 @@ end`;
 
 export const favoritedAt = sql<Date | null>`max(${userFavoriteMedicalCenter.createdAt})`;
 
-/** `nulls last` в билдере Drizzle задаётся только сырым фрагментом. */
-export const descNullsLast = (expression: SQLWrapper): SQL =>
-  sql`${expression} desc nulls last`;
-
 /**
  * Центры с агрегатами по врачам и флагом избранного для пользователя.
  * Возвращает динамический билдер: сортировку, `where` и пагинацию добавляет вызывающий.
  * Избранное джойнится по первичному ключу (не больше одной строки на центр), поэтому суммы по врачам не раздуваются.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export const selectCenters = <Extra extends Record<string, SQL> = {}>(
+export const selectCenters = <
+  Extra extends Record<string, SQL> = Record<never, SQL>,
+>(
   db: Database,
   userId: string,
 

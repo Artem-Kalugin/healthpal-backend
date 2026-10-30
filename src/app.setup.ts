@@ -5,7 +5,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DatabaseErrorFilter } from './common/errors/database-error.filter';
+import { AppErrorFilter } from './common/errors/app-error.filter';
 
 /** Глобальные pipe, фильтры и интерсепторы: общие для `main.ts` и e2e-тестов. */
 export function configureApp(app: INestApplication) {
@@ -33,7 +33,7 @@ export function configureApp(app: INestApplication) {
     }),
   );
 
-  app.useGlobalFilters(new DatabaseErrorFilter());
+  app.useGlobalFilters(new AppErrorFilter());
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector), {
       excludeExtraneousValues: true,

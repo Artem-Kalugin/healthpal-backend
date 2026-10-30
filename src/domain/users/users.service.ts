@@ -4,6 +4,7 @@ import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { user } from 'src/db/schema';
+import type { User } from 'src/db/schema';
 import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -67,7 +68,7 @@ export class UsersService {
       ? new Date(updateUserDto.birthday)
       : undefined;
 
-    let updatedUser: typeof user.$inferSelect | undefined;
+    let updatedUser: User | undefined;
 
     try {
       // undefined-поля Drizzle в UPDATE не включает, то есть не затирает

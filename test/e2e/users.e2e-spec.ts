@@ -103,4 +103,16 @@ describe('Users (e2e)', () => {
 
     expect(status).toBe(401);
   });
+
+  it('PATCH /users/me с занятым nickname → 409 USER_NICKNAME_TAKEN', async () => {
+    await factories.user({ nickname: 'taken' });
+    const user = await factories.user({ registrationComplete: true });
+
+    const { status, body } = await me('patch', await tokenFor(user), {
+      nickname: 'taken',
+    });
+
+    expect(status).toBe(409);
+    expect(body).toEqual({ statusCode: 409, code: 'USER_NICKNAME_TAKEN' });
+  });
 });

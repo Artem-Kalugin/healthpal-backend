@@ -193,12 +193,16 @@ describe('Appointments (e2e)', () => {
         const { doctor, slot } = await givenFreeSlot();
         await factories.appointment(owner.id, slot);
 
-        const { status } = await send('post', '/appointments', {
+        const { status, body } = await send('post', '/appointments', {
           token,
           body: { doctorId: doctor.id, timeSlotId: slot.id },
         });
 
         expect(status).toBe(409);
+        expect(body).toEqual({
+          statusCode: 409,
+          code: 'APPOINTMENT_SLOT_TAKEN',
+        });
       });
     });
   });
@@ -350,13 +354,17 @@ describe('Appointments (e2e)', () => {
         });
         await factories.appointment(other.id, takenSlot);
 
-        const { status } = await send(
+        const { status, body } = await send(
           'patch',
           `/appointments/${appointment.id}/reschedule`,
           { token, body: { newTimeSlotId: takenSlot.id } },
         );
 
         expect(status).toBe(409);
+        expect(body).toEqual({
+          statusCode: 409,
+          code: 'APPOINTMENT_SLOT_TAKEN',
+        });
       });
     });
   });

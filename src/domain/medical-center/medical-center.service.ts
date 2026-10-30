@@ -4,10 +4,10 @@ import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { existsById } from 'src/db/exists';
+import { descNullsLast } from 'src/db/order';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
 import {
-  descNullsLast,
   distanceTo,
   favoritedAt,
   rating,

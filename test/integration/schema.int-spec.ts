@@ -1,3 +1,4 @@
+import { Constraint } from 'src/db/constraints';
 import { DrizzleQueryError, eq } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
@@ -76,7 +77,7 @@ describe('schema (integration)', () => {
     expect(await violation(factories.appointment(second.id, slot))).toEqual(
       expect.objectContaining({
         code: '23505',
-        constraint: 'appointment_time_slot_unique',
+        constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE,
       }),
     );
   });
@@ -87,7 +88,7 @@ describe('schema (integration)', () => {
     expect(await violation(factories.user({ phone: existing.phone }))).toEqual(
       expect.objectContaining({
         code: '23505',
-        constraint: 'user_phone_unique',
+        constraint: Constraint.USER_PHONE_UNIQUE,
       }),
     );
   });
@@ -96,7 +97,7 @@ describe('schema (integration)', () => {
     expect(await violation(factories.user({ phone: '12345' }))).toEqual(
       expect.objectContaining({
         code: '23514',
-        constraint: 'user_phone_format_check',
+        constraint: Constraint.USER_PHONE_FORMAT_CHECK,
       }),
     );
     expect(
@@ -104,7 +105,7 @@ describe('schema (integration)', () => {
     ).toEqual(
       expect.objectContaining({
         code: '23514',
-        constraint: 'user_birthday_past_check',
+        constraint: Constraint.USER_BIRTHDAY_PAST_CHECK,
       }),
     );
   });
@@ -124,7 +125,7 @@ describe('schema (integration)', () => {
     ).toEqual(
       expect.objectContaining({
         code: '23514',
-        constraint: 'doctor_schedule_weekday_check',
+        constraint: Constraint.DOCTOR_SCHEDULE_WEEKDAY_CHECK,
       }),
     );
   });
@@ -141,7 +142,7 @@ describe('schema (integration)', () => {
     ).toEqual(
       expect.objectContaining({
         code: '23505',
-        constraint: 'user_favorite_doctor_pk',
+        constraint: Constraint.USER_FAVORITE_DOCTOR_PK,
       }),
     );
     expect(
@@ -154,7 +155,7 @@ describe('schema (integration)', () => {
     ).toEqual(
       expect.objectContaining({
         code: '23503',
-        constraint: 'user_favorite_doctor_doctor_fk',
+        constraint: Constraint.USER_FAVORITE_DOCTOR_DOCTOR_FK,
       }),
     );
   });

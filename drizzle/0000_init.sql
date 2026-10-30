@@ -115,4 +115,8 @@ ALTER TABLE "doctor_time_slot" ADD CONSTRAINT "doctor_time_slot_doctor_fk" FOREI
 ALTER TABLE "user_favorite_doctor" ADD CONSTRAINT "user_favorite_doctor_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_favorite_doctor" ADD CONSTRAINT "user_favorite_doctor_doctor_fk" FOREIGN KEY ("doctor_id") REFERENCES "public"."doctor"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_favorite_medical_center" ADD CONSTRAINT "user_favorite_medical_center_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_favorite_medical_center" ADD CONSTRAINT "user_favorite_medical_center_center_fk" FOREIGN KEY ("medical_center_id") REFERENCES "public"."medical_center"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "user_favorite_medical_center" ADD CONSTRAINT "user_favorite_medical_center_center_fk" FOREIGN KEY ("medical_center_id") REFERENCES "public"."medical_center"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "appointment_user_idx" ON "appointment" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "doctor_medical_center_idx" ON "doctor" USING btree ("medical_center_id");--> statement-breakpoint
+CREATE INDEX "doctor_schedule_doctor_idx" ON "doctor_schedule" USING btree ("doctor_id");--> statement-breakpoint
+CREATE INDEX "doctor_time_slot_doctor_date_idx" ON "doctor_time_slot" USING btree ("doctor_id","date","start_time");

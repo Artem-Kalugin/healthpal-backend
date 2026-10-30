@@ -5,6 +5,7 @@ import {
   date,
   doublePrecision,
   foreignKey,
+  index,
   integer,
   jsonb,
   numeric,
@@ -20,6 +21,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { Constraint } from './constraints';
 import {
   DoctorCategoryType,
   Gender,
@@ -84,15 +86,16 @@ export const doctor = pgTable(
   },
   t => [
     foreignKey({
-      name: 'doctor_category_fk',
+      name: Constraint.DOCTOR_CATEGORY_FK,
       columns: [t.categoryId],
       foreignColumns: [doctorCategory.id],
     }),
     foreignKey({
-      name: 'doctor_medical_center_fk',
+      name: Constraint.DOCTOR_MEDICAL_CENTER_FK,
       columns: [t.medicalCenterId],
       foreignColumns: [medicalCenter.id],
     }),
+    index('doctor_medical_center_idx').on(t.medicalCenterId),
   ],
 );
 
@@ -116,10 +119,13 @@ export const user = pgTable(
       .$onUpdate(() => new Date()),
   },
   t => [
-    unique('user_phone_unique').on(t.phone),
-    unique('user_nickname_unique').on(t.nickname),
-    check('user_phone_format_check', sql`${t.phone} ~ '^\\+\\d{11}$'`),
-    check('user_birthday_past_check', sql`${t.birthday} <= CURRENT_DATE`),
+    unique(Constraint.USER_PHONE_UNIQUE).on(t.phone),
+    unique(Constraint.USER_NICKNAME_UNIQUE).on(t.nickname),
+    check(Constraint.USER_PHONE_FORMAT_CHECK, sql`${t.phone} ~ '^\\+\\d{11}$'`),
+    check(
+      Constraint.USER_BIRTHDAY_PAST_CHECK,
+      sql`${t.birthday} <= CURRENT_DATE`,
+    ),
   ],
 );
 
@@ -135,11 +141,15 @@ export const doctorSchedule = pgTable(
   },
   t => [
     foreignKey({
-      name: 'doctor_schedule_doctor_fk',
+      name: Constraint.DOCTOR_SCHEDULE_DOCTOR_FK,
       columns: [t.doctorId],
       foreignColumns: [doctor.id],
     }).onDelete('cascade'),
-    check('doctor_schedule_weekday_check', sql`${t.weekday} BETWEEN 1 AND 7`),
+    check(
+      Constraint.DOCTOR_SCHEDULE_WEEKDAY_CHECK,
+      sql`${t.weekday} BETWEEN 1 AND 7`,
+    ),
+    index('doctor_schedule_doctor_idx').on(t.doctorId),
   ],
 );
 
@@ -154,10 +164,15 @@ export const doctorTimeSlot = pgTable(
   },
   t => [
     foreignKey({
-      name: 'doctor_time_slot_doctor_fk',
+      name: Constraint.DOCTOR_TIME_SLOT_DOCTOR_FK,
       columns: [t.doctorId],
       foreignColumns: [doctor.id],
     }).onDelete('cascade'),
+    index('doctor_time_slot_doctor_date_idx').on(
+      t.doctorId,
+      t.date,
+      t.startTime,
+    ),
   ],
 );
 
@@ -176,21 +191,23 @@ export const appointment = pgTable(
   },
   t => [
     foreignKey({
-      name: 'appointment_user_fk',
+      name: Constraint.APPOINTMENT_USER_FK,
       columns: [t.userId],
       foreignColumns: [user.id],
     }).onDelete('cascade'),
     foreignKey({
-      name: 'appointment_doctor_fk',
+      name: Constraint.APPOINTMENT_DOCTOR_FK,
       columns: [t.doctorId],
       foreignColumns: [doctor.id],
     }).onDelete('cascade'),
     foreignKey({
-      name: 'appointment_time_slot_fk',
+      name: Constraint.APPOINTMENT_TIME_SLOT_FK,
       columns: [t.timeSlotId],
       foreignColumns: [doctorTimeSlot.id],
     }).onDelete('set null'),
-    unique('appointment_time_slot_unique').on(t.timeSlotId),
+    // Отмена освобождает слот (`timeSlotId = null`), поэтому занятость слота целиком держится на этом unique
+    unique(Constraint.APPOINTMENT_TIME_SLOT_UNIQUE).on(t.timeSlotId),
+    index('appointment_user_idx').on(t.userId),
   ],
 );
 
@@ -212,16 +229,16 @@ export const userFavoriteDoctor = pgTable(
   },
   t => [
     primaryKey({
-      name: 'user_favorite_doctor_pk',
+      name: Constraint.USER_FAVORITE_DOCTOR_PK,
       columns: [t.userId, t.doctorId],
     }),
     foreignKey({
-      name: 'user_favorite_doctor_user_fk',
+      name: Constraint.USER_FAVORITE_DOCTOR_USER_FK,
       columns: [t.userId],
       foreignColumns: [user.id],
     }).onDelete('cascade'),
     foreignKey({
-      name: 'user_favorite_doctor_doctor_fk',
+      name: Constraint.USER_FAVORITE_DOCTOR_DOCTOR_FK,
       columns: [t.doctorId],
       foreignColumns: [doctor.id],
     }).onDelete('cascade'),
@@ -237,16 +254,16 @@ export const userFavoriteMedicalCenter = pgTable(
   },
   t => [
     primaryKey({
-      name: 'user_favorite_medical_center_pk',
+      name: Constraint.USER_FAVORITE_MEDICAL_CENTER_PK,
       columns: [t.userId, t.medicalCenterId],
     }),
     foreignKey({
-      name: 'user_favorite_medical_center_user_fk',
+      name: Constraint.USER_FAVORITE_MEDICAL_CENTER_USER_FK,
       columns: [t.userId],
       foreignColumns: [user.id],
     }).onDelete('cascade'),
     foreignKey({
-      name: 'user_favorite_medical_center_center_fk',
+      name: Constraint.USER_FAVORITE_MEDICAL_CENTER_CENTER_FK,
       columns: [t.medicalCenterId],
       foreignColumns: [medicalCenter.id],
     }).onDelete('cascade'),
