@@ -40,9 +40,9 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 - Версия UI Scalar закреплена через `cdn` в `src/main.ts`, при обновлении менять вручную.
 - Сервер за ngrok перезапускать после смены зависимостей, иначе отдаёт старую версию.
 
-## База данных (Drizzle, идёт переезд с TypeORM)
+## База данных (Drizzle)
 
-- Ветка `feat/drizzle-migration`. Drizzle `0.45.x` закреплён, rc/beta не берём. Схема в `src/db/schema.ts`, подключение через `DbModule` (токен `DB`), миграции в `drizzle/` (`drizzle-kit generate`, затем `drizzle-kit migrate`). `casing: 'snake_case'` стоит и в `drizzle()`, и в `drizzle.config.ts`.
+- Drizzle `0.45.x` закреплён, rc/beta не берём. Схема в `src/db/schema.ts`, подключение через `DbModule` (токен `DB`), миграции в `drizzle/` (`pnpm db:generate` создаёт, `pnpm db:migrate` применяет; в Docker миграции идут перед стартом). `casing: 'snake_case'` стоит и в `drizzle()`, и в `drizzle.config.ts`.
 - Запросы пишутся в сервисе. Большой или переиспользуемый запрос выносится функцией в `*.queries.ts` рядом, не в класс. Классов-репозиториев по умолчанию нет, заводить только при реальной причине.
 - Условие связи двух таблиц (join по FK) лежит у домена со стороны FK (`centerOfDoctor` в `doctor.queries.ts`), остальные домены импортируют его, а не переписывают. Запрос под сценарий лежит у домена, чей это сценарий, и переезжает к владельцу таблицы только когда нужен двум и более потребителям.
 - Сырой SQL только как ``sql`...` `` фрагмент внутри билдера, ссылаться на колонки через схему, не строками.
@@ -51,11 +51,9 @@ NestJS + TypeORM + PostgreSQL + Redis. Пакетный менеджер pnpm. �
 - `numeric` читается строкой (`rating`), `date`/`time` строками. Не менять без правки DTO и тестов.
 - Переменные и параметры слоя данных называются `db` (исключение в `unicorn/prevent-abbreviations` в `eslint.config.mjs`), тип `Database`, токен DI `DB`.
 - TS-enum'ы доменов лежат в `src/db/enums.ts` (схема строит pgEnum из них), DTO импортируют оттуда, не из `src/entities`.
-- Пока идёт переезд, приложение между этапами может не собираться: TypeORM-код не дорабатываем.
-- `drizzle-kit push` интерактивен при конфликте с чужими типами в БД. Тестовую БД перед этим пересоздавать (`DROP SCHEMA public CASCADE` и заново `docker/postgres/init.sql`).
+- Схему в БД применяем миграциями. `drizzle-kit push` только для тестовой БД: он интерактивен при конфликте с чужими типами, перед ним БД пересоздавать (`DROP SCHEMA public CASCADE` и заново `docker/postgres/init.sql`).
 
 ## Прочее
 
-- `agents/` в `.gitignore`: рабочие заметки и аудиты, в git не попадают. План переезда на Drizzle: `agents/orm-analysis.md` (идёт первым, TypeORM не дорабатываем); упрощения общей схемы: `agents/complexity-audit.md`, пункты, завязанные на TypeORM, не выполняются.
-- Сиды (`src/seeds`, `*.seed`) не коммитить и не предлагать коммитить: много весят, владелец не хочет публиковать данные. При переезде их нужно переписать под Drizzle.
-- Если `CLAUDE.md` расходится с `agents/orm-analysis.md`, прав `orm-analysis.md`; поправить `CLAUDE.md`.
+- `agents/` в `.gitignore`: рабочие заметки и аудиты, в git не попадают. Остаток аудита после переезда на Drizzle: `agents/drizzle-code-quality-audit.md`; упрощения общей схемы: `agents/complexity-audit.md`, пункты, завязанные на TypeORM, не выполняются.
+- Сиды (`src/seeds`, `*.seed`) не коммитить и не предлагать коммитить: много весят, владелец не хочет публиковать данные.

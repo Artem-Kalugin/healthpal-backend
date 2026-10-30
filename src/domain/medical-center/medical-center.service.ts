@@ -3,7 +3,6 @@ import { asc, desc, eq } from 'drizzle-orm';
 import { paginate } from 'src/common/helpers/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { existsById } from 'src/db/exists';
 import { descNullsLast } from 'src/db/order';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
@@ -64,9 +63,5 @@ export class MedicalCentersService {
         .limit(limit)
         .offset(offset),
     );
-  }
-
-  async existsById(medicalCenterId: string) {
-    return existsById(this.db, medicalCenter, medicalCenterId);
   }
 }

@@ -9,7 +9,6 @@ import { getPgError } from 'src/db/errors';
 import { appointment as appointmentTable } from 'src/db/schema';
 import { AppointmentService } from 'src/domain/appointment/appointment.service';
 import { AppointmentType } from 'src/domain/appointment/dto/appointment-query.dto';
-import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { freezeDate } from './time';
@@ -39,7 +38,7 @@ describe('AppointmentService (integration)', () => {
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
     factories = createFactories(db);
-    service = new AppointmentService(db, new DoctorService(db));
+    service = new AppointmentService(db);
   });
 
   afterAll(async () => {
@@ -127,7 +126,6 @@ describe('AppointmentService (integration)', () => {
       });
 
       const result = await service.createAppointment(user.id, {
-        doctorId: doctor.id,
         timeSlotId: slot.id,
       });
 
@@ -144,43 +142,14 @@ describe('AppointmentService (integration)', () => {
       expect(await stored(result.id)).toMatchObject({ timeSlotId: slot.id });
     });
 
-    it('throws NotFound when the doctor does not exist', async () => {
-      const user = await factories.user();
-      const slot = await factories.timeSlot((await factories.doctor()).id);
-
-      await expect(
-        service.createAppointment(user.id, {
-          doctorId: MISSING_ID,
-          timeSlotId: slot.id,
-        }),
-      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
-    });
-
     it('throws NotFound when the time slot does not exist', async () => {
       const user = await factories.user();
-      const doctor = await factories.doctor();
 
       await expect(
         service.createAppointment(user.id, {
-          doctorId: doctor.id,
           timeSlotId: MISSING_ID,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
-    });
-
-    it("throws BadRequest for another doctor's slot", async () => {
-      const user = await factories.user();
-      const doctor = await factories.doctor();
-      const other = await factories.doctor();
-      const slot = await factories.timeSlot(other.id, { date: '2026-11-03' });
-
-      await expect(
-        service.createAppointment(user.id, {
-          doctorId: doctor.id,
-          timeSlotId: slot.id,
-        }),
-      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_DOCTOR_MISMATCH });
-      expect(await countOnSlot(slot.id)).toBe(0);
     });
 
     it('throws BadRequest when the slot starts inside the booking window', async () => {
@@ -194,7 +163,6 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.createAppointment(user.id, {
-          doctorId: doctor.id,
           timeSlotId: slot.id,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
@@ -310,7 +278,6 @@ describe('AppointmentService (integration)', () => {
       await service.cancelAppointment(appointment.id, owner.id);
 
       const rebooked = await service.createAppointment(other.id, {
-        doctorId: appointment.doctorId,
         timeSlotId: appointment.timeSlotId!,
       });
       expect(rebooked.timeSlotId).toBe(appointment.timeSlotId);
@@ -426,7 +393,6 @@ describe('AppointmentService (integration)', () => {
       });
       await expect(
         service.createAppointment(other.id, {
-          doctorId: appointment.doctorId,
           timeSlotId: appointment.timeSlotId!,
         }),
       ).resolves.toMatchObject({ timeSlotId: appointment.timeSlotId });
@@ -441,7 +407,6 @@ describe('AppointmentService (integration)', () => {
 
       await expect(
         service.createAppointment(second.id, {
-          doctorId: winner.doctorId,
           timeSlotId: winner.timeSlotId!,
         }),
       ).rejects.toMatchObject({
@@ -470,7 +435,7 @@ describe('AppointmentService (integration)', () => {
       const second = await factories.user();
       const doctor = await factories.doctor();
       const slot = await factories.timeSlot(doctor.id, { date: '2026-11-03' });
-      const dto = { doctorId: doctor.id, timeSlotId: slot.id };
+      const dto = { timeSlotId: slot.id };
 
       const results = await Promise.allSettled([
         service.createAppointment(first.id, dto),

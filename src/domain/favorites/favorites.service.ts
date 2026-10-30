@@ -1,23 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { DB } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
 import type { Database } from 'src/db/db.module';
-import { userFavoriteDoctor, userFavoriteMedicalCenter } from 'src/db/schema';
-import { DoctorService } from '../doctor/doctor.service';
-import { MedicalCentersService } from '../medical-center/medical-center.service';
+import {
+  doctor,
+  medicalCenter,
+  userFavoriteDoctor,
+  userFavoriteMedicalCenter,
+} from 'src/db/schema';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class FavoritesService {
-  constructor(
-    @Inject(DB) private readonly db: Database,
-    private readonly doctorService: DoctorService,
-    private readonly medicalCenterService: MedicalCentersService,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async addDoctorToFavorites(userId: string, doctorId: string) {
-    if (!(await this.doctorService.existsById(doctorId))) {
+    if (!(await existsById(this.db, doctor, doctorId))) {
       throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 
@@ -38,7 +38,7 @@ export class FavoritesService {
   }
 
   async addMedicalCenterToFavorites(userId: string, medicalCenterId: string) {
-    if (!(await this.medicalCenterService.existsById(medicalCenterId))) {
+    if (!(await existsById(this.db, medicalCenter, medicalCenterId))) {
       throw new AppException(ErrorCode.MEDICAL_CENTER_NOT_FOUND);
     }
 

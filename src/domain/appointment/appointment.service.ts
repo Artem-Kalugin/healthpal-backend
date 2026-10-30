@@ -12,7 +12,6 @@ import {
   medicalCenter,
 } from 'src/db/schema';
 import { centerOfDoctor } from '../doctor/doctor.queries';
-import { DoctorService } from '../doctor/doctor.service';
 import {
   appointmentStartAt,
   nestDoctor,
@@ -32,10 +31,7 @@ import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class AppointmentService {
-  constructor(
-    @Inject(DB) private readonly db: Database,
-    private readonly doctorService: DoctorService,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
   async getAppointmentsForUser(userId: string, query: AppointmentQueryDto) {
     const { page, size, type } = query;
@@ -76,11 +72,7 @@ export class AppointmentService {
   }
 
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
-    const { doctorId, timeSlotId } = dto;
-
-    if (!(await this.doctorService.existsById(doctorId))) {
-      throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
-    }
+    const { timeSlotId } = dto;
 
     const slot = firstOrThrow(
       await this.db
@@ -98,13 +90,13 @@ export class AppointmentService {
         }),
     );
 
-    assertSlotBookable(slot, doctorId, slot.timezone);
+    assertBookingWindow(slot, slot.timezone);
 
     const [created] = await this.db
       .insert(appointment)
       .values({
         userId,
-        doctorId,
+        doctorId: slot.doctorId,
         timeSlotId,
         date: slot.date,
         startTime: slot.startTime,

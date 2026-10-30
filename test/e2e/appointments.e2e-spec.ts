@@ -122,7 +122,7 @@ describe('Appointments (e2e)', () => {
 
       const { status, body } = await send('post', '/appointments', {
         token,
-        body: { doctorId: doctor.id, timeSlotId: slot.id },
+        body: { timeSlotId: slot.id },
       });
 
       expect(status).toBe(201);
@@ -140,62 +140,37 @@ describe('Appointments (e2e)', () => {
     describe('answers with a client error instead of 500', () => {
       it('400 when timeSlotId is missing', async () => {
         const { token } = await newUser();
-        const { doctor } = await givenFreeSlot();
+        await givenFreeSlot();
 
         const { status } = await send('post', '/appointments', {
           token,
-          body: { doctorId: doctor.id },
+          body: {},
         });
 
         expect(status).toBe(400);
-      });
-
-      it('404 when the doctor does not exist', async () => {
-        const { token } = await newUser();
-        const { slot } = await givenFreeSlot();
-
-        const { status } = await send('post', '/appointments', {
-          token,
-          body: { doctorId: UNKNOWN_ID, timeSlotId: slot.id },
-        });
-
-        expect(status).toBe(404);
       });
 
       it('404 when the time slot does not exist', async () => {
         const { token } = await newUser();
-        const { doctor } = await givenFreeSlot();
+        await givenFreeSlot();
 
         const { status } = await send('post', '/appointments', {
           token,
-          body: { doctorId: doctor.id, timeSlotId: UNKNOWN_ID },
+          body: { timeSlotId: UNKNOWN_ID },
         });
 
         expect(status).toBe(404);
-      });
-
-      it('400 when the slot belongs to another doctor', async () => {
-        const { token } = await newUser();
-        const { slot } = await givenFreeSlot();
-        const otherDoctor = await factories.doctor();
-
-        const { status } = await send('post', '/appointments', {
-          token,
-          body: { doctorId: otherDoctor.id, timeSlotId: slot.id },
-        });
-
-        expect(status).toBe(400);
       });
 
       it('409 when the slot is already taken', async () => {
         const { token } = await newUser();
         const owner = await factories.user();
-        const { doctor, slot } = await givenFreeSlot();
+        const { slot } = await givenFreeSlot();
         await factories.appointment(owner.id, slot);
 
         const { status, body } = await send('post', '/appointments', {
           token,
-          body: { doctorId: doctor.id, timeSlotId: slot.id },
+          body: { timeSlotId: slot.id },
         });
 
         expect(status).toBe(409);
