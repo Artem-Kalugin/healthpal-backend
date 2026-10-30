@@ -37,38 +37,33 @@ jobs:
             echo "🔨 Building Docker images..."
             docker compose build --no-cache
             
+            # the tunnel runs only here, never on a developer machine (see the ngrok service in docker-compose.yml)
+            export COMPOSE_PROFILES=tunnel
+
             echo "🟢 Starting containers..."
             docker compose down --remove-orphans || true
             docker compose up -d
-            
+
             echo "⏳ Waiting for services to start..."
             sleep 5
-            
+
             echo "📊 Container status:"
             docker compose ps
-            
-            echo "🔍 Checking ngrok service..."
-            if docker compose ps | grep -q "healthpal-ngrok"; then
-              echo "✅ ngrok is running"
-              
-              # Try to get the URL (with retries)
-              for i in {1..10}; do
-                NGROK_URL=$(docker compose logs ngrok 2>/dev/null | grep -oP 'URL.*https://\K[^ ]+' | tail -1)
-                if [ -n "$NGROK_URL" ]; then
-                  echo "✅ App deployed at: https://$NGROK_URL"
-                  break
-                fi
-                echo "⏳ Waiting for ngrok URL... ($i/10)"
-                sleep 2
-              done
-              
-              if [ -z "$NGROK_URL" ]; then
-                echo "⚠️  Could not retrieve ngrok URL, but deployment succeeded"
-                echo "🔗 Check ngrok dashboard: http://$(hostname -I | awk '{print $1}'):4040"
-              fi
-            else
-              echo "⚠️  ngrok service not found, but other services are running"
+
+            echo "🔍 Checking ngrok tunnel..."
+            NGROK_URL=""
+            for i in {1..15}; do
+              NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -oE '"public_url":"https://[^"]+"' | head -1 | cut -d'"' -f4 || true)
+              [ -n "$NGROK_URL" ] && break
+              echo "⏳ Waiting for ngrok tunnel... ($i/15)"
+              sleep 2
+            done
+
+            if [ -z "$NGROK_URL" ]; then
+              echo "❌ ngrok tunnel is not up (ERR_NGROK_334 means another agent holds the domain)"
               docker compose logs ngrok 2>&1 | tail -20
+              exit 1
             fi
-            
+
+            echo "✅ App deployed at: $NGROK_URL"
             echo "✅ Deployment completed!"

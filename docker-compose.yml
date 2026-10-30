@@ -122,9 +122,15 @@ services:
     restart: unless-stopped
     command: http app:3000 --log=stdout
 
+    # The free account has one static domain, so a second tunnel fails with ERR_NGROK_334 and
+    # steals traffic from the first. Only the CD workflow enables this profile.
+    # The token is checked in CD, not here: compose interpolates inactive profiles too.
+    profiles:
+      - tunnel
+
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTH_TOKEN:?NGROK_AUTH_TOKEN is required}
-    
+      NGROK_AUTHTOKEN: ${NGROK_AUTH_TOKEN:-}
+
     depends_on:
       - app
     
