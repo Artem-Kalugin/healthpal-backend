@@ -29,7 +29,10 @@ describe('RecoveryService (integration, Redis)', () => {
     findOneByPhone: jest.fn(),
     changeUserPassword: jest.fn(),
   };
-  const authService = { generateTokens: jest.fn() };
+  const authService = {
+    generateTokens: jest.fn(),
+    revokeAllSessions: jest.fn(),
+  };
   const passwordService = { hash: jest.fn() };
   /* eslint-disable @typescript-eslint/naming-convention */
   const config = {
@@ -59,6 +62,7 @@ describe('RecoveryService (integration, Redis)', () => {
     usersService.findOneByPhone.mockReset().mockResolvedValue(user);
     usersService.changeUserPassword.mockReset().mockResolvedValue(undefined);
     authService.generateTokens.mockReset();
+    authService.revokeAllSessions.mockReset();
     passwordService.hash.mockReset().mockResolvedValue('new-hash');
   });
 
@@ -229,9 +233,23 @@ describe('RecoveryService (integration, Redis)', () => {
         user.id,
         'new-hash',
       );
+      expect(authService.revokeAllSessions).toHaveBeenCalledWith(user.id);
       expect(authService.generateTokens).toHaveBeenCalledWith(user);
       expect(result).toBe(tokens);
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
+    });
+
+    it('токен одноразовый: повторный сброс с ним отклоняется', async () => {
+      const recoveryToken = await issueRecoveryToken();
+      authService.generateTokens.mockResolvedValue({});
+      await service.resetPassword(recoveryToken, 'NewPassword1');
+
+      const error = await rejection(
+        service.resetPassword(recoveryToken, 'NewPassword2'),
+      );
+
+      expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
+      expect(usersService.changeUserPassword).toHaveBeenCalledTimes(1);
     });
 
     it('неизвестный или истёкший токен → код ошибки, пароль не меняется', async () => {

@@ -122,7 +122,8 @@ export class RecoveryService {
   }
 
   async resetPassword(recoveryToken: string, newPassword: string) {
-    const phone = await this.redis.get(`recovery:${recoveryToken}`);
+    // GETDEL: токен одноразовый, параллельный запрос с тем же токеном получит null
+    const phone = await this.redis.getdel(`recovery:${recoveryToken}`);
 
     if (!phone) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
@@ -136,7 +137,8 @@ export class RecoveryService {
 
     await this.usersService.changeUserPassword(user.id, newUserPassword);
 
-    await this.redis.del(`recovery:${recoveryToken}`);
+    // украденный refresh-токен не должен пережить смену пароля
+    await this.authService.revokeAllSessions(user.id);
 
     return this.authService.generateTokens(user);
   }

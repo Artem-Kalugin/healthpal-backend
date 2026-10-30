@@ -315,6 +315,34 @@ describe('AppointmentService (integration)', () => {
       });
     });
 
+    it('does not revive an appointment cancelled after it was read', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      const newSlot = await factories.timeSlot(appointment.doctorId, {
+        date: '2026-11-05',
+      });
+      // отмена успевает между чтением записи и UPDATE переноса
+      await service.cancelAppointment(appointment.id, user.id);
+      const staleRead = jest
+        .spyOn(service as never, 'findOwned')
+        .mockResolvedValueOnce({
+          ...appointment,
+          timezone: MOSCOW,
+        } as never);
+
+      await expect(
+        service.rescheduleAppointment(appointment.id, user.id, newSlot.id),
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
+      });
+      staleRead.mockRestore();
+
+      const row = await stored(appointment.id);
+      expect(row.isCancelled).toBe(true);
+      expect(row.timeSlotId).toBeNull();
+      expect(await countOnSlot(newSlot.id)).toBe(0);
+    });
+
     it('throws BadRequest when the current appointment is inside the booking window', async () => {
       const user = await factories.user();
       const doctor = await factories.doctor();

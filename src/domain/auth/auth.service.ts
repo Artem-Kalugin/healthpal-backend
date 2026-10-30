@@ -99,6 +99,24 @@ export class AuthService {
     };
   }
 
+  /** Отзывает все refresh-сессии пользователя (все устройства). */
+  async revokeAllSessions(userId: string) {
+    let cursor = '0';
+    do {
+      const [next, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        `refresh:${userId}:*`,
+        'COUNT',
+        100,
+      );
+      cursor = next;
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
+      }
+    } while (cursor !== '0');
+  }
+
   async refresh(userId: string, refreshToken: string) {
     const invalid = () => new AppException(ErrorCode.REFRESH_TOKEN_INVALID);
 

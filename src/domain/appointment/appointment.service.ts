@@ -162,7 +162,8 @@ export class AppointmentService {
 
     assertSlotBookable(newSlot, target.doctorId, target.timezone);
 
-    await this.db
+    // isCancelled в WHERE: параллельная отмена не должна вернуть слот отменённой записи
+    const updated = await this.db
       .update(appointment)
       .set({
         timeSlotId: newSlot.id,
@@ -170,7 +171,17 @@ export class AppointmentService {
         startTime: newSlot.startTime,
         endTime: newSlot.endTime,
       })
-      .where(eq(appointment.id, appointmentId));
+      .where(
+        and(
+          eq(appointment.id, appointmentId),
+          eq(appointment.isCancelled, false),
+        ),
+      )
+      .returning({ id: appointment.id });
+
+    if (updated.length === 0) {
+      throw new AppException(ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE);
+    }
 
     return this.findDetailed(appointmentId);
   }

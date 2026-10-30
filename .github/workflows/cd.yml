@@ -1,11 +1,15 @@
 name: Node.js CD
 
 on:
-  push:
+  workflow_run:
+    workflows: [ Node.js CI ]
+    types: [ completed ]
     branches: [ main ]
 
 jobs:
   deploy:
+    # деплой только после зелёного CI на push в main
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
 
     steps:

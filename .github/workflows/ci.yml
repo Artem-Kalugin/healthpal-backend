@@ -3,6 +3,9 @@ name: Node.js CI
 on:
   pull_request:
     branches: [ main ]
+  # CD ждёт завершения этого workflow на main
+  push:
+    branches: [ main ]
 
 jobs:
   build:

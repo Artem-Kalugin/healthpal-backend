@@ -277,4 +277,19 @@ describe('AuthService (integration)', () => {
       expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
   });
+
+  describe('revokeAllSessions', () => {
+    it('удаляет все сессии пользователя и не трогает чужие', async () => {
+      const other = await factories.user();
+      await service.generateTokens(user, 'phone');
+      await service.generateTokens(user, 'tablet');
+      await service.generateTokens(other, 'phone');
+
+      await service.revokeAllSessions(user.id);
+
+      expect(await redis.keys('refresh:*')).toEqual([
+        refreshKey(other.id, 'phone'),
+      ]);
+    });
+  });
 });
