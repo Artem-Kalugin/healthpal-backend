@@ -17,6 +17,7 @@ services:
       - ALL
     environment:
       NODE_ENV: production
+      TZ: UTC
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USER: ${DATABASE_USER:-healthpal}
@@ -69,6 +70,8 @@ services:
 
     command:
       - postgres
+      - -c
+      - timezone=UTC
       - -c
       - shared_buffers=256MB
       - -c

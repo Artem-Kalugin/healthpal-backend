@@ -1,5 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, getTableColumns, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import { getSlotStart } from 'src/domain/medical-center/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { paginate } from 'src/common/pagination/page';
@@ -37,26 +45,31 @@ export class AppointmentService {
     const { page, size, type } = query;
     const now = sql`${new Date().toISOString()}::timestamptz`;
 
-    const byType = {
-      [AppointmentType.CANCELED]: {
-        where: eq(appointment.isCancelled, true),
-        order: desc(appointmentStartAt),
-      },
-      [AppointmentType.FUTURE]: {
-        where: and(
-          eq(appointment.isCancelled, false),
-          sql`${appointmentStartAt} > ${now}`,
-        ),
-        order: asc(appointmentStartAt),
-      },
-      [AppointmentType.PAST]: {
-        where: and(
-          eq(appointment.isCancelled, false),
-          sql`${appointmentStartAt} <= ${now}`,
-        ),
-        order: desc(appointmentStartAt),
-      },
-    }[type];
+    const byType = (
+      {
+        [AppointmentType.CANCELED]: {
+          where: eq(appointment.isCancelled, true),
+          order: desc(appointmentStartAt),
+        },
+        [AppointmentType.FUTURE]: {
+          where: and(
+            eq(appointment.isCancelled, false),
+            sql`${appointmentStartAt} > ${now}`,
+          ),
+          order: asc(appointmentStartAt),
+        },
+        [AppointmentType.PAST]: {
+          where: and(
+            eq(appointment.isCancelled, false),
+            sql`${appointmentStartAt} <= ${now}`,
+          ),
+          order: desc(appointmentStartAt),
+        },
+      } satisfies Record<
+        AppointmentType,
+        { where: SQL | undefined; order: SQL }
+      >
+    )[type];
 
     const where = and(eq(appointment.userId, userId), byType.where);
 
