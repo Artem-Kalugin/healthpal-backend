@@ -1,8 +1,9 @@
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
-import { APPOINTMENT_MIN_LEAD_MINUTES } from 'src/common/config';
 import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
 type Startable = { date: string; startTime: string };
+
+const APPOINTMENT_MIN_LEAD_MINUTES = 120;
 
 /** The start must be no earlier than `now + APPOINTMENT_MIN_LEAD_MINUTES` on the center's clock. */
 export const assertBookingWindow = (

@@ -14,7 +14,6 @@ import {
   ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
-  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
@@ -38,7 +37,6 @@ export class MedicalCenterFavoriteController {
   }
 
   @Post(':id/favorite')
-  @ApiParam({ name: 'id', type: String })
   @ApiSerialized(FavoriteMedicalCenterResponseDto, {
     created: true,
     description: 'Medical center added to favorites',
@@ -57,7 +55,6 @@ export class MedicalCenterFavoriteController {
   }
 
   @Delete(':id/favorite')
-  @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ description: 'Medical center removed from favorites' })
   removeFromFavorites(
     @CurrentUserId() userId: string,

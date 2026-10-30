@@ -11,7 +11,7 @@ import {
   Param,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiParam } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { AppointmentResponseDto } from './dto/appointment-response.dto';
@@ -37,7 +37,6 @@ export class AppointmentController {
   }
 
   @Patch(':id/cancel')
-  @ApiParam({ name: 'id', type: String })
   @ApiSerialized(AppointmentResponseDto)
   cancel(
     @CurrentUserId() userId: string,

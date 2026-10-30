@@ -2,7 +2,7 @@ import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.deco
 import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
 import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { DoctorService } from './doctor.service';
 import { DoctorResponseDto } from './dto/doctor-response.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
@@ -23,7 +23,6 @@ export class DoctorController {
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: String })
   @ApiSerialized(DoctorResponseDto)
   getById(
     @CurrentUserId() userId: string,
