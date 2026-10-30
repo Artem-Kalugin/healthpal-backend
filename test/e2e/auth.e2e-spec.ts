@@ -2,12 +2,12 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { clearDatabase } from '../integration/db';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { freezeDate } from '../integration/time';
 
 const PASSWORD = 'Password1';
@@ -21,7 +21,7 @@ interface AuthBody {
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let redis: Redis;
 
   beforeAll(async () => {
@@ -33,19 +33,20 @@ describe('Auth (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
+    db = app.get<Database>(DB);
+    await resetSchema(db);
     redis = app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false });
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await redis.quit();
     await app.close();
   });
 
   beforeEach(async () => {
     jest.useRealTimers();
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
     await redis.flushdb();
   });
 
@@ -56,7 +57,7 @@ describe('Auth (e2e)', () => {
   const post = (path: string, body: object) =>
     request(app.getHttpServer()).post(path).send(body);
 
-  it('register → login → refresh: токены рабочие, пароль не отдаётся', async () => {
+  it('register → login → refresh: tokens work, the password is not returned', async () => {
     freezeDate(new Date('2026-10-29T12:00:00Z'));
     const registered = await post('/auth/register', {
       phone: PHONE,
@@ -86,5 +87,46 @@ describe('Auth (e2e)', () => {
     expect(refreshedBody.user).not.toHaveProperty('password');
     expect(me.status).toBe(200);
     expect((me.body as { id: string }).id).toBe(loggedInBody.user.id);
+  });
+
+  describe('validation errors', () => {
+    it('registration with a weak password: all violated rules with params', async () => {
+      const response = await post('/auth/register', {
+        phone: PHONE,
+        password: 'abc',
+        name: 'Иван',
+        surname: 'Иванов',
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          password: [
+            { code: 'PASSWORD_TOO_SHORT', params: { limit: 8 } },
+            { code: 'PASSWORD_WEAK' },
+          ],
+        },
+      });
+    });
+
+    it('login: the password policy is not checked, an extra field gives UNKNOWN_FIELD', async () => {
+      const response = await post('/auth/login', {
+        phone: 'bad',
+        password: 'abc',
+        extra: 1,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          phone: [{ code: 'PHONE_FORMAT' }],
+          extra: [{ code: 'UNKNOWN_FIELD' }],
+        },
+      });
+    });
   });
 });

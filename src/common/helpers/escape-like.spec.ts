@@ -1,11 +1,11 @@
 import { escapeLike } from './escape-like';
 
 describe('escapeLike', () => {
-  it('экранирует \\, % и _', () => {
+  it('escapes \\, % and _', () => {
     expect(escapeLike('100%_a\\b')).toBe('100\\%\\_a\\\\b');
   });
 
-  it('обычный текст не меняет', () => {
+  it('leaves plain text unchanged', () => {
     expect(escapeLike('Иван Петров')).toBe('Иван Петров');
   });
 });

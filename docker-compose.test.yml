@@ -1,5 +1,5 @@
-# Отдельные Postgres и Redis для интеграционных и e2e тестов (`pnpm test:db:up`).
-# Не пересекаются с основным стеком: Postgres на 5433 (данные в tmpfs, БД `healthpal_test`), Redis на 6380.
+# Separate Postgres and Redis for integration and e2e tests (`pnpm test:db:up`).
+# Do not overlap with the main stack: Postgres on 5433 (data in tmpfs, DB `healthpal_test`), Redis on 6380.
 name: healthpal-test
 
 services:

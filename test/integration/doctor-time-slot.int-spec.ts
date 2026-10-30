@@ -1,14 +1,15 @@
-import { NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { ErrorCode } from 'src/common/errors/error-code';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import type { doctorTimeSlot } from 'src/db/schema';
 import { DoctorTimeSlotService } from 'src/domain/doctor/modules/doctor-time-slot/doctor-time-slot.service';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { freezeDate } from './time';
 
-// 15:00 в Москве, 13:00 в Берлине
+// 15:00 in Moscow, 13:00 in Berlin
 const NOW = new Date('2026-10-29T12:00:00.000Z');
-// 01:30 30.10 в Москве, но ещё 22:30 29.10 в UTC
+// 01:30 on 30.10 in Moscow, but still 22:30 on 29.10 in UTC
 const NOW_NEAR_MIDNIGHT = new Date('2026-10-29T22:30:00.000Z');
 
 const MOSCOW = 'Europe/Moscow';
@@ -17,25 +18,24 @@ const BERLIN = 'Europe/Berlin';
 const WIDE_RANGE = ['2026-10-01', '2026-12-31'] as const;
 
 describe('DoctorTimeSlotService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: DoctorTimeSlotService;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
-    service = new DoctorTimeSlotService(
-      dataSource.getRepository(DoctorTimeSlot),
-    );
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
+    service = new DoctorTimeSlotService(db);
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   beforeEach(async () => {
     freezeDate(NOW);
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('DoctorTimeSlotService (integration)', () => {
 
   const doctorIn = async (timezone = MOSCOW) =>
     factories.doctor({
-      medicalCenter: await factories.medicalCenter({ timezone }),
+      medicalCenterId: (await factories.medicalCenter({ timezone })).id,
     });
 
   const slot = (
@@ -54,17 +54,17 @@ describe('DoctorTimeSlotService (integration)', () => {
     endTime = startTime,
   ) => factories.timeSlot(doctorId, { date, startTime, endTime });
 
-  const book = async (timeSlot: DoctorTimeSlot) => {
+  const book = async (timeSlot: typeof doctorTimeSlot.$inferSelect) => {
     const user = await factories.user();
 
     return factories.appointment(user.id, timeSlot);
   };
 
-  const dayOf = (days: Awaited<ReturnType<typeof service.getSlotsForDoctor>>) =>
+  const dayOf = (days: Awaited<ReturnType<typeof service.getAvailable>>) =>
     days.map(day => ({ date: day.date, ids: day.slots.map(s => s.id) }));
 
-  describe('getSlotsForDoctor', () => {
-    it('отдаёт слоты по датам по возрастанию, время в HH:mm', async () => {
+  describe('getAvailable', () => {
+    it('returns slots by date ascending, time in HH:mm', async () => {
       const doctor = await doctorIn();
       const later = await slot(doctor.id, '2026-11-04', '09:00:00', '09:30:00');
       const lateEvening = await slot(
@@ -75,7 +75,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       );
       const early = await slot(doctor.id, '2026-11-03', '10:00:00', '10:30:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(result).toEqual([
         {
@@ -92,25 +92,25 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('не отдаёт слоты другого врача', async () => {
+    it('does not return slots of another doctor', async () => {
       const doctor = await doctorIn();
       const other = await doctorIn();
       const own = await slot(doctor.id, '2026-11-03', '10:00:00');
       await slot(other.id, '2026-11-03', '11:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [own.id] }]);
     });
 
-    it('границы диапазона включительные, слоты вне него не попадают', async () => {
+    it('range bounds are inclusive, slots outside it are excluded', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-11-02', '10:00:00');
       const first = await slot(doctor.id, '2026-11-03', '10:00:00');
       const last = await slot(doctor.id, '2026-11-05', '10:00:00');
       await slot(doctor.id, '2026-11-06', '10:00:00');
 
-      const result = await service.getSlotsForDoctor(
+      const result = await service.getAvailable(
         doctor.id,
         '2026-11-03',
         '2026-11-05',
@@ -122,7 +122,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('скрывает занятые слоты, а день без свободных слотов не отдаёт', async () => {
+    it('hides booked slots and omits a day without free slots', async () => {
       const doctor = await doctorIn();
       const taken = await slot(doctor.id, '2026-11-03', '10:00:00');
       const fullyBookedDay = await slot(doctor.id, '2026-11-04', '10:00:00');
@@ -130,49 +130,43 @@ describe('DoctorTimeSlotService (integration)', () => {
       await book(taken);
       await book(fullyBookedDay);
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [free.id] }]);
     });
 
-    it('скрывает слоты прошедших дней', async () => {
+    it('hides slots of past days', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-28', '23:00:00');
       const tomorrow = await slot(doctor.id, '2026-10-30', '08:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([
         { date: '2026-10-30', ids: [tomorrow.id] },
       ]);
     });
 
-    it('сегодня скрывает слоты не позже «сейчас» (включая ровно сейчас), показывает позже', async () => {
+    it('today hides slots not later than "now" (including exactly now), shows later ones', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '14:59:00');
       await slot(doctor.id, '2026-10-29', '15:00:00');
       const after = await slot(doctor.id, '2026-10-29', '15:01:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([{ date: '2026-10-29', ids: [after.id] }]);
     });
 
-    it('«сейчас» считается по поясу центра врача', async () => {
-      // для одного момента в Берлине 13:00, в Москве 15:00
+    it('"now" is computed in the time zone of the doctor center', async () => {
+      // for one moment it is 13:00 in Berlin and 15:00 in Moscow
       const berlin = await doctorIn(BERLIN);
       const moscow = await doctorIn(MOSCOW);
       const berlinSlot = await slot(berlin.id, '2026-10-29', '14:00:00');
       await slot(moscow.id, '2026-10-29', '14:00:00');
 
-      const inBerlin = await service.getSlotsForDoctor(
-        berlin.id,
-        ...WIDE_RANGE,
-      );
-      const inMoscow = await service.getSlotsForDoctor(
-        moscow.id,
-        ...WIDE_RANGE,
-      );
+      const inBerlin = await service.getAvailable(berlin.id, ...WIDE_RANGE);
+      const inMoscow = await service.getAvailable(moscow.id, ...WIDE_RANGE);
 
       expect(dayOf(inBerlin)).toEqual([
         { date: '2026-10-29', ids: [berlinSlot.id] },
@@ -180,32 +174,32 @@ describe('DoctorTimeSlotService (integration)', () => {
       expect(inMoscow).toEqual([]);
     });
 
-    it('дата «сегодня» берётся по часам центра, когда в UTC ещё вчера', async () => {
+    it('the "today" date is taken from the center clock when it is still yesterday in UTC', async () => {
       freezeDate(NOW_NEAR_MIDNIGHT);
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '23:00:00');
       await slot(doctor.id, '2026-10-30', '01:00:00');
       const upcoming = await slot(doctor.id, '2026-10-30', '02:00:00');
 
-      const result = await service.getSlotsForDoctor(doctor.id, ...WIDE_RANGE);
+      const result = await service.getAvailable(doctor.id, ...WIDE_RANGE);
 
       expect(dayOf(result)).toEqual([
         { date: '2026-10-30', ids: [upcoming.id] },
       ]);
     });
 
-    it('несуществующий врач → NotFoundException', async () => {
+    it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
       await expect(
-        service.getSlotsForDoctor(
+        service.getAvailable(
           '00000000-0000-4000-8000-000000000000',
           ...WIDE_RANGE,
         ),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
   });
 
-  describe('getSlotsRange', () => {
-    it('берёт min/max только по слотам этого врача', async () => {
+  describe('getAvailableRange', () => {
+    it('takes min/max only over the slots of this doctor', async () => {
       const doctor = await doctorIn();
       const other = await doctorIn();
       await slot(doctor.id, '2026-11-05', '10:00:00');
@@ -214,26 +208,26 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(other.id, '2026-11-01', '10:00:00');
       await slot(other.id, '2026-11-20', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-11-05',
         maxDate: '2026-11-09',
       });
     });
 
-    it('занятые слоты не влияют на диапазон', async () => {
+    it('booked slots do not affect the range', async () => {
       const doctor = await doctorIn();
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-11-05', '10:00:00');
       await slot(doctor.id, '2026-11-07', '10:00:00');
       await book(await slot(doctor.id, '2026-11-09', '10:00:00'));
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-11-05',
         maxDate: '2026-11-07',
       });
     });
 
-    it('прошедшие слоты не влияют на диапазон, «сейчас» по часам центра', async () => {
+    it('past slots do not affect the range, "now" is on the center clock', async () => {
       freezeDate(NOW_NEAR_MIDNIGHT);
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '23:00:00');
@@ -241,31 +235,31 @@ describe('DoctorTimeSlotService (integration)', () => {
       await slot(doctor.id, '2026-10-30', '02:00:00');
       await slot(doctor.id, '2026-11-02', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-10-30',
         maxDate: '2026-11-02',
       });
     });
 
-    it('слот ровно в «сейчас» в диапазон не входит', async () => {
+    it('a slot exactly at "now" is not in the range', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '15:00:00');
       await slot(doctor.id, '2026-10-30', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).resolves.toEqual({
+      await expect(service.getAvailableRange(doctor.id)).resolves.toEqual({
         minDate: '2026-10-30',
         maxDate: '2026-10-30',
       });
     });
 
-    it('нет свободных будущих слотов (заняты или прошли) → NotFoundException', async () => {
+    it('no free future slots (booked or past) → NO_AVAILABLE_SLOTS', async () => {
       const doctor = await doctorIn();
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-10-28', '10:00:00');
 
-      await expect(service.getSlotsRange(doctor.id)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.getAvailableRange(doctor.id)).rejects.toMatchObject({
+        code: ErrorCode.NO_AVAILABLE_SLOTS,
+      });
     });
   });
 });

@@ -1,8 +1,10 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 import { Reflector } from '@nestjs/core';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { JwtAuthWithRegistrationGuard } from './jwt-auth-with-registration.guard';
 
 const { COMPLETE_REGISTRATION, INCOMPLETE_REGISTRATION, ANY } =
@@ -69,9 +71,9 @@ describe('JwtAuthWithRegistrationGuard', () => {
 
   describe('@Public', () => {
     it.each([
-      ['на методе', PublicOnHandler],
-      ['на классе', PublicOnClass],
-    ])('%s: пропускает без проверки токена', async (...[, target]) => {
+      ['on the method', PublicOnHandler],
+      ['on the class', PublicOnClass],
+    ])('%s: passes without checking the token', async (...[, target]) => {
       await expect(
         guard.canActivate(contextFor(target, undefined)),
       ).resolves.toBe(true);
@@ -79,27 +81,27 @@ describe('JwtAuthWithRegistrationGuard', () => {
     });
   });
 
-  describe('уровень регистрации', () => {
-    it('не Public и уровень не задан: бросает обычную ошибку, а не HTTP-исключение', async () => {
+  describe('registration level', () => {
+    it('not Public and no level set: throws a plain error, not an HTTP exception', async () => {
       const error: unknown = await guard
         .canActivate(contextFor(NoLevel, { registrationComplete: true }))
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(Error);
-      expect(error).not.toBeInstanceOf(ForbiddenException);
+      expect(error).not.toBeInstanceOf(AppException);
     });
 
-    it('читает уровень с класса, если на методе его нет', async () => {
+    it('reads the level from the class if the method has none', async () => {
       const context = contextFor(CompleteOnClass, {
         registrationComplete: false,
       });
 
-      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ErrorCode.REGISTRATION_INCOMPLETE,
+      });
     });
 
-    it('уровень на методе перекрывает уровень класса', async () => {
+    it('the method level overrides the class level', async () => {
       const context = contextFor(
         CompleteOnClass,
         { registrationComplete: false },
@@ -110,7 +112,7 @@ describe('JwtAuthWithRegistrationGuard', () => {
     });
   });
 
-  it('passport отклонил запрос: возвращает false, уровень не проверяется', async () => {
+  it('passport rejected the request: returns false, the level is not checked', async () => {
     passportCanActivate.mockResolvedValue(false);
 
     await expect(
@@ -118,10 +120,10 @@ describe('JwtAuthWithRegistrationGuard', () => {
     ).resolves.toBe(false);
   });
 
-  it('passport пропустил, но пользователя в запросе нет: Forbidden', async () => {
+  it('passport passed but there is no user in the request: UNAUTHORIZED', async () => {
     await expect(
       guard.canActivate(contextFor(AnyOnHandler, undefined)),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toMatchObject({ code: ErrorCode.UNAUTHORIZED });
   });
 
   describe.each<
@@ -161,7 +163,7 @@ describe('JwtAuthWithRegistrationGuard', () => {
       );
 
       if (outcome === 'allow') await expect(result).resolves.toBe(true);
-      else await expect(result).rejects.toBeInstanceOf(ForbiddenException);
+      else await expect(result).rejects.toBeInstanceOf(AppException);
     });
   });
 });

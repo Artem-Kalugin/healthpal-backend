@@ -2,13 +2,13 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { PasswordService } from 'src/infrastructure/password/password.service';
-import { clearDatabase } from '../integration/db';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
 
 const OLD_PASSWORD = 'OldPassword1';
@@ -16,7 +16,7 @@ const NEW_PASSWORD = 'NewPassword1';
 
 describe('Recovery (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let factories: ReturnType<typeof createFactories>;
   let redis: Redis;
   let phone: string;
@@ -30,19 +30,20 @@ describe('Recovery (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
-    factories = createFactories(dataSource);
+    db = app.get<Database>(DB);
+    await resetSchema(db);
+    factories = createFactories(db);
     redis = app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false });
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await redis.quit();
     await app.close();
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
     await redis.flushdb();
     const password = await app
       .get(PasswordService, { strict: false })
@@ -65,7 +66,7 @@ describe('Recovery (e2e)', () => {
     return (verified.body as { recoveryToken: string }).recoveryToken;
   };
 
-  it('восстановление: код → токен → новый пароль; вход работает только с новым паролем', async () => {
+  it('recovery: code → token → new password; login works only with the new password', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {
@@ -80,7 +81,7 @@ describe('Recovery (e2e)', () => {
     expect((await login(OLD_PASSWORD)).status).toBe(401);
   });
 
-  it('пароли не совпадают → 401, пароль не меняется, токен остаётся валидным', async () => {
+  it('passwords do not match → 400 VALIDATION_FAILED on confirmPassword, the password is unchanged, the token stays valid', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {
@@ -89,7 +90,12 @@ describe('Recovery (e2e)', () => {
       confirmPassword: 'Different123',
     });
 
-    expect(reset.status).toBe(401);
+    expect(reset.status).toBe(400);
+    expect(reset.body).toEqual({
+      statusCode: 400,
+      code: 'VALIDATION_FAILED',
+      validation: { confirmPassword: [{ code: 'VALUES_MISMATCH' }] },
+    });
     expect((await login(OLD_PASSWORD)).status).toBe(201);
     expect(await redis.get(`recovery:${token}`)).toBe(phone);
   });

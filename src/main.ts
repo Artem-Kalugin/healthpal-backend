@@ -21,7 +21,7 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'Введите JWT токен',
+        description: 'Enter the JWT token',
         in: 'header',
       },
       'JWT',
@@ -29,12 +29,17 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  // Swagger UI отключён: отдаём только JSON, интерфейс рисует Scalar
   SwaggerModule.setup('api', app, document, {
     ui: false,
     jsonDocumentUrl: 'api-json',
   });
-  app.use('/api', apiReference({ content: document }));
+  app.use(
+    '/api',
+    apiReference({
+      content: document,
+      cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.2',
+    }),
+  );
 
   await app.listen(process.env.PORT ?? 3000);
 }

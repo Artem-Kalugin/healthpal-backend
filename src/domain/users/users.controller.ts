@@ -1,60 +1,42 @@
-import {
-  Controller,
-  Body,
-  Patch,
-  UseInterceptors,
-  UploadedFile,
-  SerializeOptions,
-  Get,
-  Req,
-} from '@nestjs/common';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
+import { Controller, Body, Patch, Get } from '@nestjs/common';
 import { UsersService } from './users.service';
-import {
-  ApiConsumes,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { avatarValidator } from 'src/infrastructure/file-storage/image-file-storage.service';
-import type { Request } from 'express';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import {
+  Avatar,
+  AvatarUpload,
+} from 'src/infrastructure/file-storage/helpers/avatar-upload.decorator';
+import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
 import { AuthGuardsByRegistration } from 'src/common/config';
 
 @ApiTags('Users')
 @Controller('users')
-@ApiBearerJwtAuth()
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
+@Authenticated()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Patch('/me')
-  @ApiConsumes('multipart/form-data')
-  @ApiOkResponse({ type: UserResponseDto })
-  @SerializeOptions({ type: UserResponseDto })
-  @UseInterceptors(FileInterceptor('avatar'))
+  @AvatarUpload()
+  @ApiSerialized(UserResponseDto)
   async updateCurrent(
-    @Req() request: Request,
+    @CurrentUserId() userId: string,
     @Body() updateUserDto: UpdateUserDto,
-    @UploadedFile(avatarValidator)
-    avatar?: Express.Multer.File,
+    @Avatar() avatar?: Express.Multer.File,
   ): Promise<UserResponseDto> {
-    return this.usersService.update(
-      request.user!.id,
-      updateUserDto,
-      avatar?.buffer,
-    );
+    return this.usersService.update(userId, updateUserDto, avatar?.buffer);
   }
 
   @Get('me')
-  @ApiOkResponse({ type: UserResponseDto })
-  @SerializeOptions({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'Пользователь не найден' })
+  @ApiSerialized(UserResponseDto)
+  @ApiNotFoundResponse({
+    description: 'USER_NOT_FOUND: user not found',
+  })
   @AuthRegistrationGuardType(AuthGuardsByRegistration.ANY)
-  async getCurrent(@Req() request: Request): Promise<UserResponseDto> {
-    return this.usersService.findOne(request.user!.id);
+  async getCurrent(@CurrentUserId() userId: string): Promise<UserResponseDto> {
+    return this.usersService.findById(userId);
   }
 }

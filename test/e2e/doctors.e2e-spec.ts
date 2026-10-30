@@ -2,14 +2,15 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { App } from 'supertest/types';
 import { AppModule } from 'src/app.module';
 import { configureApp } from 'src/app.setup';
-import { ScheduleDay } from 'src/entities/doctor-schedule.entity';
-import { AuthService } from 'src/domain/auth/auth.service';
+import { ScheduleDay } from 'src/db/enums';
+import { userFavoriteDoctor } from 'src/db/schema';
+import { SessionService } from 'src/domain/auth/session.service';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { clearDatabase } from '../integration/db';
+import { DB, type Database } from 'src/db/db.module';
+import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
 
 const UNKNOWN_ID = '00000000-0000-4000-8000-000000000000';
@@ -18,9 +19,9 @@ type Body = Record<string, any>;
 
 describe('Doctors (e2e)', () => {
   let app: INestApplication<App>;
-  let dataSource: DataSource;
+  let db: Database;
   let factories: ReturnType<typeof createFactories>;
-  let authService: AuthService;
+  let sessionService: SessionService;
 
   beforeAll(async () => {
     const testingModule = await Test.createTestingModule({
@@ -31,19 +32,20 @@ describe('Doctors (e2e)', () => {
     configureApp(app);
     await app.init();
 
-    dataSource = app.get(DataSource);
-    factories = createFactories(dataSource);
-    authService = app.get(AuthService, { strict: false });
+    db = app.get<Database>(DB);
+    await resetSchema(db);
+    factories = createFactories(db);
+    sessionService = app.get(SessionService, { strict: false });
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false }).quit();
     await app.close();
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   const send = async (url: string, query?: object, token?: string) => {
@@ -57,34 +59,28 @@ describe('Doctors (e2e)', () => {
 
   const newUser = async () => {
     const user = await factories.user({ registrationComplete: true });
-    const { accessToken } = await authService.generateTokens(user, 'e2e');
+    const { accessToken } = await sessionService.generateTokens(user, 'e2e');
 
     return { user, token: `Bearer ${accessToken}` };
   };
 
-  it('без токена все эндпоинты отвечают 401', async () => {
-    const urls = [
-      '/doctors/search',
-      '/doctors/favorites',
-      `/doctors/${UNKNOWN_ID}`,
-    ];
+  it('answers 401 UNAUTHORIZED without a token', async () => {
+    const { status, body } = await send('/doctors/search');
 
-    for (const url of urls) {
-      const { status } = await send(url);
-      expect(status).toBe(401);
-    }
+    expect(status).toBe(401);
+    expect(body).toEqual({ statusCode: 401, code: 'UNAUTHORIZED' });
   });
 
   describe('GET /doctors/search', () => {
-    it('отдаёт страницу врачей в формате ответа с isFavorite и метаданными', async () => {
+    it('returns a page of doctors in the response format with isFavorite and metadata', async () => {
       const { user, token } = await newUser();
       const [first, second] = [
-        await factories.doctor({ name: 'Анна' }),
-        await factories.doctor({ name: 'Борис' }),
+        await factories.doctor({ name: 'Anna' }),
+        await factories.doctor({ name: 'Boris' }),
       ];
-      await dataSource
-        .getRepository('UserFavoriteDoctor')
-        .save({ userId: user.id, doctorId: first.id });
+      await db
+        .insert(userFavoriteDoctor)
+        .values({ userId: user.id, doctorId: first.id });
 
       const { status, body } = await send(
         '/doctors/search',
@@ -93,38 +89,46 @@ describe('Doctors (e2e)', () => {
       );
 
       expect(status).toBe(200);
-      expect(body).toMatchObject({ page: 1, size: 10, lastPage: 1 });
+      expect(body).toMatchObject({ page: 1, size: 10, hasMore: false });
       const byId = new Map(
         (body.data as Body[]).map(item => [item.id as string, item]),
       );
       expect(byId.get(first.id)).toMatchObject({
-        name: 'Анна',
+        name: 'Anna',
         isFavorite: true,
       });
       expect(byId.get(second.id)).toMatchObject({ isFavorite: false });
     });
 
-    it.each([
-      { title: 'sort вне списка', query: { sort: 'name' } },
-      { title: 'слишком короткий searchFor', query: { searchFor: 'ab' } },
-      { title: 'size меньше минимума', query: { size: 5 } },
-    ])('$title → 400', async ({ query }) => {
+    it('invalid query → 400 VALIDATION_FAILED with codes per field', async () => {
       const { token } = await newUser();
 
-      const { status } = await send('/doctors/search', query, token);
+      const { status, body } = await send(
+        '/doctors/search',
+        { searchFor: 'ab', size: 5 },
+        token,
+      );
 
       expect(status).toBe(400);
+      expect(body).toEqual({
+        statusCode: 400,
+        code: 'VALIDATION_FAILED',
+        validation: {
+          searchFor: [{ code: 'TEXT_TOO_SHORT', params: { limit: 3 } }],
+          size: [{ code: 'VALUE_TOO_SMALL', params: { limit: 10 } }],
+        },
+      });
     });
   });
 
   describe('GET /doctors/favorites', () => {
-    it('отдаёт только избранных врачей пользователя', async () => {
+    it('returns only the favorite doctors of the user', async () => {
       const { user, token } = await newUser();
       const favorite = await factories.doctor();
       await factories.doctor();
-      await dataSource
-        .getRepository('UserFavoriteDoctor')
-        .save({ userId: user.id, doctorId: favorite.id });
+      await db
+        .insert(userFavoriteDoctor)
+        .values({ userId: user.id, doctorId: favorite.id });
 
       const { status, body } = await send(
         '/doctors/favorites',
@@ -139,8 +143,71 @@ describe('Doctors (e2e)', () => {
     });
   });
 
+  describe('POST and DELETE /doctors/:id/favorite', () => {
+    const call = (method: 'post' | 'delete', id: string, token: string) =>
+      request(app.getHttpServer())
+        [method](`/doctors/${id}/favorite`)
+        .set('Authorization', token);
+
+    it('POST adds to favorites → 201, repeated → 409 FAVORITE_ALREADY_EXISTS', async () => {
+      const { user, token } = await newUser();
+      const target = await factories.doctor();
+
+      const created = await call('post', target.id, token);
+      const repeated = await call('post', target.id, token);
+
+      expect(created.status).toBe(201);
+      expect(created.body).toEqual({ success: true, doctorId: target.id });
+      expect(repeated.status).toBe(409);
+      expect(repeated.body).toEqual({
+        statusCode: 409,
+        code: 'FAVORITE_ALREADY_EXISTS',
+      });
+      expect(await db.select().from(userFavoriteDoctor)).toMatchObject([
+        { userId: user.id, doctorId: target.id },
+      ]);
+    });
+
+    it('POST for a nonexistent doctor → 404 DOCTOR_NOT_FOUND', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', UNKNOWN_ID, token);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        code: 'DOCTOR_NOT_FOUND',
+      });
+    });
+
+    it('DELETE removes only the link of this user', async () => {
+      const { user, token } = await newUser();
+      const other = await newUser();
+      const target = await factories.doctor();
+      await db.insert(userFavoriteDoctor).values([
+        { userId: user.id, doctorId: target.id },
+        { userId: other.user.id, doctorId: target.id },
+      ]);
+
+      const response = await call('delete', target.id, token);
+
+      expect(response.status).toBe(200);
+      expect(await db.select().from(userFavoriteDoctor)).toMatchObject([
+        { userId: other.user.id, doctorId: target.id },
+      ]);
+    });
+
+    it('invalid id → 400 VALIDATION_FAILED', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', 'not-a-uuid', token);
+
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe('GET /doctors/:id', () => {
-    it('отдаёт врача', async () => {
+    it('returns a doctor', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
 
@@ -154,32 +221,65 @@ describe('Doctors (e2e)', () => {
       expect(body).toMatchObject({ id: doctor.id, isFavorite: false });
     });
 
-    it('несуществующий врач → 404', async () => {
+    it('nonexistent doctor → 404 DOCTOR_NOT_FOUND', async () => {
       const { token } = await newUser();
 
-      const { status } = await send(`/doctors/${UNKNOWN_ID}`, undefined, token);
+      const { status, body } = await send(
+        `/doctors/${UNKNOWN_ID}`,
+        undefined,
+        token,
+      );
 
       expect(status).toBe(404);
+      expect(body).toEqual({ statusCode: 404, code: 'DOCTOR_NOT_FOUND' });
     });
   });
 
   describe('GET /doctors/:id/time-slots', () => {
-    it('врач без свободных слотов → 200 и пустой список', async () => {
+    it('accepts a full ISO date and returns free slots grouped by date', async () => {
+      const { token } = await newUser();
+      const doctor = await factories.doctor();
+      const slot = await factories.timeSlot(doctor.id, {
+        date: '2099-01-05',
+        startTime: '10:00:00',
+        endTime: '10:30:00',
+      });
+
+      const { status, body } = await send(
+        `/doctors/${doctor.id}/time-slots`,
+        { startDate: '2099-01-01T00:00:00.000Z', endDate: '2099-01-31' },
+        token,
+      );
+
+      expect(status).toBe(200);
+      expect(body).toMatchObject([
+        {
+          date: '2099-01-05',
+          slots: [{ id: slot.id, startTime: '10:00', endTime: '10:30' }],
+        },
+      ]);
+    });
+
+    it('invalid date → 400 VALIDATION_FAILED', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
 
-      const response = await request(app.getHttpServer())
-        .get(`/doctors/${doctor.id}/time-slots`)
-        .query({ startDate: '2026-11-01', endDate: '2026-11-30' })
-        .set('Authorization', token);
+      const { status, body } = await send(
+        `/doctors/${doctor.id}/time-slots`,
+        { startDate: 'tomorrow', endDate: '2099-01-31' },
+        token,
+      );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual([]);
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        validation: { startDate: expect.any(Array) as unknown },
+      });
     });
   });
 
   describe('GET /doctors/:id/schedule', () => {
-    it('отдаёт расписание врача по дням недели', async () => {
+    it('returns the doctor schedule by weekday', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
       await factories.schedule(doctor.id);

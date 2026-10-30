@@ -1,10 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { EnvironmentVariables, JwtContent } from 'declarations';
 import { UsersService } from 'src/domain/users/users.service';
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,10 +22,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtContent): Promise<JwtContent> {
     try {
-      await this.usersService.findOne(payload.id);
+      await this.usersService.findById(payload.id);
     } catch (error) {
       if (error instanceof UserNotFoundException) {
-        throw new UnauthorizedException();
+        throw new AppException(ErrorCode.UNAUTHORIZED, {
+          message: 'Token user not found',
+          cause: error,
+        });
       }
       throw error;
     }

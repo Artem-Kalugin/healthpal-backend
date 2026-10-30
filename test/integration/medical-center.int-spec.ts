@@ -1,9 +1,9 @@
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { MedicalCentersService } from 'src/domain/medical-center/medical-center.service';
-import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { UserFavoriteMedicalCenter } from 'src/entities/user-favorite-medical-center.relation';
-import { createTestDataSource } from './db';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { userFavoriteMedicalCenter } from 'src/db/schema';
+import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
+import { MedicalCenterFavoriteService } from 'src/domain/medical-center/modules/medical-center-favorite/medical-center-favorite.service';
+import { createTestDb } from './db';
 import { createFactories } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -12,31 +12,20 @@ const [C1, C2, C3, C4, C5, C6] = [id(1), id(2), id(3), id(4), id(5), id(6)];
 const SPB = { lat: 59.9343, lon: 30.3351 };
 const EQUATOR_ORIGIN = { lat: 0, lon: 0 };
 
-/**
- * Центры C2..C6 лежат на экваторе (1° долготы ≈ 111.19 км), пользователь в (0, 0).
- * C1 стоит в Петербурге: на этих координатах `acos` без зажима падает при совпадении точек.
- *
- * | центр | lon   | до (0,0), км | врачи (рейтинг × отзывы)     | rating | reviewsCount |
- * | C1    | СПб   | далеко       | 5.0 × 10, 4.0 × 30           | 4.25   | 40           |
- * | C2    | 0.01  | 1.1          | 4.6 × 5                      | 4.60   | 5            |
- * | C3    | 0.02  | 2.2          | нет                          | null   | 0            |
- * | C4    | 0.03  | 3.3          | 5.0 × 0                      | null   | 0            |
- * | C5    | 0.04  | 4.4          | 4.2 × 10, 4.3 × 10           | 4.25   | 20           |
- * | C6    | 0.05  | 5.6          | 3.0 × 10                     | 3.00   | 10           |
- */
-describe('MedicalCentersService (integration)', () => {
-  let dataSource: DataSource;
-  let service: MedicalCentersService;
+describe('MedicalCenterService (integration)', () => {
+  let db: Database;
+  let pool: Pool;
+  let service: MedicalCenterService;
+  let favoriteService: MedicalCenterFavoriteService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    const factories = createFactories(dataSource);
-    service = new MedicalCentersService(
-      createSafeRepository(dataSource.getRepository(MedicalCenter)),
-    );
+    ({ db, pool } = await createTestDb());
+    const factories = createFactories(db);
+    service = new MedicalCenterService(db);
+    favoriteService = new MedicalCenterFavoriteService(db, service);
 
     const center = (centerId: string, lat: number, lon: number) =>
       factories.medicalCenter({ id: centerId, name: centerId, lat, lon });
@@ -48,10 +37,15 @@ describe('MedicalCentersService (integration)', () => {
     const c6 = await center(C6, 0, 0.05);
 
     const doctor = (
-      medicalCenter: MedicalCenter,
+      medicalCenter: { id: string },
       rating: number,
       reviewsCount: number,
-    ) => factories.doctor({ medicalCenter, rating, reviewsCount });
+    ) =>
+      factories.doctor({
+        medicalCenterId: medicalCenter.id,
+        rating,
+        reviewsCount,
+      });
     await doctor(c1, 5, 10);
     await doctor(c1, 4, 30);
     await doctor(c2, 4.6, 5);
@@ -64,9 +58,9 @@ describe('MedicalCentersService (integration)', () => {
     userB = (await factories.user()).id;
     userWithoutFavorites = (await factories.user()).id;
 
-    // Порядок добавления (C3, C1, C6) не совпадает ни с порядком id, ни с обратным
+    // The insertion order (C3, C1, C6) matches neither the id order nor its reverse
     const favorite = (userId: string, medicalCenterId: string, at: string) =>
-      dataSource.getRepository(UserFavoriteMedicalCenter).save({
+      db.insert(userFavoriteMedicalCenter).values({
         userId,
         medicalCenterId,
         createdAt: new Date(at),
@@ -78,45 +72,26 @@ describe('MedicalCentersService (integration)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
-  const byRating = async (userId = userWithoutFavorites, top5Only = false) =>
-    service.findByRatingForUser(userId, top5Only);
+  const byRating = async (
+    userId = userWithoutFavorites,
+    shouldTake5Only = false,
+  ) => service.findForUser(userId, { shouldTake5Only });
 
-  // сервис подмешивает distance через @ts-expect-error, в его типе поля нет
-  type WithDistance = MedicalCenter & {
-    distance?: number;
-    walkingTimeMinutes?: number;
-  };
   const byDistance = async (
     point: { lat: number; lon: number } = EQUATOR_ORIGIN,
-    top5Only = false,
+    shouldTake5Only = false,
   ) =>
-    (await service.findWithDistanceForUser(
-      userWithoutFavorites,
-      point.lat,
-      point.lon,
-      top5Only,
-    )) as WithDistance[];
-
-  describe('findByRatingForUser', () => {
-    it('rating — среднее, взвешенное по отзывам, reviewsCount — их сумма', async () => {
-      const centers = await byRating();
-      const aggregates = Object.fromEntries(
-        centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
-      );
-
-      expect(aggregates).toMatchObject({
-        // простое среднее дало бы 4.5
-        [C1]: ['4.25', '40'],
-        [C2]: ['4.60', '5'],
-        [C5]: ['4.25', '20'],
-        [C6]: ['3.00', '10'],
-      });
+    service.findForUser(userWithoutFavorites, {
+      lat: String(point.lat),
+      lon: String(point.lon),
+      shouldTake5Only,
     });
 
-    it('центры без врачей и без отзывов остаются в выдаче с rating = null и reviewsCount = 0', async () => {
+  describe('findForUser without coordinates (by rating)', () => {
+    it('rating is the average weighted by reviews, reviewsCount is their sum; centers without doctors or reviews stay with rating = null and reviewsCount = 0', async () => {
       const centers = await byRating();
       const aggregates = Object.fromEntries(
         centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
@@ -124,18 +99,23 @@ describe('MedicalCentersService (integration)', () => {
 
       expect(centers).toHaveLength(6);
       expect(aggregates).toMatchObject({
+        // a plain average would give 4.5
+        [C1]: ['4.25', '40'],
+        [C2]: ['4.60', '5'],
+        [C5]: ['4.25', '20'],
+        [C6]: ['3.00', '10'],
         [C3]: [null, '0'],
         [C4]: [null, '0'],
       });
     });
 
-    it('сортирует по убыванию рейтинга, центры без рейтинга в конце, равные — по id', async () => {
+    it('sorts by rating descending, centers without a rating last, ties by id', async () => {
       const centers = await byRating();
 
       expect(centers.map(item => item.id)).toEqual([C2, C1, C5, C6, C3, C4]);
     });
 
-    it('isFavorite считается для конкретного пользователя и не раздувает агрегаты', async () => {
+    it('isFavorite is computed for a specific user and does not inflate the aggregates', async () => {
       const flags = async (userId: string) =>
         (await byRating(userId)).map(item => [item.id, item.isFavorite]);
 
@@ -164,17 +144,15 @@ describe('MedicalCentersService (integration)', () => {
       });
     });
 
-    it('top5Only ограничивает выдачу пятью лучшими, без него приходят все', async () => {
+    it('shouldTake5Only limits the result to the five best', async () => {
       const top5 = await byRating(userWithoutFavorites, true);
-      const all = await byRating(userWithoutFavorites, false);
 
       expect(top5.map(item => item.id)).toEqual([C2, C1, C5, C6, C3]);
-      expect(all).toHaveLength(6);
     });
   });
 
-  describe('findWithDistanceForUser', () => {
-    it('считает расстояние в км с одним знаком и время пешком, ближайшие первыми', async () => {
+  describe('findForUser with coordinates (by distance)', () => {
+    it('computes the distance in km with one decimal and the walking time, nearest first', async () => {
       const centers = await byDistance();
 
       expect(centers.map(item => item.id)).toEqual([C2, C3, C4, C5, C6, C1]);
@@ -192,13 +170,13 @@ describe('MedicalCentersService (integration)', () => {
       expect(centers[5].distance).toBeGreaterThan(5000);
     });
 
-    it('top5Only возвращает пять ближайших, а не пять первых по id', async () => {
+    it('shouldTake5Only returns the five nearest, not the first five by id', async () => {
       const centers = await byDistance(EQUATOR_ORIGIN, true);
 
       expect(centers.map(item => item.id)).toEqual([C2, C3, C4, C5, C6]);
     });
 
-    it('пользователь в точке центра: запрос не падает, distance и walkingTimeMinutes равны 0', async () => {
+    it('user at the center point: the query does not fail, distance and walkingTimeMinutes are 0', async () => {
       const centers = await byDistance(SPB);
 
       expect(centers[0]).toMatchObject({
@@ -211,24 +189,22 @@ describe('MedicalCentersService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) =>
-      service.findFavoritesForUser({ userId, page, size });
+      favoriteService.findFavoritesForUser(userId, { page, size });
 
-    it('возвращает только избранное пользователя, последние добавленные первыми', async () => {
+    it('returns only the favorites of the user, most recently added first', async () => {
       const { data } = await favoritesFor(userA);
 
       expect(data.map(item => item.id)).toEqual([C6, C1, C3]);
       expect(data.every(item => item.isFavorite)).toBe(true);
       expect(data[1]).toMatchObject({ rating: '4.25', reviewsCount: '40' });
-    });
-
-    it('не подмешивает избранное других пользователей', async () => {
+      // C1 is a favorite of both users: each sees only their own list
       expect((await favoritesFor(userB)).data.map(item => item.id)).toEqual([
         C1,
       ]);
       expect((await favoritesFor(userWithoutFavorites)).data).toEqual([]);
     });
 
-    it('страницы не пересекаются, count верен при группировке', async () => {
+    it('pages do not overlap, hasMore is correct with grouping', async () => {
       const first = await favoritesFor(userA, 1, 2);
       const second = await favoritesFor(userA, 2, 2);
       const third = await favoritesFor(userA, 3, 2);
@@ -236,7 +212,11 @@ describe('MedicalCentersService (integration)', () => {
       expect(
         [first, second, third].map(page => page.data.map(c => c.id)),
       ).toEqual([[C6, C1], [C3], []]);
-      expect(first.count).toBe(3);
+      expect([first, second, third].map(page => page.hasMore)).toEqual([
+        true,
+        false,
+        false,
+      ]);
     });
   });
 });

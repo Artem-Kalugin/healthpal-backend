@@ -1,14 +1,10 @@
-import { NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import { ErrorCode } from 'src/common/errors/error-code';
+import type { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import { ScheduleDay } from 'src/db/enums';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { DoctorScheduleService } from 'src/domain/doctor/modules/doctor-schedule/doctor-schedule.service';
-import {
-  DoctorSchedule,
-  ScheduleDay,
-} from 'src/entities/doctor-schedule.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000999';
@@ -21,37 +17,36 @@ const emptyWeek = () =>
   );
 
 describe('DoctorScheduleService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
   let service: DoctorScheduleService;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
-    service = new DoctorScheduleService(
-      dataSource.getRepository(DoctorSchedule),
-      new DoctorService(createSafeRepository(dataSource.getRepository(Doctor))),
-    );
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
+    service = new DoctorScheduleService(db, new DoctorService(db));
   });
 
   beforeEach(async () => {
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
-  it('врач без расписания → все семь дней с пустыми списками', async () => {
+  it('doctor without a schedule → all seven days with empty lists', async () => {
     const doctor = await factories.doctor();
 
-    const result = await service.getScheduleByDoctorId(doctor.id);
+    const result = await service.get(doctor.id);
 
     expect(result).toEqual(emptyWeek());
   });
 
-  it('раскладывает интервалы по дням, обрезает секунды и сортирует по началу', async () => {
+  it('groups intervals by day, trims seconds, sorts by start and ignores other doctors', async () => {
     const doctor = await factories.doctor();
+    await factories.schedule((await factories.doctor()).id);
     await factories.schedule(doctor.id, {
       weekday: ScheduleDay.WEDNESDAY,
       startTime: '14:30:00',
@@ -68,7 +63,7 @@ describe('DoctorScheduleService (integration)', () => {
       endTime: '12:00:00',
     });
 
-    const result = await service.getScheduleByDoctorId(doctor.id);
+    const result = await service.get(doctor.id);
 
     expect(result).toEqual({
       ...emptyWeek(),
@@ -80,19 +75,9 @@ describe('DoctorScheduleService (integration)', () => {
     });
   });
 
-  it('не включает расписание других врачей', async () => {
-    const doctor = await factories.doctor();
-    const other = await factories.doctor();
-    await factories.schedule(other.id);
-
-    const result = await service.getScheduleByDoctorId(doctor.id);
-
-    expect(Object.values(result).flat()).toEqual([]);
-  });
-
-  it('несуществующий врач → NotFound', async () => {
-    await expect(
-      service.getScheduleByDoctorId(MISSING_ID),
-    ).rejects.toBeInstanceOf(NotFoundException);
+  it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
+    await expect(service.get(MISSING_ID)).rejects.toMatchObject({
+      code: ErrorCode.DOCTOR_NOT_FOUND,
+    });
   });
 });

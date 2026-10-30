@@ -1,20 +1,12 @@
-import { MedicalCenter } from './../../entities/medical-center.entity';
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { MedicalCentersService } from './medical-center.service';
-import { UsersModule } from '../users/users.module';
-import { MedicalCentersController } from './medical-center.controller';
-import { createSafeRepositoryProviders } from 'src/common/helpers/safe-repository.provider';
-
-const MedicalCenterEntities = [MedicalCenter];
+import { MedicalCenterService } from './medical-center.service';
+import { MedicalCenterController } from './medical-center.controller';
+import { MedicalCenterFavoriteService } from './modules/medical-center-favorite/medical-center-favorite.service';
+import { MedicalCenterFavoriteController } from './modules/medical-center-favorite/medical-center-favorite.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature(MedicalCenterEntities), UsersModule],
-  providers: [
-    MedicalCentersService,
-    ...createSafeRepositoryProviders(MedicalCenterEntities),
-  ],
-  controllers: [MedicalCentersController],
-  exports: [MedicalCentersService],
+  providers: [MedicalCenterService, MedicalCenterFavoriteService],
+  controllers: [MedicalCenterFavoriteController, MedicalCenterController],
+  exports: [MedicalCenterService],
 })
-export class MedicalCentersModule {}
+export class MedicalCenterModule {}

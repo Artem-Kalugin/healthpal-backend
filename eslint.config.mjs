@@ -37,6 +37,28 @@ export default tseslint.config(
   },
   eslintNestJs.configs.flatRecommended,
   {
+    rules: {
+      // Composite decorator from `src/common/decorators`.
+      '@darraghor/nestjs-typed/api-method-should-specify-api-response': [
+        'error',
+        { additionalCustomApiResponseDecorators: ['ApiSerialized'] },
+      ],
+      // Composite decorator from `src/common/validators`.
+      '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
+        'error',
+        {
+          additionalDecorators: ['IsPassword', 'IsNotFutureDate', 'IsSameAs'],
+        },
+      ],
+      '@darraghor/nestjs-typed/all-properties-have-explicit-defined': [
+        'error',
+        {
+          additionalDecorators: ['IsPassword', 'IsNotFutureDate', 'IsSameAs'],
+        },
+      ],
+    },
+  },
+  {
     files: [
       '**/*.spec.ts',
       '**/*.int-spec.ts',
@@ -48,6 +70,18 @@ export default tseslint.config(
   {
     files: ['**/*.ts'],
     rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../../*'],
+              message:
+                'Import across folders from the root (src/...), ../ only for one level up.',
+            },
+          ],
+        },
+      ],
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/naming-convention': [
         'error',
@@ -103,6 +137,7 @@ export default tseslint.config(
             e: {},
             e2e: { checkFilenames: false },
             res: false,
+            db: false,
             cmd: { command: true },
             errCb: { handleError: true },
           },

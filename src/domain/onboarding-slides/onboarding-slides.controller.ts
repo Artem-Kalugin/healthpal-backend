@@ -1,7 +1,8 @@
-import { Controller, Get, SerializeOptions } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { OnboardingSlidesService } from './onboarding-slides.service';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { OnboardingSlideResponseDto } from './dto/onboarding-slide-response.dto';
 
 @ApiTags('Onboarding')
@@ -11,13 +12,11 @@ export class OnboardingSlidesController {
 
   @Public()
   @Get('/slides')
-  @ApiOkResponse({
-    description: 'Список активных onboarding-слайдов',
-    type: OnboardingSlideResponseDto,
+  @ApiSerialized(OnboardingSlideResponseDto, {
+    description: 'List of active onboarding slides',
     isArray: true,
   })
-  @SerializeOptions({ type: OnboardingSlideResponseDto })
-  async getAll(): Promise<OnboardingSlideResponseDto[]> {
-    return await this.service.findAll(true, true);
+  list() {
+    return this.service.findActive();
   }
 }

@@ -1,12 +1,9 @@
-import {
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 export const FILE_STORAGE_BASE_DIR = 'FILE_STORAGE_BASE_DIR';
 
@@ -44,20 +41,16 @@ export class FileStorageService {
       fs.writeFileSync(filepath, buffer);
       return `/uploads/${isProtected ? 'protected' : 'public'}/${filename}`;
     } catch (error) {
-      throw new InternalServerErrorException(
-        `Failed to save file: ${
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          'message' in error && typeof error.message === 'string'
-            ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-              error.message
-            : 'unknown error'
-        } at ${filepath}`,
-      );
+      throw new AppException(ErrorCode.FILE_SAVE_FAILED, {
+        clientCode: ErrorCode.INTERNAL_ERROR,
+        message: `Failed to save file at ${filepath}`,
+        cause: error,
+      });
     }
   }
 
-  // Принимает как имя файла, так и путь, который возвращает saveFile
-  // (`/uploads/<protected|public>/<name>`): в БД хранится именно путь.
+  // Accepts both a file name and the path returned by saveFile
+  // (`/uploads/<protected|public>/<name>`): the DB stores the path.
   deleteFile(fileNameOrPath: string, isProtected = true): void {
     const storedPath = STORED_PATH_PATTERN.exec(fileNameOrPath);
     const isInProtected = storedPath
@@ -70,10 +63,11 @@ export class FileStorageService {
       try {
         fs.unlinkSync(filepath);
       } catch (error) {
-        throw new InternalServerErrorException(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          `Failed to delete file: ${error.message}`,
-        );
+        throw new AppException(ErrorCode.FILE_DELETE_FAILED, {
+          clientCode: ErrorCode.INTERNAL_ERROR,
+          message: `Failed to delete file at ${filepath}`,
+          cause: error,
+        });
       }
     }
   }

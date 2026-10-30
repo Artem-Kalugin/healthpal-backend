@@ -1,50 +1,33 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import {
-  Doctor,
-  DoctorJoinsStructure,
-  DoctorRelationKeys,
-} from 'src/entities/doctor.entity';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import { WithDoctorMedicalCenterNameAndAddress } from './specification/with-medical-center-name-and-address.specification';
-import { WithDoctorCategoryType } from './specification/with-category-type.specification';
-import {
-  favoritedByUserAtPropertyName,
-  WithIsUserFavorite,
-} from '../users/specification/with-user-favorite.specification';
-import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
-import { FilterByRelation } from './specification/filter-by-relation.specification';
-import { AliasedSlugs } from 'declarations';
-import {
-  getPaginatedUsingLimitOffset,
-  getPaginatedUsingSkipTake,
-} from 'src/common/helpers/pagination/paginate';
+import { Inject, Injectable } from '@nestjs/common';
+import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
-import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
-import { mapDoctorWithRaw } from './doctor.mapper';
-import { DoctorFavoritesQueryDto } from './dto/doctor-favorites.dto';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { paginate } from 'src/common/pagination/page';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
+import { doctor, medicalCenter } from 'src/db/schema';
+import {
+  DoctorSearchQueryDto,
+  DoctorSort,
+} from './dto/doctor-search-query.dto';
+import { selectDoctors } from './doctor.queries';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
-const UserFavoriteMeta = UserJoinsStructure[UserRelationKeys.FAVORITE_DOCTORS];
-
-const ALIAS = 'doctor' as const;
-
-const sortMap: Record<string, AliasedSlugs<typeof ALIAS, Doctor>> = {
-  rating: `${ALIAS}.rating`,
-  reviews: `${ALIAS}.reviewsCount`,
-  practiceStartYear: `${ALIAS}.practiceStartYear`,
-} as const;
+const sortColumns: Record<DoctorSort, PgColumn> = {
+  [DoctorSort.RATING]: doctor.rating,
+  [DoctorSort.REVIEWS]: doctor.reviewsCount,
+  [DoctorSort.PRACTICE_START_YEAR]: doctor.practiceStartYear,
+};
 
 @Injectable()
 export class DoctorService {
-  constructor(
-    @Inject(getEntityRepository(Doctor.name))
-    private readonly repo: SafeRepository<Doctor>,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
-  async searchDoctorsForUser(
-    parameters: DoctorSearchQueryDto & { userId: string },
-  ) {
+  async searchForUser(userId: string, query: DoctorSearchQueryDto) {
     const {
       page,
       size,
@@ -53,89 +36,41 @@ export class DoctorService {
       medicalCenterId,
       sort,
       order = SortOrder.DESC,
-      userId,
-    } = parameters;
+    } = query;
 
-    const qb = this.baseQueryBuilderForUser(userId);
-    if (categoryId)
-      new FilterByRelation(
-        ALIAS,
-        categoryId,
-        DoctorJoinsStructure[DoctorRelationKeys.CATEGORY],
-      ).apply(qb);
-    if (medicalCenterId)
-      new FilterByRelation(
-        ALIAS,
-        medicalCenterId,
-        DoctorJoinsStructure[DoctorRelationKeys.MEDICAL_CENTER],
-      ).apply(qb);
+    const term = searchFor ? `%${escapeLike(searchFor)}%` : undefined;
+    const where = and(
+      categoryId ? eq(doctor.categoryId, categoryId) : undefined,
+      medicalCenterId ? eq(doctor.medicalCenterId, medicalCenterId) : undefined,
+      term
+        ? or(
+            ilike(sql`concat(${doctor.name}, ' ', ${doctor.surname})`, term),
+            ilike(medicalCenter.name, term),
+            ilike(medicalCenter.address, term),
+          )
+        : undefined,
+    );
+    const direction = order === SortOrder.ASC ? asc : desc;
 
-    if (searchFor) {
-      const term = `%${escapeLike(searchFor)}%`;
-      qb.andWhere(
-        `(
-      CONCAT(${ALIAS}.name, ' ', ${ALIAS}.surname) ILIKE :term OR
-      ${DoctorRelationKeys.MEDICAL_CENTER}.name ILIKE :term OR
-      ${DoctorRelationKeys.MEDICAL_CENTER}.address ILIKE :term
-    )`,
-        { term },
-      );
-    }
-
-    if (sort) {
-      qb.orderBy(sortMap[sort], order);
-      qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
-    } else {
-      qb.orderBy(`${ALIAS}.id`, SortOrder.ASC);
-    }
-
-    const res = await getPaginatedUsingSkipTake(qb, page, size);
-
-    return { ...res, data: mapDoctorWithRaw(res.data) };
-  }
-
-  async findFavoritesForUser(
-    parameters: DoctorFavoritesQueryDto & { userId: string },
-  ) {
-    const { userId, page, size } = parameters;
-    const qb = this.baseQueryBuilderForUser(userId);
-
-    qb.andWhere(`t.${UserFavoriteMeta.inverseJoinColumn.name} = :userId`, {
-      userId,
-    });
-
-    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
-
-    const res = await getPaginatedUsingLimitOffset(qb, page, size);
-
-    return { ...res, data: mapDoctorWithRaw(res.data) };
+    return paginate(
+      selectDoctors(this.db, userId)
+        .where(where)
+        .orderBy(
+          ...(sort ? [direction(sortColumns[sort])] : []),
+          asc(doctor.id),
+        ),
+      { page, size },
+    );
   }
 
   async existsById(doctorId: string) {
-    return this.repo.existsBy({ id: doctorId });
+    return existsById(this.db, doctor, doctorId);
   }
 
   async findOneForUser(userId: string, doctorId: string) {
-    const qb = this.baseQueryBuilderForUser(userId);
-
-    qb.andWhere(`${ALIAS}.id = :doctorId`, { doctorId });
-
-    const [doctor] = mapDoctorWithRaw(await qb.getRawAndEntities());
-    if (!doctor) throw new NotFoundException();
-
-    return doctor;
-  }
-
-  baseQueryBuilderForUser(userId: string) {
-    const qb = this.repo.createQueryBuilder(ALIAS);
-
-    new WithDoctorMedicalCenterNameAndAddress(ALIAS).apply(qb);
-    new WithDoctorCategoryType(ALIAS).apply(qb);
-    const qbWithFavorite = new WithIsUserFavorite<
-      Doctor & { isFavorite: boolean }
-      //@ts-expect-error attaches isFavorite
-    >(UserFavoriteMeta, ALIAS, userId, false).apply(qb);
-
-    return qbWithFavorite;
+    return firstOrThrow(
+      await selectDoctors(this.db, userId).where(eq(doctor.id, doctorId)),
+      () => new AppException(ErrorCode.DOCTOR_NOT_FOUND),
+    );
   }
 }

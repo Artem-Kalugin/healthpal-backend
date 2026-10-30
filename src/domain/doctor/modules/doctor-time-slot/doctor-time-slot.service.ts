@@ -1,109 +1,100 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { and, asc, between, eq, sql } from 'drizzle-orm';
+import { getZonedNowParts } from 'src/domain/medical-center/helpers/clinic-time';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { toHourMinute } from 'src/domain/doctor/helpers/to-hour-minute';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
 import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { getZonedNowParts } from 'src/common/helpers/clinic-time';
+  appointment,
+  doctor,
+  doctorTimeSlot,
+  medicalCenter,
+} from 'src/db/schema';
+import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
+import { freeUpcomingSlotsOf } from './doctor-time-slot.queries';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class DoctorTimeSlotService {
-  constructor(
-    @InjectRepository(DoctorTimeSlot)
-    private readonly repo: Repository<DoctorTimeSlot>,
-  ) {}
+  constructor(@Inject(DB) private readonly db: Database) {}
 
-  async getSlotsForDoctor(
-    doctorId: string,
-    mayBeOverridedStartDate: string,
-    endDate: string,
-  ) {
-    if (mayBeOverridedStartDate > endDate) {
-      throw new BadRequestException('startDate не может быть позже endDate');
+  async getAvailable(doctorId: string, startDate: string, endDate: string) {
+    if (startDate > endDate) {
+      throw new AppException(ErrorCode.INVALID_DATE_RANGE);
     }
 
-    const { date: nowDate, time: nowTime } = getZonedNowParts(
-      await this.getDoctorTimezone(doctorId),
-    );
+    const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
-    const slots = await this.repo
-      .createQueryBuilder('slot')
-      .leftJoin('slot.appointment', 'appointment')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('slot.date BETWEEN :startDate AND :endDate', {
-        startDate: mayBeOverridedStartDate,
-        endDate,
+    const slots = await this.db
+      .select({
+        id: doctorTimeSlot.id,
+        date: doctorTimeSlot.date,
+        startTime: doctorTimeSlot.startTime,
+        endTime: doctorTimeSlot.endTime,
       })
-      .andWhere('appointment.id IS NULL')
-      .orderBy('slot.date', 'ASC')
-      .addOrderBy('slot.startTime', 'ASC')
-      .getMany();
+      .from(doctorTimeSlot)
+      .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
+      .where(
+        and(
+          freeUpcomingSlotsOf(doctorId, now),
+          between(doctorTimeSlot.date, startDate, endDate),
+        ),
+      )
+      .orderBy(
+        asc(doctorTimeSlot.date),
+        asc(doctorTimeSlot.startTime),
+        asc(doctorTimeSlot.id),
+      );
 
-    const slotsFiltered = slots.filter(slot => {
-      if (slot.date > nowDate) return true;
-      if (slot.date === nowDate && slot.startTime > nowTime) return true;
+    const grouped = new Map<string, typeof slots>();
 
-      return false;
-    });
-
-    const grouped: Record<string, DoctorTimeSlot[]> = {};
-
-    for (const slot of slotsFiltered) {
-      if (!grouped[slot.date]) grouped[slot.date] = [];
-      grouped[slot.date].push(slot);
+    for (const slot of slots) {
+      const day = grouped.get(slot.date) ?? [];
+      day.push(slot);
+      grouped.set(slot.date, day);
     }
 
-    return Object.entries(grouped).map(([date, slots]) => ({
+    return [...grouped].map(([date, daySlots]) => ({
       date,
-      slots: slots.map(s => ({
-        startTime: s.startTime.slice(0, 5),
-        endTime: s.endTime.slice(0, 5),
+      slots: daySlots.map(s => ({
+        startTime: toHourMinute(s.startTime),
+        endTime: toHourMinute(s.endTime),
         id: s.id,
       })),
     }));
   }
 
-  /** Диапазон дат, в котором у врача есть свободные будущие слоты (те же правила, что в `getSlotsForDoctor`). */
-  async getSlotsRange(doctorId: string) {
-    const { date: nowDate, time: nowTime } = getZonedNowParts(
-      await this.getDoctorTimezone(doctorId),
-    );
+  /** Date range in which the doctor has free future slots (same rules as in `getAvailable`). */
+  async getAvailableRange(doctorId: string) {
+    const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
-    const range = await this.repo
-      .createQueryBuilder('slot')
-      .leftJoin('slot.appointment', 'appointment')
-      .select('MIN(slot.date)::text', 'minDate')
-      .addSelect('MAX(slot.date)::text', 'maxDate')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('appointment.id IS NULL')
-      .andWhere(
-        '(slot.date > :nowDate OR (slot.date = :nowDate AND slot.startTime > :nowTime))',
-        { nowDate, nowTime },
-      )
-      .getRawOne<{ minDate: string | null; maxDate: string | null }>();
+    const [range] = await this.db
+      .select({
+        minDate: sql<string | null>`min(${doctorTimeSlot.date})::text`,
+        maxDate: sql<string | null>`max(${doctorTimeSlot.date})::text`,
+      })
+      .from(doctorTimeSlot)
+      .leftJoin(appointment, eq(appointment.timeSlotId, doctorTimeSlot.id))
+      .where(freeUpcomingSlotsOf(doctorId, now));
 
     if (!range?.minDate || !range?.maxDate) {
-      throw new NotFoundException('Нет доступного времени записи');
+      throw new AppException(ErrorCode.NO_AVAILABLE_SLOTS);
     }
 
     return { minDate: range.minDate, maxDate: range.maxDate };
   }
 
   private async getDoctorTimezone(doctorId: string) {
-    const row = await this.repo.manager
-      .createQueryBuilder()
-      .select('center.timezone', 'timezone')
-      .from(Doctor, 'doctor')
-      .innerJoin('doctor.medicalCenter', 'center')
-      .where('doctor.id = :doctorId', { doctorId })
-      .getRawOne<{ timezone: string }>();
-
-    if (!row) {
-      throw new NotFoundException('Врач не найден');
-    }
+    const row = firstOrThrow(
+      await this.db
+        .select({ timezone: medicalCenter.timezone })
+        .from(doctor)
+        .innerJoin(medicalCenter, centerOfDoctor)
+        .where(eq(doctor.id, doctorId)),
+      () => new AppException(ErrorCode.DOCTOR_NOT_FOUND),
+    );
 
     return row.timezone;
   }

@@ -1,13 +1,13 @@
 import {
-  BadRequestException,
   ClassSerializerInterceptor,
   INestApplication,
   ValidationPipe,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DatabaseEntityErrorFilter } from './common/errors/database-entity/database-entity-error.filter';
+import { AppErrorFilter } from './common/errors/app-error.filter';
+import { createValidationException } from './common/errors/validation-exception.factory';
 
-/** Глобальные pipe, фильтры и интерсепторы: общие для `main.ts` и e2e-тестов. */
+/** shared by `main.ts` and the e2e tests. */
 export function configureApp(app: INestApplication) {
   app.useGlobalPipes(
     new ValidationPipe({
@@ -15,25 +15,11 @@ export function configureApp(app: INestApplication) {
       whitelist: true,
       forbidUnknownValues: true,
       forbidNonWhitelisted: true,
-      exceptionFactory: (validationErrors = []) => {
-        const formattedErrors = validationErrors.reduce(
-          (accumulator, error) => {
-            if (error.constraints) {
-              accumulator[error.property] = Object.values(error.constraints);
-            }
-            return accumulator;
-          },
-          {} as Record<string, string[]>,
-        );
-
-        return new BadRequestException({
-          validation: formattedErrors,
-        });
-      },
+      exceptionFactory: createValidationException,
     }),
   );
 
-  app.useGlobalFilters(new DatabaseEntityErrorFilter());
+  app.useGlobalFilters(new AppErrorFilter());
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector), {
       excludeExtraneousValues: true,

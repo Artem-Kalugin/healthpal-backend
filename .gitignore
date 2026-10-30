@@ -64,3 +64,6 @@ package-lock.json
 seeds/
 # Personal notes
 /agents/
+scripts/rename-seed-images.sh
+
+.claude

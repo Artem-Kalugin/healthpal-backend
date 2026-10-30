@@ -1,20 +1,22 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import dayjs from 'dayjs';
-import { DataSource } from 'typeorm';
-import { DatabaseEntityError } from 'src/common/errors/database-entity/database-entity.error';
-import { DatabaseEntityUniqueConstraintError } from 'src/common/errors/database-entity/database-entity-unique-constraint.error';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import type { Pool } from 'pg';
+import { Constraint } from 'src/db/constraints';
+import type { Database } from 'src/db/db.module';
+import { DoctorCategoryType } from 'src/db/enums';
+import { getPgError } from 'src/db/errors';
+import { appointment as appointmentTable } from 'src/db/schema';
 import { AppointmentService } from 'src/domain/appointment/appointment.service';
 import { AppointmentType } from 'src/domain/appointment/dto/appointment-query.dto';
-import { Appointment } from 'src/entities/appointment.entity';
-import { DoctorCategoryType } from 'src/entities/doctor-category.entity';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { clearDatabase, createTestDataSource } from './db';
+import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { freezeDate } from './time';
 
 const NOW = new Date('2026-10-29T12:00:00.000Z');
+
+const MISSING_ID = '00000000-0000-4000-8000-000000000999';
 
 const MOSCOW = 'Europe/Moscow';
 const BERLIN = 'Europe/Berlin';
@@ -24,40 +26,63 @@ const sorted = (ids: string[]) => [...ids].sort((a, b) => a.localeCompare(b));
 const addHalfHour = (time: string) =>
   dayjs(`2000-01-01T${time}`).add(30, 'minute').format('HH:mm:ss');
 
+const isSlotTaken = (error: unknown) =>
+  getPgError(error)?.constraint === Constraint.APPOINTMENT_TIME_SLOT_UNIQUE;
+
 describe('AppointmentService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
-  let appointmentRepo: ReturnType<typeof createSafeRepository<Appointment>>;
   let service: AppointmentService;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    factories = createFactories(dataSource);
-    appointmentRepo = createSafeRepository(
-      dataSource.getRepository(Appointment),
-    );
-    service = new AppointmentService(
-      appointmentRepo,
-      createSafeRepository(dataSource.getRepository(DoctorTimeSlot)),
-      createSafeRepository(dataSource.getRepository(Doctor)),
-    );
+    ({ db, pool } = await createTestDb());
+    factories = createFactories(db);
+    service = new AppointmentService(db);
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   beforeEach(async () => {
     freezeDate(NOW);
-    await clearDatabase(dataSource);
+    await clearDatabase(db);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
-  /** Запись пользователя на новый слот будущего дня (`day` — число ноября 2026). */
+  const stored = async (id: string) => {
+    const [row] = await db
+      .select()
+      .from(appointmentTable)
+      .where(eq(appointmentTable.id, id));
+
+    return row;
+  };
+
+  const waitForLockWait = async () => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const { rowCount } = await pool.query(
+        "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()",
+      );
+      if (rowCount) return;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw new Error('reschedule never blocked on the row lock');
+  };
+
+  const countOnSlot = async (timeSlotId: string) =>
+    (
+      await db
+        .select()
+        .from(appointmentTable)
+        .where(eq(appointmentTable.timeSlotId, timeSlotId))
+    ).length;
+
+  /** `day` is a day of November 2026. */
   const bookFuture = async (userId: string, day: number, doctorId?: string) => {
     const doctor = doctorId ? { id: doctorId } : await factories.doctor();
     const slot = await factories.timeSlot(doctor.id, {
@@ -67,13 +92,12 @@ describe('AppointmentService (integration)', () => {
     return factories.appointment(userId, slot);
   };
 
-  /** Запись на конкретное время; слот создаётся у переданного врача. */
   const bookAt = async (
     userId: string,
     doctorId: string,
     date: string,
     startTime: string,
-    overrides: Partial<Appointment> = {},
+    overrides: Partial<typeof appointmentTable.$inferInsert> = {},
   ) => {
     const slot = await factories.timeSlot(doctorId, {
       date,
@@ -85,7 +109,7 @@ describe('AppointmentService (integration)', () => {
   };
 
   const list = async (userId: string, type: AppointmentType, size = 100) => {
-    const { data } = await service.getAppointmentsForUser(userId, {
+    const { data } = await service.getForUser(userId, {
       type,
       page: 1,
       size,
@@ -95,40 +119,162 @@ describe('AppointmentService (integration)', () => {
   };
 
   const listFuture = (userId: string, page = 1, size = 10) =>
-    service.getAppointmentsForUser(userId, {
+    service.getForUser(userId, {
       type: AppointmentType.FUTURE,
       page,
       size,
     });
 
-  describe('cancelAppointment', () => {
-    // I2
+  describe('bookForUser', () => {
+    it('saves the appointment with the time copied from the slot and returns it with the doctor', async () => {
+      const user = await factories.user();
+      const doctor = await factories.doctor();
+      const slot = await factories.timeSlot(doctor.id, {
+        date: '2026-11-03',
+        startTime: '11:00:00',
+        endTime: '11:30:00',
+      });
+
+      const result = await service.bookForUser(user.id, {
+        timeSlotId: slot.id,
+      });
+
+      expect(result).toMatchObject({
+        userId: user.id,
+        doctorId: doctor.id,
+        timeSlotId: slot.id,
+        date: '2026-11-03',
+        startTime: '11:00:00',
+        endTime: '11:30:00',
+        isCancelled: false,
+        doctor: { id: doctor.id },
+      });
+      expect(await stored(result.id)).toMatchObject({ timeSlotId: slot.id });
+    });
+
+    it('rejects with TIME_SLOT_NOT_FOUND when the time slot does not exist', async () => {
+      const user = await factories.user();
+
+      await expect(
+        service.bookForUser(user.id, {
+          timeSlotId: MISSING_ID,
+        }),
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
+    });
+
+    it('rejects with APPOINTMENT_TOO_SOON when the slot starts inside the booking window', async () => {
+      const user = await factories.user();
+      // 15:00 in Moscow now, the booking window is 2 hours
+      const doctor = await factories.doctor();
+      const slot = await factories.timeSlot(doctor.id, {
+        date: '2026-10-29',
+        startTime: '16:59:59',
+      });
+
+      await expect(
+        service.bookForUser(user.id, {
+          timeSlotId: slot.id,
+        }),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
+    });
+  });
+
+  describe('cancelForUser', () => {
+    it('rejects with APPOINTMENT_ALREADY_CANCELLED for a cancelled appointment', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      await service.cancelForUser(user.id, appointment.id);
+
+      await expect(
+        service.cancelForUser(user.id, appointment.id),
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_ALREADY_CANCELLED,
+      });
+    });
+
+    it('rejects with APPOINTMENT_NOT_FOUND for a missing appointment', async () => {
+      const user = await factories.user();
+
+      await expect(
+        service.cancelForUser(user.id, MISSING_ID),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
+    });
+
+    it('marks the appointment cancelled, releases the slot and returns the doctor', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+
+      const result = await service.cancelForUser(user.id, appointment.id);
+
+      expect(result).toMatchObject({
+        id: appointment.id,
+        isCancelled: true,
+        timeSlotId: null,
+        doctor: { id: appointment.doctorId },
+      });
+      expect(await stored(appointment.id)).toMatchObject({
+        isCancelled: true,
+        timeSlotId: null,
+      });
+    });
+
+    it('rejects cancelling a started appointment by the timezone of its medical center and leaves it active', async () => {
+      const user = await factories.user();
+      // 14:30 on the center's clock: still ahead in Berlin (13:30Z), already started in Moscow (11:30Z)
+      const berlin = await factories.doctor({
+        medicalCenterId: (await factories.medicalCenter({ timezone: BERLIN }))
+          .id,
+      });
+      const moscow = await factories.doctor({
+        medicalCenterId: (await factories.medicalCenter({ timezone: MOSCOW }))
+          .id,
+      });
+      const inBerlin = await bookAt(
+        user.id,
+        berlin.id,
+        '2026-10-29',
+        '14:30:00',
+      );
+      const inMoscow = await bookAt(
+        user.id,
+        moscow.id,
+        '2026-10-29',
+        '14:30:00',
+      );
+
+      await expect(
+        service.cancelForUser(user.id, inBerlin.id),
+      ).resolves.toMatchObject({ isCancelled: true });
+      await expect(
+        service.cancelForUser(user.id, inMoscow.id),
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL,
+      });
+      expect((await stored(inMoscow.id)).isCancelled).toBe(false);
+    });
+
     it("does not cancel another user's appointment and leaves it active", async () => {
       const owner = await factories.user();
       const stranger = await factories.user();
       const appointment = await bookFuture(owner.id, 3);
 
       await expect(
-        service.cancelAppointment(appointment.id, stranger.id),
-      ).rejects.toThrow(NotFoundException);
+        service.cancelForUser(stranger.id, appointment.id),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
-      const stored = await dataSource
-        .getRepository(Appointment)
-        .findOneByOrFail({ id: appointment.id });
-      expect(stored.isCancelled).toBe(false);
-      expect(stored.timeSlotId).toBe(appointment.timeSlotId);
+      const row = await stored(appointment.id);
+      expect(row.isCancelled).toBe(false);
+      expect(row.timeSlotId).toBe(appointment.timeSlotId);
     });
 
-    // I1
     it('frees the slot for another user and keeps the cancelled appointment in history', async () => {
       const owner = await factories.user();
       const other = await factories.user();
       const appointment = await bookFuture(owner.id, 3);
 
-      await service.cancelAppointment(appointment.id, owner.id);
+      await service.cancelForUser(owner.id, appointment.id);
 
-      const rebooked = await service.createAppointment(other.id, {
-        doctorId: appointment.doctorId,
+      const rebooked = await service.bookForUser(other.id, {
         timeSlotId: appointment.timeSlotId!,
       });
       expect(rebooked.timeSlotId).toBe(appointment.timeSlotId);
@@ -138,7 +284,124 @@ describe('AppointmentService (integration)', () => {
     });
   });
 
-  describe('rescheduleAppointment', () => {
+  describe('rescheduleForUser', () => {
+    it('rejects with APPOINTMENT_NOT_FOUND or TIME_SLOT_NOT_FOUND for a missing appointment or new slot', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+
+      await expect(
+        service.rescheduleForUser(user.id, MISSING_ID, MISSING_ID),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
+      await expect(
+        service.rescheduleForUser(user.id, appointment.id, MISSING_ID),
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_NOT_FOUND });
+    });
+
+    it('rejects with APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE for a cancelled appointment', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      const newSlot = await factories.timeSlot(appointment.doctorId, {
+        date: '2026-11-05',
+      });
+      await service.cancelForUser(user.id, appointment.id);
+
+      await expect(
+        service.rescheduleForUser(user.id, appointment.id, newSlot.id),
+      ).rejects.toMatchObject({
+        code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
+      });
+    });
+
+    it('does not revive an appointment cancelled while the reschedule is in flight', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      const newSlot = await factories.timeSlot(appointment.doctorId, {
+        date: '2026-11-05',
+      });
+      const canceller = await pool.connect();
+
+      try {
+        // an uncommitted cancel holds the row lock; the reschedule has already
+        // read the active appointment and blocks on its UPDATE
+        await canceller.query('BEGIN');
+        await drizzle(canceller, { casing: 'snake_case' })
+          .update(appointmentTable)
+          .set({ isCancelled: true, timeSlotId: null })
+          .where(eq(appointmentTable.id, appointment.id));
+        const outcome = expect(
+          service.rescheduleForUser(user.id, appointment.id, newSlot.id),
+        ).rejects.toMatchObject({
+          code: ErrorCode.APPOINTMENT_CANCELLED_CANNOT_RESCHEDULE,
+        });
+        await waitForLockWait();
+        await canceller.query('COMMIT');
+        await outcome;
+      } finally {
+        canceller.release();
+      }
+
+      const row = await stored(appointment.id);
+      expect(row.isCancelled).toBe(true);
+      expect(row.timeSlotId).toBeNull();
+      expect(await countOnSlot(newSlot.id)).toBe(0);
+    });
+
+    it('rejects with APPOINTMENT_TOO_SOON when the current appointment is inside the booking window', async () => {
+      const user = await factories.user();
+      const doctor = await factories.doctor();
+      const soon = await bookAt(user.id, doctor.id, '2026-10-29', '16:59:59');
+      const newSlot = await factories.timeSlot(doctor.id, {
+        date: '2026-11-05',
+      });
+
+      await expect(
+        service.rescheduleForUser(user.id, soon.id, newSlot.id),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
+      expect((await stored(soon.id)).timeSlotId).toBe(soon.timeSlotId);
+    });
+
+    it('rejects with APPOINTMENT_SAME_SLOT when moving to the current slot', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+
+      await expect(
+        service.rescheduleForUser(
+          user.id,
+          appointment.id,
+          appointment.timeSlotId!,
+        ),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_SAME_SLOT });
+    });
+
+    it('rejects with APPOINTMENT_TOO_SOON when the new slot is inside the booking window', async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      const soonSlot = await factories.timeSlot(appointment.doctorId, {
+        date: '2026-10-29',
+        startTime: '16:59:59',
+      });
+
+      await expect(
+        service.rescheduleForUser(user.id, appointment.id, soonSlot.id),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_TOO_SOON });
+      expect((await stored(appointment.id)).timeSlotId).toBe(
+        appointment.timeSlotId,
+      );
+    });
+
+    it("rejects with TIME_SLOT_DOCTOR_MISMATCH for another doctor's slot", async () => {
+      const user = await factories.user();
+      const appointment = await bookFuture(user.id, 3);
+      const otherSlot = await factories.timeSlot(
+        (await factories.doctor()).id,
+        { date: '2026-11-05' },
+      );
+
+      await expect(
+        service.rescheduleForUser(user.id, appointment.id, otherSlot.id),
+      ).rejects.toMatchObject({ code: ErrorCode.TIME_SLOT_DOCTOR_MISMATCH });
+    });
+
     it("does not move another user's appointment and leaves it unchanged", async () => {
       const owner = await factories.user();
       const stranger = await factories.user();
@@ -148,17 +411,14 @@ describe('AppointmentService (integration)', () => {
       });
 
       await expect(
-        service.rescheduleAppointment(appointment.id, stranger.id, newSlot.id),
-      ).rejects.toThrow(NotFoundException);
+        service.rescheduleForUser(stranger.id, appointment.id, newSlot.id),
+      ).rejects.toMatchObject({ code: ErrorCode.APPOINTMENT_NOT_FOUND });
 
-      const stored = await dataSource
-        .getRepository(Appointment)
-        .findOneByOrFail({ id: appointment.id });
-      expect(stored.timeSlotId).toBe(appointment.timeSlotId);
-      expect(stored.date).toBe(appointment.date);
+      const row = await stored(appointment.id);
+      expect(row.timeSlotId).toBe(appointment.timeSlotId);
+      expect(row.date).toBe(appointment.date);
     });
 
-    // I4
     it('frees the old slot for another user and moves the appointment to the new one', async () => {
       const owner = await factories.user();
       const other = await factories.user();
@@ -169,11 +429,9 @@ describe('AppointmentService (integration)', () => {
         endTime: '12:30:00',
       });
 
-      await service.rescheduleAppointment(appointment.id, owner.id, newSlot.id);
+      await service.rescheduleForUser(owner.id, appointment.id, newSlot.id);
 
-      const moved = await dataSource
-        .getRepository(Appointment)
-        .findOneByOrFail({ id: appointment.id });
+      const moved = await stored(appointment.id);
       expect(moved).toMatchObject({
         timeSlotId: newSlot.id,
         date: '2026-11-05',
@@ -181,111 +439,51 @@ describe('AppointmentService (integration)', () => {
         isCancelled: false,
       });
       await expect(
-        service.createAppointment(other.id, {
-          doctorId: appointment.doctorId,
+        service.bookForUser(other.id, {
           timeSlotId: appointment.timeSlotId!,
         }),
       ).resolves.toMatchObject({ timeSlotId: appointment.timeSlotId });
     });
   });
 
-  describe('booking the same slot concurrently', () => {
-    // I3: оба запроса проходят проверку «слот свободен» и упираются в уникальный индекс
-    it('answers 409 to the second create when the free-slot check was already passed', async () => {
-      const first = await factories.user();
-      const second = await factories.user();
-      const winner = await bookFuture(first.id, 3);
-      jest.spyOn(appointmentRepo, 'findOne').mockResolvedValueOnce(null);
-
-      const result = service.createAppointment(second.id, {
-        doctorId: winner.doctorId,
-        timeSlotId: winner.timeSlotId!,
-      });
-
-      await expect(result).rejects.toBeInstanceOf(
-        DatabaseEntityUniqueConstraintError,
-      );
-      await expect(result).rejects.toMatchObject({
-        status: 409,
-        message: 'Время записи уже занято',
-      });
-      expect(
-        await dataSource
-          .getRepository(Appointment)
-          .countBy({ timeSlotId: winner.timeSlotId! }),
-      ).toBe(1);
-    });
-
-    it('answers 409 to the reschedule when the free-slot check was already passed', async () => {
+  describe('booking the same slot twice', () => {
+    it('rejects the reschedule onto a taken slot and leaves the appointment unchanged', async () => {
       const first = await factories.user();
       const second = await factories.user();
       const taken = await bookFuture(first.id, 3);
       const mover = await bookFuture(second.id, 4, taken.doctorId);
-      const realFindOne = appointmentRepo.findOne.bind(appointmentRepo);
-      jest
-        .spyOn(appointmentRepo, 'findOne')
-        .mockImplementationOnce(realFindOne)
-        .mockResolvedValueOnce(null);
 
-      const result = service.rescheduleAppointment(
-        mover.id,
-        second.id,
-        taken.timeSlotId!,
-      );
+      await expect(
+        service.rescheduleForUser(second.id, mover.id, taken.timeSlotId!),
+      ).rejects.toMatchObject({
+        cause: { constraint: Constraint.APPOINTMENT_TIME_SLOT_UNIQUE },
+      });
 
-      await expect(result).rejects.toBeInstanceOf(
-        DatabaseEntityUniqueConstraintError,
-      );
-      const stored = await dataSource
-        .getRepository(Appointment)
-        .findOneByOrFail({ id: mover.id });
-      expect(stored.timeSlotId).toBe(mover.timeSlotId);
+      expect((await stored(mover.id)).timeSlotId).toBe(mover.timeSlotId);
     });
 
-    it('lets exactly one of two parallel creates win, the other gets a 409', async () => {
+    it('lets exactly one of two parallel creates win, the other is rejected with slot-taken violation', async () => {
       const first = await factories.user();
       const second = await factories.user();
       const doctor = await factories.doctor();
       const slot = await factories.timeSlot(doctor.id, { date: '2026-11-03' });
-      const dto = { doctorId: doctor.id, timeSlotId: slot.id };
+      const dto = { timeSlotId: slot.id };
 
       const results = await Promise.allSettled([
-        service.createAppointment(first.id, dto),
-        service.createAppointment(second.id, dto),
+        service.bookForUser(first.id, dto),
+        service.bookForUser(second.id, dto),
       ]);
 
       const rejected = results.filter(r => r.status === 'rejected');
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      const reason = rejected[0].reason as unknown;
-      expect(
-        reason instanceof ConflictException ||
-          reason instanceof DatabaseEntityError,
-      ).toBe(true);
-      expect(
-        reason instanceof ConflictException
-          ? reason.getStatus()
-          : (reason as DatabaseEntityError).status,
-      ).toBe(409);
+      expect(isSlotTaken(rejected[0].reason)).toBe(true);
+      expect(await countOnSlot(slot.id)).toBe(1);
     });
   });
 
-  describe('getAppointmentsForUser', () => {
-    // I7
-    it('lists only appointments of the requested user', async () => {
-      const user = await factories.user();
-      const other = await factories.user();
-      const own = [await bookFuture(user.id, 3), await bookFuture(user.id, 4)];
-      await bookFuture(other.id, 5);
-
-      const { data, count } = await listFuture(user.id);
-
-      expect(data.map(a => a.id)).toEqual(own.map(a => a.id));
-      expect(count).toBe(2);
-    });
-
-    // I8
-    it('paginates by appointments: every one appears on exactly one page', async () => {
+  describe('getForUser', () => {
+    it("paginates by appointments: every one of the user's appears on exactly one page and nobody else's", async () => {
       const user = await factories.user();
       const other = await factories.user();
       const own = [];
@@ -301,37 +499,38 @@ describe('AppointmentService (integration)', () => {
       ];
 
       expect(pages.map(p => p.data.length)).toEqual([2, 2, 1]);
-      expect(pages.map(p => p.count)).toEqual([5, 5, 5]);
+      expect(pages.map(p => p.hasMore)).toEqual([true, true, false]);
       expect(pages.flatMap(p => p.data.map(a => a.id))).toEqual(
         own.map(a => a.id),
       );
     });
 
-    // I9
     it('includes the medical center name and address and the doctor category type', async () => {
       const user = await factories.user();
       const medicalCenter = await factories.medicalCenter({
-        name: 'Клиника «Лотос»',
-        address: 'ул. Красная Пресня, д. 9',
+        name: 'Lotus Clinic',
+        address: '9 Krasnaya Presnya St.',
       });
       const category = await factories.category({
         type: DoctorCategoryType.CARDIOLOGY,
       });
-      const doctor = await factories.doctor({ medicalCenter, category });
+      const doctor = await factories.doctor({
+        medicalCenterId: medicalCenter.id,
+        categoryId: category.id,
+      });
       await bookFuture(user.id, 3, doctor.id);
 
       const { data } = await listFuture(user.id);
 
       expect(data[0].doctor.medicalCenter).toMatchObject({
-        name: 'Клиника «Лотос»',
-        address: 'ул. Красная Пресня, д. 9',
+        name: 'Lotus Clinic',
+        address: '9 Krasnaya Presnya St.',
       });
       expect(data[0].doctor.category).toMatchObject({
         type: DoctorCategoryType.CARDIOLOGY,
       });
     });
 
-    // I5
     describe('splits appointments into FUTURE, PAST and CANCELED', () => {
       type Case = {
         title: string;
@@ -350,10 +549,14 @@ describe('AppointmentService (integration)', () => {
       const placeAll = async (userId: string, cases: Case[]) => {
         const doctors = {
           [MOSCOW]: await factories.doctor({
-            medicalCenter: await factories.medicalCenter({ timezone: MOSCOW }),
+            medicalCenterId: (
+              await factories.medicalCenter({ timezone: MOSCOW })
+            ).id,
           }),
           [BERLIN]: await factories.doctor({
-            medicalCenter: await factories.medicalCenter({ timezone: BERLIN }),
+            medicalCenterId: (
+              await factories.medicalCenter({ timezone: BERLIN })
+            ).id,
           }),
         };
         const placed: { id: string; testCase: Case }[] = [];
@@ -384,7 +587,7 @@ describe('AppointmentService (integration)', () => {
         expect(lists.canceled).toEqual([]);
       };
 
-      // Сейчас 15:00:00 в Москве (UTC+3) и 13:00:00 в Берлине (UTC+1).
+      // Now it is 15:00:00 in Moscow (UTC+3) and 13:00:00 in Berlin (UTC+1).
       it('compares the start with now on the clock of the medical center', async () => {
         const user = await factories.user();
         const placed = await placeAll(user.id, [
@@ -423,7 +626,7 @@ describe('AppointmentService (integration)', () => {
             startTime: '13:00:00',
             expected: 'PAST',
           },
-          // 14:00 в Москве уже прошло бы, а в Берлине ещё впереди
+          // 14:00 would already be past in Moscow, but is still ahead in Berlin
           {
             title: 'Berlin, in 1h',
             zone: BERLIN,
@@ -436,7 +639,7 @@ describe('AppointmentService (integration)', () => {
         await expectLists(user.id, placed);
       });
 
-      // Сейчас 22:30Z: в Москве уже 30 октября 01:30, в Берлине ещё 29 октября 23:30.
+      // Now it is 22:30Z: 01:30 on October 30 in Moscow, 23:30 on October 29 in Berlin.
       it('handles the midnight boundary where the UTC date differs from the local one', async () => {
         freezeDate(new Date('2026-10-29T22:30:00.000Z'));
         const user = await factories.user();
@@ -510,13 +713,12 @@ describe('AppointmentService (integration)', () => {
       });
     });
 
-    // I6
     describe('orders the lists', () => {
       it('sorts FUTURE ascending and PAST and CANCELED descending, ties broken by start time', async () => {
         const user = await factories.user();
         const doctor = await factories.doctor();
         const cancelled = { isCancelled: true, timeSlotId: null };
-        // создаём вперемешку, чтобы порядок не совпал со вставкой
+        // created out of order so the result cannot match insertion order
         const future2 = await bookAt(
           user.id,
           doctor.id,
@@ -586,18 +788,20 @@ describe('AppointmentService (integration)', () => {
         );
       });
 
-      // Сейчас 15:00 в Москве (UTC+3) и 13:00 в Берлине (UTC+1).
+      // Now it is 15:00 in Moscow (UTC+3) and 13:00 in Berlin (UTC+1).
       it('orders by the absolute start across time zones, not by the local clock', async () => {
         const user = await factories.user();
         const moscow = await factories.doctor({
-          medicalCenter: await factories.medicalCenter({ timezone: MOSCOW }),
+          medicalCenterId: (await factories.medicalCenter({ timezone: MOSCOW }))
+            .id,
         });
         const berlin = await factories.doctor({
-          medicalCenter: await factories.medicalCenter({ timezone: BERLIN }),
+          medicalCenterId: (await factories.medicalCenter({ timezone: BERLIN }))
+            .id,
         });
         const cancelled = { isCancelled: true, timeSlotId: null };
 
-        // 07:00Z, 08:00Z и 09:00Z (стык суток: 23:30 Москвы позже 21:30 Берлина)
+        // 07:00Z, 08:00Z and 09:00Z (across midnight: Moscow 23:30 is later than Berlin 21:30)
         const berlinLater = await bookAt(
           user.id,
           berlin.id,
@@ -652,7 +856,7 @@ describe('AppointmentService (integration)', () => {
             berlinNight,
           ].map(a => a.id),
         );
-        // CANCELED по убыванию: берлинский 09:00 (08:00Z) позже московского 10:00 (07:00Z)
+        // CANCELED is descending: Berlin 09:00 (08:00Z) is later than Moscow 10:00 (07:00Z)
         expect(await list(user.id, AppointmentType.CANCELED)).toEqual(
           [berlinCancelled, moscowCancelled].map(a => a.id),
         );

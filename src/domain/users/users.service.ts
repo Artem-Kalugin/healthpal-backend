@@ -1,18 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { User } from '../../entities/user.entity';
+import { eq, sql, type SQL } from 'drizzle-orm';
+import { firstOrThrow } from 'src/common/helpers/first-or-throw';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { user } from 'src/db/schema';
+import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
+import { PasswordService } from 'src/infrastructure/password/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ImageFileStorageService } from 'src/infrastructure/file-storage/image-file-storage.service';
-import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
 import { UserNotFoundException } from './exceptions/user-not-found.exception';
-import { PasswordService } from 'src/infrastructure/password/password.service';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(getEntityRepository(User.name))
-    private readonly repository: SafeRepository<User>,
+    @Inject(DB) private readonly db: Database,
     private readonly imageFileStorageService: ImageFileStorageService,
     private readonly passwordService: PasswordService,
   ) {}
@@ -28,60 +29,79 @@ export class UsersService {
     return nickname?.toLowerCase();
   }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: CreateUserDto) {
     const { password, name, surname, ...rest } = createUserDto;
 
     const hashedPassword = await this.passwordService.hash(password);
 
-    const user = this.repository.create({
-      ...rest,
-      name: this.normalizeNameOrSurname(name),
-      surname: this.normalizeNameOrSurname(surname),
-      password: hashedPassword,
-      registrationComplete: false,
-    });
+    const [created] = await this.db
+      .insert(user)
+      .values({
+        ...rest,
+        name: this.normalizeNameOrSurname(name),
+        surname: this.normalizeNameOrSurname(surname),
+        password: hashedPassword,
+        registrationComplete: false,
+      })
+      .returning();
 
-    return await this.repository.safeSave(user);
+    return created;
   }
 
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
     avatar?: Buffer<ArrayBufferLike>,
-  ): Promise<User> {
-    const existingUser = await this.repository.findOne({ where: { id } });
+  ) {
+    // fails fast, before the image is processed
+    await this.findById(id);
 
-    if (!existingUser) {
-      throw new UserNotFoundException();
-    }
+    const avatarSaved = avatar
+      ? await this.imageFileStorageService.processAndSave(
+          avatar,
+          'avatar',
+          false,
+        )
+      : undefined;
 
-    let avatarSaved: User['avatar'];
+    const birthday = updateUserDto.birthday
+      ? new Date(updateUserDto.birthday)
+      : undefined;
 
-    if (avatar) {
-      avatarSaved = await this.imageFileStorageService.processAndSave(
-        avatar,
-        'avatar',
-        false,
-      );
-    }
-
-    let updatedUser: User;
+    let result;
 
     try {
-      updatedUser = await this.repository.safeUpdate(id, {
-        ...updateUserDto,
-        name: updateUserDto.name
-          ? this.normalizeNameOrSurname(updateUserDto.name)
-          : undefined,
-        surname: updateUserDto.surname
-          ? this.normalizeNameOrSurname(updateUserDto.surname)
-          : undefined,
-        nickname: this.normalizeNickname(updateUserDto.nickname),
-        avatar: avatarSaved,
-        registrationComplete: !!(
-          (updateUserDto.birthday ?? existingUser.birthday) &&
-          (updateUserDto.gender ?? existingUser.gender)
-        ),
+      // The row lock makes concurrent updates take turns, so each one deletes the avatar it actually replaced
+      result = await this.db.transaction(async tx => {
+        const [current] = await tx
+          .select({ avatar: user.avatar })
+          .from(user)
+          .where(eq(user.id, id))
+          .for('update');
+
+        if (!current) throw new UserNotFoundException();
+
+        // Drizzle leaves undefined fields out of UPDATE, so it does not overwrite them
+        const [updated] = await tx
+          .update(user)
+          .set({
+            ...updateUserDto,
+            birthday,
+            name: updateUserDto.name
+              ? this.normalizeNameOrSurname(updateUserDto.name)
+              : undefined,
+            surname: updateUserDto.surname
+              ? this.normalizeNameOrSurname(updateUserDto.surname)
+              : undefined,
+            nickname: this.normalizeNickname(updateUserDto.nickname),
+            avatar: avatarSaved,
+            // computed in SQL from the stored row: concurrent updates of different fields must not overwrite each other's flag
+            registrationComplete: sql<boolean>`coalesce(${birthday?.toISOString() ?? null}::timestamp, ${user.birthday}) is not null and coalesce(${updateUserDto.gender ?? null}::gender, ${user.gender}) is not null`,
+          })
+          .where(eq(user.id, id))
+          .returning();
+
+        return { updatedUser: updated, previousAvatar: current.avatar };
       });
     } catch (error) {
       if (avatarSaved) {
@@ -90,34 +110,37 @@ export class UsersService {
       throw error;
     }
 
-    if (avatar && existingUser.avatar?.image) {
-      this.imageFileStorageService.deleteImage(existingUser.avatar.image);
+    const { updatedUser, previousAvatar } = result;
+
+    if (avatarSaved && previousAvatar) {
+      this.imageFileStorageService.deleteImage(previousAvatar.image);
     }
 
     return updatedUser;
   }
 
-  async findOne(id: string): Promise<User> {
-    const user = await this.repository.findOne({ where: { id } });
-
-    if (!user) {
-      throw new UserNotFoundException();
-    }
-
-    return user;
+  async findById(id: string) {
+    return this.findOneBy(eq(user.id, id));
   }
 
-  async findOneByPhone(phone: string): Promise<User> {
-    const user = await this.repository.findOne({ where: { phone } });
-
-    if (!user) {
-      throw new UserNotFoundException();
-    }
-
-    return user;
+  async findByPhone(phone: string) {
+    return this.findOneBy(eq(user.phone, phone));
   }
 
-  async changeUserPassword(userId: string, newPasswordHash: string) {
-    await this.repository.safeUpdate(userId, { password: newPasswordHash });
+  async changePassword(userId: string, newPassword: string) {
+    const updated = await this.db
+      .update(user)
+      .set({ password: await this.passwordService.hash(newPassword) })
+      .where(eq(user.id, userId))
+      .returning({ id: user.id });
+
+    if (updated.length === 0) throw new UserNotFoundException();
+  }
+
+  private async findOneBy(condition: SQL) {
+    return firstOrThrow(
+      await this.db.select().from(user).where(condition),
+      () => new UserNotFoundException(),
+    );
   }
 }

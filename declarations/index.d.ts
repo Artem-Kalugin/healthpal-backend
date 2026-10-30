@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { JoinColumnOptions, JoinTableOptions } from 'typeorm';
-
 export interface JwtContent {
   id: string;
   registrationComplete?: boolean;
@@ -14,28 +12,11 @@ declare global {
   }
 }
 
-type ManyToManyJoinOptions = RequiredAll<
-  Pick<JoinTableOptions, 'name' | 'joinColumn' | 'inverseJoinColumn'>
->;
-type ManyToOneJoinOptions = RequiredAll<Pick<JoinColumnOptions, 'name'>> &
-  Omit<JoinColumnOptions, 'name'>;
-
-type MinimalManyToManyJoinOptions =
-  ManyToManyJoinOptions | ManyToOneJoinOptions;
-
-type RequiredAll<T> = {
-  [K in keyof T]-?: T[K];
-};
-
-type AliasedSlugs<
-  Alias extends string,
-  T extends object,
-> = `${Alias}.${keyof T}`;
 export interface EnvironmentVariables {
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   JWT_EXPIRES_IN: string;
-  JWT_REFRESH_TTL: string;
+  JWT_REFRESH_TTL: number;
 
   DATABASE_HOST?: string;
   DATABASE_PORT?: number;

@@ -1,61 +1,54 @@
-import { DataSource } from 'typeorm';
-import { Appointment } from 'src/entities/appointment.entity';
-import { DoctorCategory } from 'src/entities/doctor-category.entity';
-import { DoctorSchedule } from 'src/entities/doctor-schedule.entity';
-import { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { OnboardingSlide } from 'src/entities/onboarding-slide.entity';
-import { UserFavoriteDoctor } from 'src/entities/user-favorite-doctor.relation';
-import { UserFavoriteMedicalCenter } from 'src/entities/user-favorite-medical-center.relation';
-import { User } from 'src/entities/user.entity';
+import { getTableName, is } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { PgTable } from 'drizzle-orm/pg-core';
+import { Pool } from 'pg';
+import type { Database } from 'src/db/db.module';
+import * as schema from 'src/db/schema';
 
-const ENTITIES = [
-  Appointment,
-  Doctor,
-  DoctorCategory,
-  DoctorSchedule,
-  DoctorTimeSlot,
-  MedicalCenter,
-  OnboardingSlide,
-  User,
-  UserFavoriteDoctor,
-  UserFavoriteMedicalCenter,
-];
+export type TestDb = { db: Database; pool: Pool };
+
+const TABLES = Object.values(schema).filter(value =>
+  is(value, PgTable),
+) as unknown as PgTable[];
+
+/** Recreates the schema and applies migrations from `drizzle/`; e2e calls it on the app connection. */
+export const resetSchema = async (db: Database) => {
+  await db.execute('DROP SCHEMA IF EXISTS drizzle CASCADE');
+  await db.execute('DROP SCHEMA IF EXISTS public CASCADE');
+  await db.execute('CREATE SCHEMA public');
+  await migrate(db, { migrationsFolder: 'drizzle' });
+};
 
 /**
- * Подключение к тестовой БД с пересозданием схемы.
- * `dropSchema` разрушителен, поэтому работаем только с БД, имя которой оканчивается на `_test`.
+ * Connection to the test DB that recreates the schema via migrations from `drizzle/`.
+ * The reset is destructive, so we only work with a DB whose name ends with `_test`.
  */
-export const createTestDataSource = async () => {
+export const createTestDb = async (): Promise<TestDb> => {
   const database = process.env.TEST_DATABASE_NAME ?? 'healthpal_test';
 
   if (!database.endsWith('_test')) {
     throw new Error(
-      `Интеграционные тесты сбрасывают схему, имя БД должно оканчиваться на "_test", получено "${database}"`,
+      `Integration tests reset the schema, the DB name must end with "_test", got "${database}"`,
     );
   }
 
-  const dataSource = new DataSource({
-    type: 'postgres',
+  const pool = new Pool({
     host: process.env.TEST_DATABASE_HOST ?? 'localhost',
     port: Number(process.env.TEST_DATABASE_PORT ?? 5433),
-    username: process.env.TEST_DATABASE_USER ?? 'test',
+    user: process.env.TEST_DATABASE_USER ?? 'test',
     password: process.env.TEST_DATABASE_PASSWORD ?? 'test',
     database,
-    entities: ENTITIES,
-    synchronize: true,
-    dropSchema: true,
   });
+  const db = drizzle(pool, { casing: 'snake_case' });
 
-  return dataSource.initialize();
+  await resetSchema(db);
+
+  return { db, pool };
 };
 
-/** Очищает данные между тестами, схема остаётся. */
-export const clearDatabase = async (dataSource: DataSource) => {
-  const tables = dataSource.entityMetadatas
-    .map(meta => `"${meta.tableName}"`)
-    .join(', ');
+export const clearDatabase = async (db: Database) => {
+  const tables = TABLES.map(table => `"${getTableName(table)}"`).join(', ');
 
-  await dataSource.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
+  await db.execute(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
 };

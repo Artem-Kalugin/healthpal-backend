@@ -1,8 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { Image } from 'src/common/helpers/image.dto';
-import { favoritedByUserPropertyName } from 'src/domain/users/specification/with-user-favorite.specification';
-import { MedicalCenterType } from 'src/entities/medical-center.entity';
+import { Image } from 'src/common/entities/image.dto';
+import { MedicalCenterType } from 'src/db/enums';
 
 export class MedicalCenterResponseDto {
   @Expose()
@@ -21,7 +20,7 @@ export class MedicalCenterResponseDto {
   reviewsCount: string;
 
   @Expose()
-  rating: string;
+  rating: string | null;
 
   @Expose()
   image: Image;
@@ -37,8 +36,7 @@ export class MedicalCenterResponseDto {
   type: MedicalCenterType;
 
   @Expose()
-  @ApiProperty()
-  [favoritedByUserPropertyName]: boolean;
+  isFavorite: boolean;
 
   @Expose()
   distance?: number;

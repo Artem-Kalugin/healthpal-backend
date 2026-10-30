@@ -1,30 +1,36 @@
-import { DataSource } from 'typeorm';
-import { createSafeRepository } from 'src/common/helpers/safe-repository.provider';
+import type { Pool } from 'pg';
+import { ErrorCode } from 'src/common/errors/error-code';
+import type { Database } from 'src/db/db.module';
+import { DoctorCategoryType } from 'src/db/enums';
+import { userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
-import { DoctorSearchQueryDto } from 'src/domain/doctor/dto/doctor-search-query.dto';
+import { DoctorFavoriteService } from 'src/domain/doctor/modules/doctor-favorite/doctor-favorite.service';
+import {
+  DoctorSearchQueryDto,
+  DoctorSort,
+} from 'src/domain/doctor/dto/doctor-search-query.dto';
 import { SortOrder } from 'src/common/config';
-import { DoctorCategoryType } from 'src/entities/doctor-category.entity';
-import { Doctor } from 'src/entities/doctor.entity';
-import { UserFavoriteDoctor } from 'src/entities/user-favorite-doctor.relation';
-import { createTestDataSource } from './db';
+import { createTestDb } from './db';
 import { createFactories } from './factories';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const [D1, D2, D3, D4] = [id(1), id(2), id(3), id(4)];
 
 /**
- * Датасет подобран под тай-брейки: у D2 и D3 одинаковые рейтинг и год практики,
- * у D2 и D4 — число отзывов. Читаем только, поэтому сидим один раз.
+ * The dataset is tuned for tie-breaks: D2 and D3 share rating and practice year,
+ * D2 and D4 share the review count. Read-only, so it is seeded once.
  *
- * | врач | центр | категория  | рейтинг | отзывы | год  |
- * | D1   | Север | general    | 4.9     | 50     | 2005 |
- * | D2   | Север | cardiology | 4.5     | 20     | 2012 |
- * | D3   | Юг    | general    | 4.5     | 30     | 2012 |
- * | D4   | Юг    | cardiology | 3.0     | 20     | 2020 |
+ * | doctor | center | category   | rating | reviews | year |
+ * | D1   | North  | general    | 4.9     | 50     | 2005 |
+ * | D2   | North  | cardiology | 4.5     | 20     | 2012 |
+ * | D3   | South  | general    | 4.5     | 30     | 2012 |
+ * | D4   | South  | cardiology | 3.0     | 20     | 2020 |
  */
 describe('DoctorService (integration)', () => {
-  let dataSource: DataSource;
+  let db: Database;
+  let pool: Pool;
   let service: DoctorService;
+  let favoriteService: DoctorFavoriteService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
@@ -34,11 +40,10 @@ describe('DoctorService (integration)', () => {
   let southId: string;
 
   beforeAll(async () => {
-    dataSource = await createTestDataSource();
-    const factories = createFactories(dataSource);
-    service = new DoctorService(
-      createSafeRepository(dataSource.getRepository(Doctor)),
-    );
+    ({ db, pool } = await createTestDb());
+    const factories = createFactories(db);
+    service = new DoctorService(db);
+    favoriteService = new DoctorFavoriteService(db, service);
 
     const north = await factories.medicalCenter({
       name: 'Клиника Север',
@@ -61,8 +66,25 @@ describe('DoctorService (integration)', () => {
       doctorId: string,
       name: string,
       surname: string,
-      rest: Partial<Doctor>,
-    ) => factories.doctor({ id: doctorId, name, surname, ...rest });
+      rest: {
+        medicalCenter: { id: string };
+        category: { id: string };
+        rating: number;
+        reviewsCount: number;
+        practiceStartYear: number;
+      },
+    ) => {
+      const { medicalCenter, category, ...fields } = rest;
+
+      return factories.doctor({
+        id: doctorId,
+        name,
+        surname,
+        medicalCenterId: medicalCenter.id,
+        categoryId: category.id,
+        ...fields,
+      });
+    };
 
     await doctor(D1, 'Анна', 'Смирнова', {
       medicalCenter: north,
@@ -97,11 +119,11 @@ describe('DoctorService (integration)', () => {
     userB = (await factories.user()).id;
     userWithoutFavorites = (await factories.user()).id;
 
-    // Порядок добавления (D2, D1, D4) не совпадает ни с порядком id, ни с обратным
+    // The insertion order (D2, D1, D4) matches neither the id order nor its reverse
     const favorite = (userId: string, doctorId: string, createdAt: string) =>
-      dataSource
-        .getRepository(UserFavoriteDoctor)
-        .save({ userId, doctorId, createdAt: new Date(createdAt) });
+      db
+        .insert(userFavoriteDoctor)
+        .values({ userId, doctorId, createdAt: new Date(createdAt) });
     await favorite(userA, D2, '2026-01-01T00:00:00Z');
     await favorite(userA, D1, '2026-02-01T00:00:00Z');
     await favorite(userA, D4, '2026-03-01T00:00:00Z');
@@ -109,29 +131,27 @@ describe('DoctorService (integration)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    await pool.end();
   });
 
   const search = async (
     query: Partial<DoctorSearchQueryDto> = {},
     userId = userA,
   ) => {
-    const result = await service.searchDoctorsForUser({
+    const result = await service.searchForUser(userId, {
       page: 1,
       size: 10,
       ...query,
-      userId,
     });
 
     return result.data.map(item => item.id);
   };
 
-  describe('searchDoctorsForUser', () => {
-    it('возвращает всех врачей по id с центром, категорией и isFavorite', async () => {
-      const { data } = await service.searchDoctorsForUser({
+  describe('searchForUser', () => {
+    it('returns all doctors by id with center, category and isFavorite', async () => {
+      const { data } = await service.searchForUser(userA, {
         page: 1,
         size: 10,
-        userId: userA,
       });
 
       expect(data.map(item => item.id)).toEqual([D1, D2, D3, D4]);
@@ -141,12 +161,11 @@ describe('DoctorService (integration)', () => {
       });
     });
 
-    it('isFavorite считается для конкретного пользователя и не дублирует строки', async () => {
+    it('isFavorite is computed for a specific user and does not duplicate rows', async () => {
       const favoritesOf = async (userId: string) => {
-        const { data } = await service.searchDoctorsForUser({
+        const { data } = await service.searchForUser(userId, {
           page: 1,
           size: 10,
-          userId,
         });
 
         return data.map(item => [item.id, item.isFavorite]);
@@ -166,7 +185,7 @@ describe('DoctorService (integration)', () => {
       ]);
     });
 
-    it('фильтры по категории и центру работают по отдельности и вместе (AND)', async () => {
+    it('category and center filters work separately and together (AND)', async () => {
       await expect(search({ categoryId: cardiologyId })).resolves.toEqual([
         D2,
         D4,
@@ -180,14 +199,14 @@ describe('DoctorService (integration)', () => {
       ).resolves.toEqual([D3]);
     });
 
-    it('searchFor ищет по имени и фамилии, названию и адресу центра без учёта регистра', async () => {
+    it('searchFor matches first and last name, center name and address, case-insensitively', async () => {
       await expect(search({ searchFor: 'СИДОР' })).resolves.toEqual([D2]);
       await expect(search({ searchFor: 'борис сид' })).resolves.toEqual([D2]);
       await expect(search({ searchFor: 'север' })).resolves.toEqual([D1, D2]);
       await expect(search({ searchFor: 'МИРА' })).resolves.toEqual([D3, D4]);
     });
 
-    it('searchFor сочетается с фильтром как AND', async () => {
+    it('searchFor combines with a filter as AND', async () => {
       await expect(
         search({ searchFor: 'север', categoryId: cardiologyId }),
       ).resolves.toEqual([D2]);
@@ -197,37 +216,33 @@ describe('DoctorService (integration)', () => {
     });
 
     it.each(['%', '_', '\\'])(
-      'спецсимвол %s в searchFor считается обычным текстом',
+      'special character %s in searchFor is treated as plain text',
       async searchFor => {
         await expect(search({ searchFor })).resolves.toEqual([]);
       },
     );
 
     it.each([
-      ['rating', SortOrder.DESC, [D1, D2, D3, D4]],
-      ['rating', SortOrder.ASC, [D4, D2, D3, D1]],
-      ['reviews', SortOrder.DESC, [D1, D3, D2, D4]],
-      ['reviews', SortOrder.ASC, [D2, D4, D3, D1]],
-      ['practiceStartYear', SortOrder.DESC, [D4, D2, D3, D1]],
-      ['practiceStartYear', SortOrder.ASC, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, SortOrder.DESC, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, undefined, [D1, D2, D3, D4]],
+      [DoctorSort.RATING, SortOrder.ASC, [D4, D2, D3, D1]],
+      [DoctorSort.REVIEWS, SortOrder.DESC, [D1, D3, D2, D4]],
+      [DoctorSort.REVIEWS, SortOrder.ASC, [D2, D4, D3, D1]],
+      [DoctorSort.PRACTICE_START_YEAR, SortOrder.DESC, [D4, D2, D3, D1]],
+      [DoctorSort.PRACTICE_START_YEAR, SortOrder.ASC, [D1, D2, D3, D4]],
     ] as const)(
-      'sort=%s order=%s, равные значения идут по id',
+      'sort=%s order=%s (descending by default), equal values are ordered by id',
       async (sort, order, expected) => {
         await expect(search({ sort, order })).resolves.toEqual(expected);
       },
     );
 
-    it('без order сортирует по убыванию', async () => {
-      await expect(search({ sort: 'rating' })).resolves.toEqual([
-        D1,
-        D2,
-        D3,
-        D4,
-      ]);
-    });
-
-    it('страницы с join не пересекаются и вместе дают всех врачей', async () => {
-      const query = { sort: 'rating', order: SortOrder.ASC, size: 2 } as const;
+    it('pages with a join do not overlap and together give all doctors', async () => {
+      const query = {
+        sort: DoctorSort.RATING,
+        order: SortOrder.ASC,
+        size: 2,
+      } as const;
 
       const first = await search({ ...query, page: 1 });
       const second = await search({ ...query, page: 2 });
@@ -239,8 +254,7 @@ describe('DoctorService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) => {
-      const { data } = await service.findFavoritesForUser({
-        userId,
+      const { data } = await favoriteService.findFavoritesForUser(userId, {
         page,
         size,
       });
@@ -248,7 +262,10 @@ describe('DoctorService (integration)', () => {
       return data;
     };
 
-    it('возвращает только избранное пользователя, последние добавленные первыми', async () => {
+    it('returns only the favorites of the user, most recently added first', async () => {
+      expect((await favoritesFor(userB)).map(item => item.id)).toEqual([D1]);
+      await expect(favoritesFor(userWithoutFavorites)).resolves.toEqual([]);
+
       const data = await favoritesFor(userA);
 
       expect(data.map(item => item.id)).toEqual([D4, D1, D2]);
@@ -259,12 +276,7 @@ describe('DoctorService (integration)', () => {
       });
     });
 
-    it('не подмешивает избранное других пользователей', async () => {
-      expect((await favoritesFor(userB)).map(item => item.id)).toEqual([D1]);
-      await expect(favoritesFor(userWithoutFavorites)).resolves.toEqual([]);
-    });
-
-    it('страницы не пересекаются', async () => {
+    it('pages do not overlap', async () => {
       const first = await favoritesFor(userA, 1, 2);
       const second = await favoritesFor(userA, 2, 2);
 
@@ -276,7 +288,7 @@ describe('DoctorService (integration)', () => {
   });
 
   describe('findOneForUser', () => {
-    it('возвращает врача с центром, категорией и isFavorite для пользователя', async () => {
+    it('returns a doctor with center, category and isFavorite for the user', async () => {
       await expect(service.findOneForUser(userA, D2)).resolves.toMatchObject({
         id: D2,
         isFavorite: true,
@@ -287,6 +299,12 @@ describe('DoctorService (integration)', () => {
         id: D2,
         isFavorite: false,
       });
+    });
+
+    it('nonexistent doctor → DOCTOR_NOT_FOUND', async () => {
+      await expect(
+        service.findOneForUser(userA, '00000000-0000-4000-8000-000000000999'),
+      ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
     });
   });
 });

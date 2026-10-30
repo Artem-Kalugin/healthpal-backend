@@ -1,33 +1,33 @@
 #!/usr/bin/env node
-// Показывает, какие тестовые файлы выполняют функции исходных файлов, чтобы находить
-// ситуации, когда один хелпер проверяют заново в тестах разных модулей.
+// Shows which test files execute the functions of source files, to find
+// cases where one helper is tested again in the tests of different modules.
 //
-// Каждый тестовый файл (unit, integration, e2e) запускается в Jest отдельно с coverage,
-// затем собирается матрица «функция -> тестовые файлы». Это покрытие по выполнению, а не
-// по проверкам: файл в списке значит «код выполнился», а не «тест что-то утверждает».
-// Чтобы понять, дублируются ли проверки, нужно открыть сами тесты.
+// Each test file (unit, integration, e2e) runs in Jest separately with coverage,
+// then a "function -> test files" matrix is built. This is execution coverage, not
+// assertion coverage: a file in the list means "the code ran", not "the test asserts something".
+// To tell whether assertions are duplicated, open the tests themselves.
 //
-// Дополнительно считается число тест-кейсов (it) в каждом файле, выполнивших исходный файл.
-// Это делает scripts/coverage-case-environment.cjs: он снимает счётчики покрытия вокруг
-// тела каждого теста. Код, выполненный только в beforeAll или при загрузке модулей
-// (инфраструктура), даёт 0 кейсов: файл «трогает» исходник, но ни один кейс не выполняет его
-// в своём теле. Кейс считается один раз, сколько бы функций файла он ни выполнил.
+// It also counts the test cases (it) in each file that executed the source file.
+// This is done by scripts/coverage-case-environment.cjs: it takes coverage counters around
+// the body of each test. Code executed only in beforeAll or on module load
+// (infrastructure) gives 0 cases: the file "touches" the source, but no case executes it
+// in its body. A case is counted once, however many functions of the file it executed.
 //
-// Известные и проверенные случаи, где пересечение допустимо, записаны в
-// scripts/not-overlapping.json (рядом с этим файлом). Для них отчёт пишет «ok» и причину.
-// Если появился новый тестовый файл, выполняющий такой хелпер, он не входит в список
-// допустимых и пересечение снова попадёт в отчёт.
+// Known and verified cases where overlap is acceptable are recorded in
+// scripts/not-overlapping.json (next to this file). The report prints "ok" and the reason for them.
+// If a new test file that executes such a helper appears, it is not in the list
+// of acceptable ones and the overlap will show up in the report again.
 //
-// Для int и e2e нужны тестовые БД и Redis: `pnpm test:db:up`.
+// int and e2e need the test DB and Redis: `pnpm test:db:up`.
 //
-// Использование:
-//   node scripts/coverage-overlap.mjs                  # хелперы, все наборы
+// Usage:
+//   node scripts/coverage-overlap.mjs                  # helpers, all suites
 //   node scripts/coverage-overlap.mjs --only 'domain/doctor/.*\.ts'
-//   node scripts/coverage-overlap.mjs --suites unit    # unit,int,e2e через запятую
-//   node scripts/coverage-overlap.mjs --reuse          # не перезапускать Jest, взять прошлый результат
-//   node scripts/coverage-overlap.mjs --min 3          # показывать файлы от N тестовых файлов
+//   node scripts/coverage-overlap.mjs --suites unit    # unit,int,e2e comma-separated
+//   node scripts/coverage-overlap.mjs --reuse          # do not rerun Jest, reuse the previous result
+//   node scripts/coverage-overlap.mjs --min 3          # show files with N or more test files
 //   node scripts/coverage-overlap.mjs --reuse --record-cases
-//       # записать текущее число кейсов в scripts/not-overlapping.json для файлов из списка
+//       # record the current case count in scripts/not-overlapping.json for the files in the list
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -98,7 +98,7 @@ const runSuite = name => {
     const jestArgs = [
       'jest',
       ...suite.jestArgs,
-      // для int и e2e rootDir уже корень репозитория, для unit это src
+      // for int and e2e rootDir is already the repository root, for unit it is src
       ...(name === 'unit' ? [] : ['--collectCoverageFrom=src/**/*.ts']),
       '--coverage',
       '--coverageReporters=json',
@@ -106,7 +106,7 @@ const runSuite = name => {
       '--runInBand',
       '--silent',
       `--testEnvironment=${caseEnvironment}`,
-      // путь теста относительно rootDir конфигурации
+      // test path relative to the config rootDir
       name === 'unit' ? relative('src', file) : file,
     ];
     const { status, stdout, stderr } = spawnSync('npx', jestArgs, {
@@ -130,20 +130,20 @@ if (!reuse) {
 }
 
 if (!existsSync(outRoot)) {
-  console.error('Нет данных, запустите без --reuse');
+  console.error('No data, run without --reuse');
   process.exit(1);
 }
 
-// src-файл -> функция -> Set<тестовый файл>
+// src file -> function -> Set<test file>
 const matrix = new Map();
-// src-файл -> тестовый файл -> Set<кейс>; функция -> тестовый файл -> Set<кейс>
+// src file -> test file -> Set<case>; function -> test file -> Set<case>
 const caseMatrix = new Map();
 const fnCaseMatrix = new Map();
-// тестовый файл -> число выполненных кейсов
+// test file -> number of executed cases
 const totalCases = new Map();
 
-// Номера строк в отчёте покрытия пересчитаны на исходный TS, а в окружении Jest остаются
-// от транспилированного JS, поэтому функции из двух источников сопоставляются по имени.
+// Line numbers in the coverage report are mapped to the source TS, while in the Jest environment they stay
+// from the transpiled JS, so functions from the two sources are matched by name.
 const withoutLine = fnName => fnName.replace(/@\d+$/, '');
 
 const addTo = (map, ...keys) => {
@@ -219,7 +219,7 @@ const allowlist = existsSync(allowlistPath)
   ? JSON.parse(readFileSync(allowlistPath, 'utf8'))
   : {};
 
-/** Число кейсов в каждом тестовом файле, выполнивших исходный файл. */
+/** Number of cases in each test file that executed the source file. */
 const casesOf = source =>
   Object.fromEntries(
     [...(caseMatrix.get(source) ?? [])].map(([test, set]) => [test, set.size]),
@@ -245,7 +245,7 @@ const isAllowed = (source, tests) => {
     ? {
         entry: null,
         grown: grown.map(
-          ([test, n]) => `${test}: было ${n}, стало ${actual[test]}`,
+          ([test, n]) => `${test}: was ${n}, now ${actual[test]}`,
         ),
       }
     : { entry };
@@ -270,7 +270,7 @@ for (const [source, functions] of [...matrix].sort()) {
   const totalForSource = Object.values(actual).reduce((sum, n) => sum + n, 0);
 
   console.log(
-    `\n${entry ? 'ok ' : '!! '} ${source} (тестовых файлов: ${tests.length}, кейсов: ${totalForSource})`,
+    `\n${entry ? 'ok ' : '!! '} ${source} (test files: ${tests.length}, cases: ${totalForSource})`,
   );
 
   if (entry) {
@@ -279,7 +279,7 @@ for (const [source, functions] of [...matrix].sort()) {
 
   if (grown) {
     console.log(
-      `     Число кейсов выросло относительно записанного: ${grown.join('; ')}`,
+      `     The case count grew compared to the recorded one: ${grown.join('; ')}`,
     );
   }
 
@@ -287,7 +287,7 @@ for (const [source, functions] of [...matrix].sort()) {
     const count = actual[test] ?? 0;
 
     console.log(
-      `     ${test}: ${count === 0 ? 'только setup/загрузка' : `${count} из ${totalCases.get(test)} кейсов`}`,
+      `     ${test}: ${count === 0 ? 'setup/load only' : `${count} of ${totalCases.get(test)} cases`}`,
     );
   }
 
@@ -299,12 +299,12 @@ for (const [source, functions] of [...matrix].sort()) {
     const cases = [...byTest.values()].reduce((sum, c) => sum + c.size, 0);
 
     console.log(
-      `  ${String(set.size).padStart(2)} ф. ${String(cases).padStart(3)} к.  ${name}`,
+      `  ${String(set.size).padStart(2)} f. ${String(cases).padStart(3)} c.  ${name}`,
     );
   }
 }
 
-console.log(`\nТребуют проверки: ${flagged}`);
+console.log(`\nNeed review: ${flagged}`);
 
 if (recordCases) {
   for (const source of Object.keys(allowlist)) {
@@ -314,5 +314,5 @@ if (recordCases) {
   }
 
   writeFileSync(allowlistPath, `${JSON.stringify(allowlist, null, 2)}\n`);
-  console.log(`Число кейсов записано в ${relative(root, allowlistPath)}`);
+  console.log(`Case count recorded in ${relative(root, allowlistPath)}`);
 }

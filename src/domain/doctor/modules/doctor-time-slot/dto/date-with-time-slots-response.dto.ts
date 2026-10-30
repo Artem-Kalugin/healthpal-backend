@@ -8,8 +8,6 @@ export class TimeSlotDto {
   id: string;
   @Expose()
   endTime: string;
-  @Expose()
-  available: boolean;
 }
 
 export class DateWithTimeSlots {

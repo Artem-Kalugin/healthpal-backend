@@ -1,11 +1,9 @@
-import {
-  Injectable,
-  BadRequestException,
-  ParseFilePipeBuilder,
-} from '@nestjs/common';
+import { Injectable, ParseFilePipeBuilder } from '@nestjs/common';
 import sharp from 'sharp';
 import { rgbaToThumbHash } from 'thumbhash';
 import { FileStorageService } from './file-storage.service';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 type ImageType = 'avatar' | 'onboarding' | 'medical-centers' | 'doctors';
 interface ImageProcessingOptions {
@@ -92,12 +90,10 @@ export class ImageFileStorageService {
         this.fileService.deleteFile(imagePath);
       }
 
-      // eslint-disable-next-line
-      //TODO: File service error
-      throw new BadRequestException(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        `Failed to process image: ${error.message}`,
-      );
+      throw new AppException(ErrorCode.IMAGE_INVALID, {
+        message: `Failed to process image: ${error instanceof Error ? error.message : String(error)}`,
+        cause: error,
+      });
     }
   }
 

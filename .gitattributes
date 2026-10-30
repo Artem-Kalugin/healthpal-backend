@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+drizzle/meta/*.json linguist-generated=true
+pnpm-lock.yaml linguist-generated=true

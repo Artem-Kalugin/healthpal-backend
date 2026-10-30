@@ -1,31 +1,33 @@
-import { BadRequestException } from '@nestjs/common';
-import { APPOINTMENT_MIN_LEAD_MINUTES } from 'src/common/config';
-import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
-import type { DoctorTimeSlot } from 'src/entities/doctor-time-slot.entity';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
+import {
+  addMinutes,
+  getSlotStart,
+} from 'src/domain/medical-center/helpers/clinic-time';
+type Startable = { date: string; startTime: string };
 
-type Startable = Pick<DoctorTimeSlot, 'date' | 'startTime'>;
+const APPOINTMENT_MIN_LEAD_MINUTES = 120;
 
-/** Приём должен начинаться не раньше `now + APPOINTMENT_MIN_LEAD_MINUTES` по часам центра. */
+/** The start must be no earlier than `now + APPOINTMENT_MIN_LEAD_MINUTES` on the center's clock. */
 export const assertBookingWindow = (
   target: Startable,
   timezone: string,
-  message = 'Слишком мало времени до начала приёма',
+  message = 'Too little time before the start',
 ) => {
   const earliest = addMinutes(new Date(), APPOINTMENT_MIN_LEAD_MINUTES);
 
   if (getSlotStart(target.date, target.startTime, timezone) < earliest) {
-    throw new BadRequestException(message);
+    throw new AppException(ErrorCode.APPOINTMENT_TOO_SOON, { message });
   }
 };
 
-/** Слот принадлежит врачу и попадает в окно записи. */
 export const assertSlotBookable = (
-  slot: Startable & { doctor: { id: string } },
+  slot: Startable & { doctorId: string },
   doctorId: string,
   timezone: string,
 ) => {
-  if (slot.doctor.id !== doctorId) {
-    throw new BadRequestException('Тайм слот не принадлежит этому врачу');
+  if (slot.doctorId !== doctorId) {
+    throw new AppException(ErrorCode.TIME_SLOT_DOCTOR_MISMATCH);
   }
 
   assertBookingWindow(slot, timezone);

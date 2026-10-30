@@ -1,114 +1,71 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { SafeRepository } from 'src/common/helpers/safe-repository.provider';
-import { getEntityRepository } from 'src/common/helpers/get-entity-repository';
-import { MedicalCenter } from 'src/entities/medical-center.entity';
-import { UserJoinsStructure, UserRelationKeys } from 'src/entities/user.entity';
-import {
-  favoritedByUserAtPropertyName,
-  WithIsUserFavorite,
-} from '../users/specification/with-user-favorite.specification';
-import { WithDistance } from './specifications/with-distance.specification';
-import { WithOrderBy } from './specifications/with-order-by.specification';
-import { mapMedicalCenterWithRaw } from './medical-center.mapper';
-import { WithDoctorsAggregates } from './specifications/with-doctors-aggregates.specification';
-import { MedicalCenterFavoritesQueryDto } from './dto/medical-center-favorites.dto';
-import { SortOrder } from 'src/common/config';
-import { getPaginatedUsingLimitOffset } from 'src/common/helpers/pagination/paginate';
+import { asc } from 'drizzle-orm';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { existsById } from 'src/db/exists';
+import { descNullsLast } from 'src/db/order';
+import { medicalCenter } from 'src/db/schema';
+import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
+import { distanceTo, rating, selectCenters } from './medical-center.queries';
 
-type BaseQueryEntity = MedicalCenter & {
-  isFavorite: boolean;
-  rating: string;
+const TOP_LIMIT = 5;
+/** Average walking speed, km/h. */
+const WALKING_SPEED = 5;
+
+type CenterRow = typeof medicalCenter.$inferSelect & {
   reviewsCount: string;
+  rating: string | null;
+  isFavorite: boolean;
+  distance?: number;
+  walkingTimeMinutes?: number;
 };
-const ALIAS = 'center' as const;
-
-const UserFavoriteMeta =
-  UserJoinsStructure[UserRelationKeys.FAVORITE_MEDICAL_CENTERS];
 
 @Injectable()
-export class MedicalCentersService {
-  constructor(
-    @Inject(getEntityRepository(MedicalCenter.name))
-    private readonly repo: SafeRepository<MedicalCenter>,
-  ) {}
+export class MedicalCenterService {
+  constructor(@Inject(DB) private readonly db: Database) {}
 
-  async findWithDistanceForUser(
+  async existsById(medicalCenterId: string) {
+    return existsById(this.db, medicalCenter, medicalCenterId);
+  }
+
+  /** With coordinates, centers are sorted by distance; without, by rating. */
+  async findForUser(
+    userId: string,
+    query: GetMedicalCentersDto,
+  ): Promise<CenterRow[]> {
+    const { lat, lon, shouldTake5Only } = query;
+
+    return lat && lon
+      ? this.findWithDistance(userId, +lat, +lon, shouldTake5Only)
+      : this.findByRating(userId, shouldTake5Only);
+  }
+
+  private async findWithDistance(
     userId: string,
     lat: number,
     lon: number,
-    top5Only: boolean,
+    shouldTake5Only: boolean,
   ) {
-    const qb = this.buildBaseQueryForUser(userId);
+    const distance = distanceTo({ lat, lon });
+    const query = selectCenters(this.db, userId, { distance }).orderBy(
+      asc(distance),
+      asc(medicalCenter.id),
+    );
 
-    new WithDistance(ALIAS, lat, lon).apply(qb);
-    const qbWithDistance = new WithOrderBy<
-      'distance',
-      typeof ALIAS,
-      BaseQueryEntity & {
-        distance: number;
-      }
-      // @ts-expect-error attaches distance
-    >('distance', 'ASC').apply(qb);
-    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
+    const rows = await (shouldTake5Only ? query.limit(TOP_LIMIT) : query);
 
-    if (top5Only) {
-      qbWithDistance.take(5);
-    }
-
-    return mapMedicalCenterWithRaw(await qb.getRawAndEntities());
+    return rows.map(center => ({
+      ...center,
+      walkingTimeMinutes: Math.round((center.distance / WALKING_SPEED) * 60),
+    }));
   }
 
-  async findByRatingForUser(userId: string, top5Only: boolean) {
-    const qb = this.buildBaseQueryForUser(userId);
+  private async findByRating(userId: string, shouldTake5Only: boolean) {
+    const query = selectCenters(this.db, userId).orderBy(
+      descNullsLast(rating),
+      asc(medicalCenter.id),
+    );
 
-    const qbOrderedByRating = new WithOrderBy<
-      'rating',
-      typeof ALIAS,
-      BaseQueryEntity
-    >('rating', 'DESC', 'NULLS LAST').apply(qb);
-    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
-
-    if (top5Only) {
-      qbOrderedByRating.take(5);
-    }
-
-    return mapMedicalCenterWithRaw(await qbOrderedByRating.getRawAndEntities());
-  }
-
-  async findFavoritesForUser(
-    parameters: MedicalCenterFavoritesQueryDto & { userId: string },
-  ) {
-    const { userId, page, size } = parameters;
-    const qb = this.buildBaseQueryForUser(userId);
-
-    qb.andWhere(`t.${UserFavoriteMeta.inverseJoinColumn.name} = :userId`, {
-      userId,
-    });
-
-    qb.orderBy(`"${favoritedByUserAtPropertyName}"`, SortOrder.DESC);
-    qb.addOrderBy(`${ALIAS}.id`, SortOrder.ASC);
-
-    const res = await getPaginatedUsingLimitOffset(qb, page, size);
-
-    return { ...res, data: mapMedicalCenterWithRaw(res.data) };
-  }
-
-  async existsById(medicalCenterId: string) {
-    return this.repo.existsBy({ id: medicalCenterId });
-  }
-
-  private buildBaseQueryForUser(userId: string) {
-    const qb = this.repo.createQueryBuilder(ALIAS);
-
-    const qbWithFavorite = new WithIsUserFavorite<
-      MedicalCenter & { isFavorite: boolean }
-      //@ts-expect-error attaches isFavorite
-    >(UserFavoriteMeta, ALIAS, userId, true).apply(qb);
-
-    const qbWithFavoriteWithDoctorsReviewsAndRating =
-      //@ts-expect-error attaches rating, reviewsCount
-      new WithDoctorsAggregates<BaseQueryEntity>(ALIAS).apply(qbWithFavorite);
-
-    return qbWithFavoriteWithDoctorsReviewsAndRating;
+    return shouldTake5Only ? query.limit(TOP_LIMIT) : query;
   }
 }

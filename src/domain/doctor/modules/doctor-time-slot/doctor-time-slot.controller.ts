@@ -1,41 +1,30 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Param,
-  SerializeOptions,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
+import { Controller, Get, Query, Param, ParseUUIDPipe } from '@nestjs/common';
 import { DoctorTimeSlotService } from './doctor-time-slot.service';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { DateWithTimeSlots } from './dto/date-with-time-slots-response.dto';
 import { TimeSlotsQueryDto } from './dto/time-slots-query.dto';
 import { TimeSlotsRangeResponseDto } from './dto/time-slots-range-response.dto';
 
 @ApiTags('Doctors')
-@ApiBearerJwtAuth()
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
+@Authenticated()
 @Controller('doctors/:doctorId/time-slots')
 export class DoctorTimeSlotController {
   constructor(private readonly service: DoctorTimeSlotService) {}
 
   @Get()
-  @ApiOkResponse({ type: DateWithTimeSlots, isArray: true })
-  @SerializeOptions({ type: DateWithTimeSlots })
-  async getSlots(
+  @ApiSerialized(DateWithTimeSlots, { isArray: true })
+  async list(
     @Param('doctorId', ParseUUIDPipe) doctorId: string,
     @Query() { startDate, endDate }: TimeSlotsQueryDto,
   ) {
-    return this.service.getSlotsForDoctor(doctorId, startDate, endDate);
+    return this.service.getAvailable(doctorId, startDate, endDate);
   }
 
   @Get('/range')
-  @ApiOkResponse({ type: TimeSlotsRangeResponseDto })
-  @SerializeOptions({ type: TimeSlotsRangeResponseDto })
-  async getSlotsRange(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
-    return this.service.getSlotsRange(doctorId);
+  @ApiSerialized(TimeSlotsRangeResponseDto)
+  async getRange(@Param('doctorId', ParseUUIDPipe) doctorId: string) {
+    return this.service.getAvailableRange(doctorId);
   }
 }

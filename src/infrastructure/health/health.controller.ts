@@ -1,21 +1,19 @@
-import {
-  Controller,
-  Get,
-  Inject,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
-  TypeOrmHealthIndicator,
   MemoryHealthIndicator,
   HealthIndicatorResult,
 } from '@nestjs/terminus';
+import { sql } from 'drizzle-orm';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { REDIS_PROVIDER_KEY } from '../redis/redis.module';
+import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { Redis } from 'ioredis';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { DB } from 'src/db/db.module';
+import type { Database } from 'src/db/db.module';
+import { Public } from 'src/common/decorators/public.decorator';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @ApiExcludeController()
 @Controller('health')
@@ -23,7 +21,7 @@ import { Public } from 'src/common/helpers/decorators/public.decorator';
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
-    private readonly database: TypeOrmHealthIndicator,
+    @Inject(DB) private readonly db: Database,
     private readonly memory: MemoryHealthIndicator,
     @Inject(REDIS_PROVIDER_KEY)
     private readonly redisClient: Redis,
@@ -39,7 +37,10 @@ export class HealthController {
 
     try {
       await this.health.check([
-        async () => this.database.pingCheck('database'),
+        async (): Promise<HealthIndicatorResult> => {
+          await this.db.execute(sql`select 1`);
+          return { database: { status: 'up' } };
+        },
         async () => this.memory.checkHeap('memory_heap', 512 * 1024 * 1024),
         async () => this.memory.checkRSS('memory_rss', 1024 * 1024 * 1024),
         redisCheck,
@@ -51,14 +52,10 @@ export class HealthController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        {
-          status: 'error',
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          message: error.message,
-        },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, {
+        message: error instanceof Error ? error.message : String(error),
+        cause: error,
+      });
     }
   }
 
@@ -69,7 +66,7 @@ export class HealthController {
 
     let databaseStatus = '';
     try {
-      await this.database.pingCheck('database');
+      await this.db.execute(sql`select 1`);
       databaseStatus = 'connected';
     } catch {
       databaseStatus = 'disconnected';

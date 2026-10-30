@@ -1,21 +1,28 @@
 name: Node.js CD
 
 on:
-  push:
+  workflow_run:
+    workflows: [ Node.js CI ]
+    types: [ completed ]
     branches: [ main ]
 
 jobs:
   deploy:
+    # deploy only after a green CI on push to main
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy using ssh
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.PRIVATE_KEY }}
           port: 22
+          envs: DEPLOY_SHA
           script: |
             set -e
             
@@ -24,7 +31,7 @@ jobs:
             
             echo "📥 Pulling latest code..."
             git fetch origin
-            git reset --hard origin/main
+            git reset --hard "$DEPLOY_SHA"
             git status
             
             echo "🔨 Building Docker images..."
@@ -44,7 +51,7 @@ jobs:
             if docker compose ps | grep -q "healthpal-ngrok"; then
               echo "✅ ngrok is running"
               
-              # Пробуем получить URL (с retries)
+              # Try to get the URL (with retries)
               for i in {1..10}; do
                 NGROK_URL=$(docker compose logs ngrok 2>/dev/null | grep -oP 'URL.*https://\K[^ ]+' | tail -1)
                 if [ -n "$NGROK_URL" ]; then

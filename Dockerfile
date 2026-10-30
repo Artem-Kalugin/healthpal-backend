@@ -30,6 +30,7 @@ RUN mkdir -p /app/uploads/public /app/uploads/protected && \
 
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/drizzle ./drizzle
 COPY --chown=nestjs:nodejs package.json ./
 
 USER nestjs
@@ -41,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/main"]

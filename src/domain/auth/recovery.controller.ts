@@ -1,22 +1,16 @@
-import {
-  Body,
-  Controller,
-  Post,
-  SerializeOptions,
-  UseGuards,
-} from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { Body, Controller, Post } from '@nestjs/common';
+import { AuthThrottle } from 'src/domain/auth/helpers/auth-throttle.decorator';
 import { RecoveryService } from './recovery.service';
-import { ApiOkResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { AuthError } from 'src/common/errors/auth.error';
+import { ApiCreatedResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
-/** Этот класс используется только для swagger-документации, а не в runtime */
+/** This class is used only for swagger documentation, not at runtime */
 // eslint-disable-next-line @typescript-eslint/naming-convention, sonarjs/class-name
 class DemoOnly_SMSResponse {
   @ApiProperty()
@@ -24,35 +18,26 @@ class DemoOnly_SMSResponse {
 }
 @ApiTags('Auth')
 @Public()
-@UseGuards(ThrottlerGuard)
-@Throttle({ default: { limit: 10, ttl: 60_000 } })
+@AuthThrottle()
 @Controller('auth/recovery')
 export class RecoveryController {
   constructor(private readonly recoveryService: RecoveryService) {}
 
-  @ApiOkResponse({ type: DemoOnly_SMSResponse })
+  @ApiCreatedResponse({ type: DemoOnly_SMSResponse })
   @Post('otp/request')
   requestOtp(@Body() body: RequestOtpDto) {
     return this.recoveryService.requestOtp(body.phone);
   }
 
-  @ApiOkResponse({ type: VerifyOtpResponseDto })
   @Post('otp/verify')
-  @SerializeOptions({ type: VerifyOtpResponseDto })
+  @ApiSerialized(VerifyOtpResponseDto, { created: true })
   verifyOtp(@Body() body: VerifyOtpDto) {
     return this.recoveryService.verifyOtp(body.phone, body.otp);
   }
 
   @Post('reset-password')
-  @ApiOkResponse({ type: LoginResponseDto })
-  @SerializeOptions({ type: LoginResponseDto })
-  async resetPassword(@Body() body: ResetPasswordDto) {
-    const { token, password, confirmPassword } = body;
-
-    if (password !== confirmPassword) {
-      throw new AuthError('Пароли не совпадают');
-    }
-
-    return this.recoveryService.resetPassword(token, password);
+  @ApiSerialized(LoginResponseDto, { created: true })
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.recoveryService.resetPassword(body.token, body.password);
   }
 }

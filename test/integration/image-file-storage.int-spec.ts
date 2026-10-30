@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors/error-code';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -44,7 +44,7 @@ describe('ImageFileStorageService (integration)', () => {
     ['protected', true],
     ['public', false],
   ] as const)(
-    'deleteImage удаляет файл по пути, который вернул processAndSave (%s)',
+    'deleteImage removes the file at the path returned by processAndSave (%s)',
     async (kind, isProtected) => {
       const { image } = await service.processAndSave(
         source,
@@ -59,14 +59,14 @@ describe('ImageFileStorageService (integration)', () => {
     },
   );
 
-  it('ошибка после сохранения → BadRequest и файл откатывается', async () => {
+  it('error after saving → IMAGE_INVALID and the file is rolled back', async () => {
     jest.mocked(rgbaToThumbHash).mockImplementationOnce(() => {
       throw new Error('thumbhash failed');
     });
 
     await expect(
       service.processAndSave(source, 'avatar'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({ code: ErrorCode.IMAGE_INVALID });
 
     expect(filesIn('protected')).toHaveLength(0);
   });

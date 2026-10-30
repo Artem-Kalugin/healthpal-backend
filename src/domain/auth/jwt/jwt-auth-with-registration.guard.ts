@@ -1,15 +1,13 @@
-import {
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { IS_PUBLIC_KEY } from 'src/common/helpers/decorators/public.decorator';
-import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
+import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/decorators/auth-registration-type.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtContent } from 'declarations';
 import type { Request } from 'express';
+import { AppException } from 'src/common/errors/app.exception';
+import { ErrorCode } from 'src/common/errors/error-code';
 
 @Injectable()
 export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
@@ -42,7 +40,10 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
       .switchToHttp()
       .getRequest<Request & { user: JwtContent }>();
     const user = request.user;
-    if (!user) throw new ForbiddenException('Пользователь не найден');
+    if (!user)
+      throw new AppException(ErrorCode.UNAUTHORIZED, {
+        message: 'No user in the request after the token check',
+      });
 
     switch (requiredType) {
       case AuthGuardsByRegistration.COMPLETE_REGISTRATION:
@@ -56,14 +57,14 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
 
   private checkComplete(user: JwtContent) {
     if (user.registrationComplete !== true) {
-      throw new ForbiddenException('Регистрация не завершена');
+      throw new AppException(ErrorCode.REGISTRATION_INCOMPLETE);
     }
     return true;
   }
 
   private checkIncomplete(user: JwtContent) {
     if (user.registrationComplete !== false) {
-      throw new ForbiddenException('Регистрация уже завершена');
+      throw new AppException(ErrorCode.REGISTRATION_ALREADY_COMPLETE);
     }
     return true;
   }

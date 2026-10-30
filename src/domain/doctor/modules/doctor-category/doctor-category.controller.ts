@@ -1,26 +1,22 @@
-import { Controller, Get, SerializeOptions } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { DoctorCategoryService } from './doctor-category.service';
 import { DoctorCategoryResponseDto } from './dto/doctor-category-response.dto';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { AuthGuardsByRegistration } from 'src/common/config';
-import { ApiBearerJwtAuth } from 'src/common/helpers/decorators/api-bearer-auth.decorator';
 
 @ApiTags('Doctors')
 @Controller('/doctor-categories')
-@ApiBearerJwtAuth()
-@AuthRegistrationGuardType(AuthGuardsByRegistration.COMPLETE_REGISTRATION)
+@Authenticated()
 export class DoctorCategoryController {
   constructor(private readonly service: DoctorCategoryService) {}
 
   @Get()
-  @ApiOkResponse({
-    description: 'Список категорий врачей',
-    type: DoctorCategoryResponseDto,
+  @ApiSerialized(DoctorCategoryResponseDto, {
+    description: 'List of doctor categories',
     isArray: true,
   })
-  @SerializeOptions({ type: DoctorCategoryResponseDto })
-  async getAll(): Promise<DoctorCategoryResponseDto[]> {
-    return await this.service.findAll();
+  list() {
+    return this.service.find();
   }
 }
