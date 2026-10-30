@@ -7,7 +7,7 @@ import {
 } from '@nestjs/terminus';
 import { sql } from 'drizzle-orm';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { REDIS_PROVIDER_KEY } from '../redis/redis.module';
+import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { Redis } from 'ioredis';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
@@ -53,8 +53,7 @@ export class HealthController {
       };
     } catch (error) {
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        message: error.message,
+        message: error instanceof Error ? error.message : String(error),
         cause: error,
       });
     }

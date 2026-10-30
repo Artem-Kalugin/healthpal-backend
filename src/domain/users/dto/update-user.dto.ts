@@ -1,5 +1,6 @@
 import {
   Allow,
+  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { Gender } from 'src/db/enums';
 import { rule, ValidationCode } from 'src/common/errors/validation-code';
+import { IsNotFutureDate } from 'src/common/validators/is-not-future-date.decorator';
 
 const NICKNAME_MAX = 32;
 
@@ -29,6 +31,8 @@ export class UpdateUserDto extends PartialType(
   @IsString(rule(ValidationCode.NOT_STRING))
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, rule(ValidationCode.DATE_FORMAT))
+  @IsDateString({ strict: true }, rule(ValidationCode.DATE_FORMAT))
+  @IsNotFutureDate()
   @ApiProperty({ description: 'Дата рождения', type: String, format: 'date' })
   birthday: string;
 

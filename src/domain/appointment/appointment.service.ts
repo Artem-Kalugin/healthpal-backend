@@ -11,7 +11,7 @@ import {
   doctorTimeSlot,
   medicalCenter,
 } from 'src/db/schema';
-import { centerOfDoctor } from '../doctor/doctor.queries';
+import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 import {
   appointmentStartAt,
   nestDoctor,

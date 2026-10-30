@@ -1,7 +1,7 @@
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { getTableColumnsExcluding } from 'src/db/columns';
 import type { Database } from 'src/db/db.module';
-import { centerOfDoctor } from '../doctor/doctor.queries';
+import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 import {
   appointment,
   doctor,

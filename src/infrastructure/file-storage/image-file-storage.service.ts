@@ -91,8 +91,7 @@ export class ImageFileStorageService {
       }
 
       throw new AppException(ErrorCode.IMAGE_INVALID, {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        message: `Failed to process image: ${error.message}`,
+        message: `Failed to process image: ${error instanceof Error ? error.message : String(error)}`,
         cause: error,
       });
     }

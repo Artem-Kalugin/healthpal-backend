@@ -46,11 +46,11 @@ export default tseslint.config(
       // Составной декоратор из `src/common/validators`.
       '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
         'error',
-        { additionalDecorators: ['IsPassword'] },
+        { additionalDecorators: ['IsPassword', 'IsNotFutureDate'] },
       ],
       '@darraghor/nestjs-typed/all-properties-have-explicit-defined': [
         'error',
-        { additionalDecorators: ['IsPassword'] },
+        { additionalDecorators: ['IsPassword', 'IsNotFutureDate'] },
       ],
     },
   },
@@ -66,6 +66,17 @@ export default tseslint.config(
   {
     files: ['**/*.ts'],
     rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../../*'],
+              message: 'Между папками импортируем от корня (src/...), ../ только на один уровень.',
+            },
+          ],
+        },
+      ],
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/naming-convention': [
         'error',

@@ -95,6 +95,29 @@ describe('Users (e2e)', () => {
     expect(body).not.toHaveProperty('password');
   });
 
+  it.each([
+    {
+      title: 'несуществующая дата',
+      birthday: '2026-13-45',
+      code: 'DATE_FORMAT',
+    },
+    { title: '31 февраля', birthday: '2001-02-31', code: 'DATE_FORMAT' },
+    { title: 'дата в будущем', birthday: '2999-01-01', code: 'DATE_IN_FUTURE' },
+  ])('PATCH /users/me: $title в birthday → 400', async ({ birthday, code }) => {
+    const user = await factories.user({ registrationComplete: true });
+
+    const { status, body } = await me('patch', await tokenFor(user), {
+      birthday,
+    });
+
+    expect(status).toBe(400);
+    expect(body.code).toBe('VALIDATION_FAILED');
+    expect(body.validation as Record<string, unknown>).toHaveProperty(
+      'birthday',
+      expect.arrayContaining([{ code }]),
+    );
+  });
+
   it('GET /users/me для удалённого пользователя → 401', async () => {
     const user = await factories.user({ registrationComplete: true });
     const token = await tokenFor(user);

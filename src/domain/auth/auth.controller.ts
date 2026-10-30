@@ -11,11 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UsersService } from '../users/users.service';
+import { CreateUserDto } from 'src/domain/users/dto/create-user.dto';
+import { UsersService } from 'src/domain/users/users.service';
 import { AuthService } from './auth.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { UpdateUserDto } from 'src/domain/users/dto/update-user.dto';
 import { avatarValidator } from 'src/infrastructure/file-storage/image-file-storage.service';
 import { AuthGuardsByRegistration } from 'src/common/config';
 import { Public } from 'src/common/helpers/decorators/public.decorator';

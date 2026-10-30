@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
+import { UsersService } from 'src/domain/users/users.service';
 import { LoginDto } from './dto/login.dto';
-import { UserResponseDto } from '../users/dto/user-response.dto';
+import { UserResponseDto } from 'src/domain/users/dto/user-response.dto';
 import type { User } from 'src/db/schema';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
@@ -13,7 +13,7 @@ import { EnvironmentVariables } from 'declarations';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
-import { UserNotFoundException } from '../users/exceptions/user-not-found.exception';
+import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
 
 // Сверка и удаление атомарны: неверный токен не сжигает чужой ключ,
 // а параллельные запросы с одним токеном не пройдут оба.

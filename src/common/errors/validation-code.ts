@@ -28,6 +28,7 @@ export enum ValidationCode {
   PASSWORD_WEAK = 'PASSWORD_WEAK',
   NUMBER_FORMAT = 'NUMBER_FORMAT',
   DATE_FORMAT = 'DATE_FORMAT',
+  DATE_IN_FUTURE = 'DATE_IN_FUTURE',
   NAME_FORMAT = 'NAME_FORMAT',
   NICKNAME_HAS_SPACES = 'NICKNAME_HAS_SPACES',
 }
@@ -55,6 +56,7 @@ export interface ValidationParameters {
   [ValidationCode.PASSWORD_WEAK]: undefined;
   [ValidationCode.NUMBER_FORMAT]: undefined;
   [ValidationCode.DATE_FORMAT]: undefined;
+  [ValidationCode.DATE_IN_FUTURE]: undefined;
   [ValidationCode.NAME_FORMAT]: undefined;
   [ValidationCode.NICKNAME_HAS_SPACES]: undefined;
 }

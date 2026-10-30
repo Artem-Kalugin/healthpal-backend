@@ -11,7 +11,7 @@ import {
   doctorTimeSlot,
   medicalCenter,
 } from 'src/db/schema';
-import { centerOfDoctor } from '../../doctor.queries';
+import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 

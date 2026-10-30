@@ -5,7 +5,7 @@ import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { ScheduleDay } from 'src/db/enums';
 import { doctorSchedule } from 'src/db/schema';
-import { DoctorService } from '../../doctor.service';
+import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { ScheduleRecord } from './dto/doctor-schedule-response.dto';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';

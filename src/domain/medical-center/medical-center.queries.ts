@@ -5,7 +5,7 @@ import {
   medicalCenter,
   userFavoriteMedicalCenter,
 } from 'src/db/schema';
-import { centerOfDoctor } from '../doctor/doctor.queries';
+import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 
 export type Point = { lat: number; lon: number };
 

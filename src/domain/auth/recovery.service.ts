@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { UsersService } from '../users/users.service';
+import { UsersService } from 'src/domain/users/users.service';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 import { AuthService } from './auth.service';
