@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { existsById } from 'src/db/exists';
 import { descNullsLast } from 'src/db/order';
 import type { Locale } from 'src/common/i18n/locale';
 import type { RequestContext } from 'src/common/i18n/request-context';
+import type { Region } from 'src/db/enums';
 import { medicalCenter } from 'src/db/schema';
 import { GetMedicalCentersDto } from './dto/get-medical-centers.dto';
 import { distanceTo, rating, selectCenters } from './medical-center.queries';
@@ -40,27 +41,34 @@ export class MedicalCenterService {
   async findForUser(
     userId: string,
     query: GetMedicalCentersDto,
-    { locale }: RequestContext,
+    { locale, region }: RequestContext,
   ): Promise<CenterRow[]> {
     const { lat, lon, shouldTake5Only } = query;
 
     return lat && lon
-      ? this.findWithDistance(userId, locale, +lat, +lon, shouldTake5Only)
-      : this.findByRating(userId, locale, shouldTake5Only);
+      ? this.findWithDistance(
+          userId,
+          locale,
+          region,
+          +lat,
+          +lon,
+          shouldTake5Only,
+        )
+      : this.findByRating(userId, locale, region, shouldTake5Only);
   }
 
   private async findWithDistance(
     userId: string,
     locale: Locale,
+    region: Region,
     lat: number,
     lon: number,
     shouldTake5Only: boolean,
   ) {
     const distance = distanceTo({ lat, lon });
-    const query = selectCenters(this.db, userId, locale, { distance }).orderBy(
-      asc(distance),
-      asc(medicalCenter.id),
-    );
+    const query = selectCenters(this.db, userId, locale, { distance })
+      .where(eq(medicalCenter.region, region))
+      .orderBy(asc(distance), asc(medicalCenter.id));
 
     const rows = await (shouldTake5Only ? query.limit(TOP_LIMIT) : query);
 
@@ -73,12 +81,12 @@ export class MedicalCenterService {
   private async findByRating(
     userId: string,
     locale: Locale,
+    region: Region,
     shouldTake5Only: boolean,
   ) {
-    const query = selectCenters(this.db, userId, locale).orderBy(
-      descNullsLast(rating),
-      asc(medicalCenter.id),
-    );
+    const query = selectCenters(this.db, userId, locale)
+      .where(eq(medicalCenter.region, region))
+      .orderBy(descNullsLast(rating), asc(medicalCenter.id));
 
     return shouldTake5Only ? query.limit(TOP_LIMIT) : query;
   }

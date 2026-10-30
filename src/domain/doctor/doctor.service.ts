@@ -33,7 +33,7 @@ export class DoctorService {
   async searchForUser(
     userId: string,
     query: DoctorSearchQueryDto,
-    { locale }: RequestContext,
+    { locale, region }: RequestContext,
   ) {
     const {
       page,
@@ -49,6 +49,7 @@ export class DoctorService {
       ? unaccentedTerm(`%${escapeLike(searchFor)}%`)
       : undefined;
     const where = and(
+      eq(medicalCenter.region, region),
       categoryId ? eq(doctor.categoryId, categoryId) : undefined,
       medicalCenterId ? eq(doctor.medicalCenterId, medicalCenterId) : undefined,
       term

@@ -5,7 +5,7 @@ import { ErrorCode } from 'src/common/errors/error-code';
 import { paginate } from 'src/common/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { doctor, userFavoriteDoctor } from 'src/db/schema';
+import { doctor, medicalCenter, userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
 import { selectDoctors } from 'src/domain/doctor/doctor.queries';
 import type { RequestContext } from 'src/common/i18n/request-context';
@@ -21,10 +21,13 @@ export class DoctorFavoriteService {
   async findFavoritesForUser(
     userId: string,
     query: DoctorFavoritesQueryDto,
-    { locale }: RequestContext,
+    { locale, region }: RequestContext,
   ) {
     const { page, size } = query;
-    const userFavorites = eq(userFavoriteDoctor.userId, userId);
+    const userFavorites = and(
+      eq(userFavoriteDoctor.userId, userId),
+      eq(medicalCenter.region, region),
+    );
 
     return paginate(
       selectDoctors(this.db, userId, locale)

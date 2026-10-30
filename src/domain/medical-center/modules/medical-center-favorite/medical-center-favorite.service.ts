@@ -22,10 +22,13 @@ export class MedicalCenterFavoriteService {
   async findFavoritesForUser(
     userId: string,
     query: MedicalCenterFavoritesQueryDto,
-    { locale }: RequestContext,
+    { locale, region }: RequestContext,
   ) {
     const { page, size } = query;
-    const userFavorites = eq(userFavoriteMedicalCenter.userId, userId);
+    const userFavorites = and(
+      eq(userFavoriteMedicalCenter.userId, userId),
+      eq(medicalCenter.region, region),
+    );
 
     return paginate(
       selectCenters(this.db, userId, locale)
