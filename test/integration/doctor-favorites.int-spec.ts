@@ -2,17 +2,17 @@ import { ErrorCode } from 'src/common/errors/error-code';
 import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteDoctor } from 'src/db/schema';
-import { DoctorService } from 'src/domain/doctor/doctor.service';
+import { DoctorFavoriteService } from 'src/domain/doctor/modules/doctor-favorite/doctor-favorite.service';
 import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000999';
 
-describe('DoctorService favorites (integration)', () => {
+describe('DoctorFavoriteService (integration)', () => {
   let db: Database;
   let pool: Pool;
   let factories: ReturnType<typeof createFactories>;
-  let service: DoctorService;
+  let service: DoctorFavoriteService;
   let userId: string;
   let otherUserId: string;
 
@@ -21,7 +21,7 @@ describe('DoctorService favorites (integration)', () => {
   beforeAll(async () => {
     ({ db, pool } = await createTestDb());
     factories = createFactories(db);
-    service = new DoctorService(db);
+    service = new DoctorFavoriteService(db);
   });
 
   beforeEach(async () => {

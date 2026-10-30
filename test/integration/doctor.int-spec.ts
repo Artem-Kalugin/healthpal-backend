@@ -4,6 +4,7 @@ import type { Database } from 'src/db/db.module';
 import { DoctorCategoryType } from 'src/db/enums';
 import { userFavoriteDoctor } from 'src/db/schema';
 import { DoctorService } from 'src/domain/doctor/doctor.service';
+import { DoctorFavoriteService } from 'src/domain/doctor/modules/doctor-favorite/doctor-favorite.service';
 import {
   DoctorSearchQueryDto,
   DoctorSort,
@@ -29,6 +30,7 @@ describe('DoctorService (integration)', () => {
   let db: Database;
   let pool: Pool;
   let service: DoctorService;
+  let favoriteService: DoctorFavoriteService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
@@ -41,6 +43,7 @@ describe('DoctorService (integration)', () => {
     ({ db, pool } = await createTestDb());
     const factories = createFactories(db);
     service = new DoctorService(db);
+    favoriteService = new DoctorFavoriteService(db);
 
     const north = await factories.medicalCenter({
       name: 'Клиника Север',
@@ -251,7 +254,7 @@ describe('DoctorService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) => {
-      const { data } = await service.findFavoritesForUser(userId, {
+      const { data } = await favoriteService.findFavoritesForUser(userId, {
         page,
         size,
       });

@@ -1,4 +1,4 @@
-import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { eq, getTableColumns } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -6,6 +6,10 @@ import {
   medicalCenter,
   userFavoriteDoctor,
 } from 'src/db/schema';
+import {
+  favoriteOfUser,
+  isFavorite,
+} from './modules/doctor-favorite/doctor-favorite.queries';
 
 /** Join condition of a doctor with their center: `.innerJoin(medicalCenter, centerOfDoctor)`. */
 export const centerOfDoctor = eq(medicalCenter.id, doctor.medicalCenterId);
@@ -20,16 +24,10 @@ export const selectDoctors = (db: Database, userId: string) =>
         name: medicalCenter.name,
         address: medicalCenter.address,
       },
-      isFavorite: sql<boolean>`${userFavoriteDoctor.userId} is not null`,
+      isFavorite,
     })
     .from(doctor)
     .innerJoin(doctorCategory, eq(doctorCategory.id, doctor.categoryId))
     .innerJoin(medicalCenter, centerOfDoctor)
-    .leftJoin(
-      userFavoriteDoctor,
-      and(
-        eq(userFavoriteDoctor.doctorId, doctor.id),
-        eq(userFavoriteDoctor.userId, userId),
-      ),
-    )
+    .leftJoin(userFavoriteDoctor, favoriteOfUser(userId))
     .$dynamic();

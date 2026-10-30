@@ -1,4 +1,4 @@
-import { and, getTableColumns, eq, sql, type SQL } from 'drizzle-orm';
+import { getTableColumns, sql, type SQL } from 'drizzle-orm';
 import type { Database } from 'src/db/db.module';
 import {
   doctor,
@@ -6,6 +6,10 @@ import {
   userFavoriteMedicalCenter,
 } from 'src/db/schema';
 import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
+import {
+  favoriteOfUser,
+  isFavorite,
+} from './modules/medical-center-favorite/medical-center-favorite.queries';
 
 export type Point = { lat: number; lon: number };
 
@@ -27,8 +31,6 @@ export const rating = sql<string | null>`case
   else null
 end`;
 
-export const favoritedAt = sql<Date | null>`max(${userFavoriteMedicalCenter.createdAt})`;
-
 /**
  * Centers with doctor aggregates and the favorite flag for the user.
  * Returns a dynamic builder: the caller adds sorting, `where` and pagination.
@@ -47,17 +49,11 @@ export const selectCenters = <
       ...getTableColumns(medicalCenter),
       reviewsCount,
       rating,
-      isFavorite: sql<boolean>`bool_or(${userFavoriteMedicalCenter.userId} is not null)`,
+      isFavorite,
       ...extra,
     })
     .from(medicalCenter)
     .leftJoin(doctor, centerOfDoctor)
-    .leftJoin(
-      userFavoriteMedicalCenter,
-      and(
-        eq(userFavoriteMedicalCenter.medicalCenterId, medicalCenter.id),
-        eq(userFavoriteMedicalCenter.userId, userId),
-      ),
-    )
+    .leftJoin(userFavoriteMedicalCenter, favoriteOfUser(userId))
     .groupBy(medicalCenter.id)
     .$dynamic();

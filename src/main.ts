@@ -29,7 +29,6 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  // Swagger UI is disabled: serve only JSON, Scalar renders the interface
   SwaggerModule.setup('api', app, document, {
     ui: false,
     jsonDocumentUrl: 'api-json',
@@ -38,7 +37,6 @@ async function bootstrap() {
     '/api',
     apiReference({
       content: document,
-      // The version is pinned so the UI does not change unnoticed
       cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.2',
     }),
   );

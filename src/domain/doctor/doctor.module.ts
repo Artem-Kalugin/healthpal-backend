@@ -6,6 +6,8 @@ import { DoctorCategoryController } from './modules/doctor-category/doctor-categ
 import { DoctorScheduleService } from './modules/doctor-schedule/doctor-schedule.service';
 import { DoctorScheduleController } from './modules/doctor-schedule/doctor-schedule.controller';
 import { DoctorTimeSlotService } from './modules/doctor-time-slot/doctor-time-slot.service';
+import { DoctorFavoriteService } from './modules/doctor-favorite/doctor-favorite.service';
+import { DoctorFavoriteController } from './modules/doctor-favorite/doctor-favorite.controller';
 import { DoctorTimeSlotController } from './modules/doctor-time-slot/doctor-time-slot.controller';
 
 @Module({
@@ -14,8 +16,11 @@ import { DoctorTimeSlotController } from './modules/doctor-time-slot/doctor-time
     DoctorCategoryService,
     DoctorScheduleService,
     DoctorTimeSlotService,
+    DoctorFavoriteService,
   ],
   controllers: [
+    // Before DoctorController: GET /doctors/favorites must not be matched by GET /doctors/:id
+    DoctorFavoriteController,
     DoctorController,
     DoctorTimeSlotController,
     DoctorCategoryController,

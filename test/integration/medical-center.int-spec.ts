@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import type { Database } from 'src/db/db.module';
 import { userFavoriteMedicalCenter } from 'src/db/schema';
 import { MedicalCenterService } from 'src/domain/medical-center/medical-center.service';
+import { MedicalCenterFavoriteService } from 'src/domain/medical-center/modules/medical-center-favorite/medical-center-favorite.service';
 import { createTestDb } from './db';
 import { createFactories } from './factories';
 
@@ -15,6 +16,7 @@ describe('MedicalCenterService (integration)', () => {
   let db: Database;
   let pool: Pool;
   let service: MedicalCenterService;
+  let favoriteService: MedicalCenterFavoriteService;
   let userA: string;
   let userB: string;
   let userWithoutFavorites: string;
@@ -23,6 +25,7 @@ describe('MedicalCenterService (integration)', () => {
     ({ db, pool } = await createTestDb());
     const factories = createFactories(db);
     service = new MedicalCenterService(db);
+    favoriteService = new MedicalCenterFavoriteService(db);
 
     const center = (centerId: string, lat: number, lon: number) =>
       factories.medicalCenter({ id: centerId, name: centerId, lat, lon });
@@ -185,7 +188,7 @@ describe('MedicalCenterService (integration)', () => {
 
   describe('findFavoritesForUser', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) =>
-      service.findFavoritesForUser(userId, { page, size });
+      favoriteService.findFavoritesForUser(userId, { page, size });
 
     it('returns only the favorites of the user, most recently added first', async () => {
       const { data } = await favoritesFor(userA);
