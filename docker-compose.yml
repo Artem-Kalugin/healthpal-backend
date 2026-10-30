@@ -57,16 +57,14 @@ services:
 
 
   postgres:
-    build: 
-      context: .
-      dockerfile: ./docker/postgres/Dockerfile
+    image: postgres:17-bookworm
     container_name: healthpal-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DATABASE_USER:-healthpal}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       POSTGRES_DB: ${DATABASE_NAME:-healthpal}
-      POSTGRES_INITDB_ARGS: --locale=ru_RU.UTF-8 --encoding=UTF8
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale-provider=icu --icu-locale=und --locale=C.UTF-8
 
     command:
       - postgres

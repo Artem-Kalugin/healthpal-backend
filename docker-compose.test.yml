@@ -4,15 +4,13 @@ name: healthpal-test
 
 services:
   postgres-test:
-    build:
-      context: .
-      dockerfile: ./docker/postgres/Dockerfile
+    image: postgres:17-bookworm
     container_name: healthpal-postgres-test
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: healthpal_test
-      POSTGRES_INITDB_ARGS: --locale=ru_RU.UTF-8 --encoding=UTF8
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale-provider=icu --icu-locale=und --locale=C.UTF-8
     ports:
       - '127.0.0.1:5433:5432'
     tmpfs:
