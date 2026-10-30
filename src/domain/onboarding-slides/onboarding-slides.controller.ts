@@ -1,8 +1,8 @@
-import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { OnboardingSlidesService } from './onboarding-slides.service';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { OnboardingSlideResponseDto } from './dto/onboarding-slide-response.dto';
 
 @ApiTags('Onboarding')

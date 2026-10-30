@@ -3,8 +3,8 @@ import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 import { Reflector } from '@nestjs/core';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { JwtAuthWithRegistrationGuard } from './jwt-auth-with-registration.guard';
 
 const { COMPLETE_REGISTRATION, INCOMPLETE_REGISTRATION, ANY } =

@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { rule, ValidationCode } from 'src/common/errors/validation-code';
 import { SortOrder } from 'src/common/config';
-import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query.dto';
+import { PaginatedQueryDto } from 'src/common/pagination/paginated-query.dto';
 
 export enum DoctorSort {
   RATING = 'rating',

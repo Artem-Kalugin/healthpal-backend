@@ -38,7 +38,7 @@ export default tseslint.config(
   eslintNestJs.configs.flatRecommended,
   {
     rules: {
-      // Composite decorator from `src/common/helpers/decorators`.
+      // Composite decorator from `src/common/decorators`.
       '@darraghor/nestjs-typed/api-method-should-specify-api-response': [
         'error',
         { additionalCustomApiResponseDecorators: ['ApiSerialized'] },

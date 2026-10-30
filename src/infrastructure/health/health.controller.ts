@@ -11,7 +11,7 @@ import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { Redis } from 'ioredis';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 

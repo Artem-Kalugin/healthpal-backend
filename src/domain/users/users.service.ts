@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, type SQL } from 'drizzle-orm';
+import { eq, sql, type SQL } from 'drizzle-orm';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
@@ -85,10 +85,8 @@ export class UsersService {
             : undefined,
           nickname: this.normalizeNickname(updateUserDto.nickname),
           avatar: avatarSaved,
-          registrationComplete: !!(
-            (birthday ?? existingUser.birthday) &&
-            (updateUserDto.gender ?? existingUser.gender)
-          ),
+          // computed in SQL from the stored row: concurrent updates of different fields must not overwrite each other's flag
+          registrationComplete: sql<boolean>`coalesce(${birthday?.toISOString() ?? null}::timestamp, ${user.birthday}) is not null and coalesce(${updateUserDto.gender ?? null}::gender, ${user.gender}) is not null`,
         })
         .where(eq(user.id, id))
         .returning();

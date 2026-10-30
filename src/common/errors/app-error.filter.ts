@@ -26,6 +26,15 @@ export const CONSTRAINT_CODES: Partial<Record<Constraint, ErrorCode>> = {
   [Constraint.USER_PHONE_FORMAT_CHECK]: ErrorCode.USER_PHONE_INVALID,
   [Constraint.USER_BIRTHDAY_PAST_CHECK]: ErrorCode.USER_BIRTHDAY_INVALID,
   [Constraint.APPOINTMENT_TIME_SLOT_UNIQUE]: ErrorCode.APPOINTMENT_SLOT_TAKEN,
+  // the referenced row was deleted between the existence check and the write
+  [Constraint.APPOINTMENT_TIME_SLOT_FK]: ErrorCode.TIME_SLOT_NOT_FOUND,
+  [Constraint.APPOINTMENT_DOCTOR_FK]: ErrorCode.DOCTOR_NOT_FOUND,
+  [Constraint.APPOINTMENT_USER_FK]: ErrorCode.USER_NOT_FOUND,
+  [Constraint.USER_FAVORITE_DOCTOR_DOCTOR_FK]: ErrorCode.DOCTOR_NOT_FOUND,
+  [Constraint.USER_FAVORITE_DOCTOR_USER_FK]: ErrorCode.USER_NOT_FOUND,
+  [Constraint.USER_FAVORITE_MEDICAL_CENTER_CENTER_FK]:
+    ErrorCode.MEDICAL_CENTER_NOT_FOUND,
+  [Constraint.USER_FAVORITE_MEDICAL_CENTER_USER_FK]: ErrorCode.USER_NOT_FOUND,
   [Constraint.USER_FAVORITE_DOCTOR_PK]: ErrorCode.FAVORITE_ALREADY_EXISTS,
   [Constraint.USER_FAVORITE_MEDICAL_CENTER_PK]:
     ErrorCode.FAVORITE_ALREADY_EXISTS,

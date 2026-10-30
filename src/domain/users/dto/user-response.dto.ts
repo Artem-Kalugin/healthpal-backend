@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Gender } from 'src/db/enums';
-import { Image } from 'src/common/helpers/image.dto';
+import { Image } from 'src/common/entities/image.dto';
 import { Expose } from 'class-transformer';
 
 export class UserResponseDto {

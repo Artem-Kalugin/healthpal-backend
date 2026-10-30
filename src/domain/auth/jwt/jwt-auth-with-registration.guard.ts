@@ -1,8 +1,8 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { IS_PUBLIC_KEY } from 'src/common/helpers/decorators/public.decorator';
-import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
+import { AUTH_REGISTRATION_TYPE_KEY } from 'src/common/decorators/auth-registration-type.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtContent } from 'declarations';
 import type { Request } from 'express';

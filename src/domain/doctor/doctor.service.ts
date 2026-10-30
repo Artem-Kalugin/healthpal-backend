@@ -4,7 +4,7 @@ import type { PgColumn } from 'drizzle-orm/pg-core';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
-import { paginate } from 'src/common/helpers/pagination/page';
+import { paginate } from 'src/common/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { existsById } from 'src/db/exists';

@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
-import { paginate } from 'src/common/helpers/pagination/page';
+import { paginate } from 'src/common/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { medicalCenter, userFavoriteMedicalCenter } from 'src/db/schema';

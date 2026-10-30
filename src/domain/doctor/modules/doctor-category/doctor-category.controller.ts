@@ -1,5 +1,5 @@
-import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
-import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DoctorCategoryService } from './doctor-category.service';

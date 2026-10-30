@@ -1,6 +1,6 @@
-import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
-import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
-import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
 import { Controller, Body, Patch, Get } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
@@ -9,8 +9,8 @@ import { UserResponseDto } from './dto/user-response.dto';
 import {
   Avatar,
   AvatarUpload,
-} from 'src/common/helpers/decorators/avatar-upload.decorator';
-import { AuthRegistrationGuardType } from 'src/common/helpers/decorators/auth-registration-type.decorator';
+} from 'src/infrastructure/file-storage/helpers/avatar-upload.decorator';
+import { AuthRegistrationGuardType } from 'src/common/decorators/auth-registration-type.decorator';
 import { AuthGuardsByRegistration } from 'src/common/config';
 
 @ApiTags('Users')

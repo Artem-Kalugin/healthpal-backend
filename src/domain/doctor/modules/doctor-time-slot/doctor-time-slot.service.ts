@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, between, eq, sql } from 'drizzle-orm';
-import { getZonedNowParts } from 'src/common/helpers/clinic-time';
+import { getZonedNowParts } from 'src/domain/medical-center/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
-import { toHourMinute } from 'src/common/helpers/to-hour-minute';
+import { toHourMinute } from 'src/domain/doctor/helpers/to-hour-minute';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import {

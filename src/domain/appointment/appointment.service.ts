@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, getTableColumns, sql } from 'drizzle-orm';
-import { getSlotStart } from 'src/common/helpers/clinic-time';
+import { getSlotStart } from 'src/domain/medical-center/helpers/clinic-time';
 import { firstOrThrow } from 'src/common/helpers/first-or-throw';
-import { paginate } from 'src/common/helpers/pagination/page';
+import { paginate } from 'src/common/pagination/page';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import {
@@ -119,10 +119,21 @@ export class AppointmentService {
       throw new AppException(ErrorCode.APPOINTMENT_PAST_CANNOT_CANCEL);
     }
 
-    await this.db
+    // isCancelled in WHERE: of two concurrent cancels only the first one succeeds
+    const cancelled = await this.db
       .update(appointment)
       .set({ isCancelled: true, timeSlotId: null })
-      .where(eq(appointment.id, appointmentId));
+      .where(
+        and(
+          eq(appointment.id, appointmentId),
+          eq(appointment.isCancelled, false),
+        ),
+      )
+      .returning({ id: appointment.id });
+
+    if (cancelled.length === 0) {
+      throw new AppException(ErrorCode.APPOINTMENT_ALREADY_CANCELLED);
+    }
 
     return this.findDetailed(appointmentId);
   }

@@ -4,7 +4,7 @@ import type { ApiResponseMetadata } from '@nestjs/swagger';
 import {
   PaginatedResponseDto,
   PaginatedResponseOf,
-} from 'src/common/helpers/pagination/paginated-response.dto';
+} from 'src/common/pagination/paginated-response.dto';
 
 type Options = Omit<ApiResponseMetadata, 'type'> & {
   /** Swagger type if it differs from the serialization type. */

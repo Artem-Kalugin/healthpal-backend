@@ -1,21 +1,21 @@
-import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
-import { CurrentUserId } from 'src/common/helpers/decorators/current-user.decorator';
-import { Authenticated } from 'src/common/helpers/decorators/authenticated.decorator';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
+import { CurrentUserId } from 'src/common/decorators/current-user.decorator';
+import { Authenticated } from 'src/common/decorators/authenticated.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   Avatar,
   AvatarUpload,
-} from 'src/common/helpers/decorators/avatar-upload.decorator';
+} from 'src/infrastructure/file-storage/helpers/avatar-upload.decorator';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from 'src/domain/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { UpdateUserDto } from 'src/domain/users/dto/update-user.dto';
 import { AuthGuardsByRegistration } from 'src/common/config';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { RefreshDto } from './dto/refresh.dto';
-import { AuthThrottle } from 'src/common/helpers/decorators/auth-throttle.decorator';
+import { AuthThrottle } from 'src/domain/auth/helpers/auth-throttle.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')

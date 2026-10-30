@@ -2,7 +2,7 @@ import { ApiProperty, PickType } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
 import { DoctorCategoryResponseDto } from 'src/domain/doctor/modules/doctor-category/dto/doctor-category-response.dto';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
-import { Image } from 'src/common/helpers/image.dto';
+import { Image } from 'src/common/entities/image.dto';
 
 class DoctorResponseDoctorCategoryDto extends PickType(
   DoctorCategoryResponseDto,

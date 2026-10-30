@@ -1,6 +1,9 @@
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
-import { addMinutes, getSlotStart } from 'src/common/helpers/clinic-time';
+import {
+  addMinutes,
+  getSlotStart,
+} from 'src/domain/medical-center/helpers/clinic-time';
 type Startable = { date: string; startTime: string };
 
 const APPOINTMENT_MIN_LEAD_MINUTES = 120;

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { Image } from 'src/common/helpers/image.dto';
+import { Image } from 'src/common/entities/image.dto';
 import { MedicalCenterType } from 'src/db/enums';
 
 export class MedicalCenterResponseDto {

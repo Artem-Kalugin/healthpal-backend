@@ -1,12 +1,12 @@
-import { ApiSerialized } from 'src/common/helpers/decorators/api-serialized.decorator';
+import { ApiSerialized } from 'src/common/decorators/api-serialized.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
-import { AuthThrottle } from 'src/common/helpers/decorators/auth-throttle.decorator';
+import { AuthThrottle } from 'src/domain/auth/helpers/auth-throttle.decorator';
 import { RecoveryService } from './recovery.service';
 import { ApiCreatedResponse, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { VerifyOtpResponseDto } from './dto/verify-otp-response.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Public } from 'src/common/helpers/decorators/public.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 

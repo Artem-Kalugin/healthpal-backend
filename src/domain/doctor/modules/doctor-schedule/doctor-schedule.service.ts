@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
-import { toHourMinute } from 'src/common/helpers/to-hour-minute';
+import { toHourMinute } from 'src/domain/doctor/helpers/to-hour-minute';
 import { DB } from 'src/db/db.module';
 import type { Database } from 'src/db/db.module';
 import { ScheduleDay } from 'src/db/enums';

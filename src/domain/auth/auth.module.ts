@@ -16,7 +16,7 @@ import { RedisModule } from 'src/infrastructure/redis/redis.module';
 import {
   AUTH_THROTTLE_LIMIT,
   AUTH_THROTTLE_TTL_MS,
-} from 'src/common/helpers/decorators/auth-throttle.decorator';
+} from 'src/domain/auth/helpers/auth-throttle.decorator';
 import { JwtAuthWithRegistrationGuard } from './jwt/jwt-auth-with-registration.guard';
 
 @Module({

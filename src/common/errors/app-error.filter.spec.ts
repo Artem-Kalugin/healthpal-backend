@@ -85,8 +85,35 @@ describe('AppErrorFilter', () => {
     );
 
     it.each([
+      [
+        '23503',
+        Constraint.APPOINTMENT_TIME_SLOT_FK,
+        404,
+        ErrorCode.TIME_SLOT_NOT_FOUND,
+      ],
+      [
+        '23503',
+        Constraint.USER_FAVORITE_DOCTOR_DOCTOR_FK,
+        404,
+        ErrorCode.DOCTOR_NOT_FOUND,
+      ],
+    ])(
+      'FK to a row deleted mid-request: %s %s → %i %s',
+      (pgCode, constraint, statusCode, code) => {
+        expect(run(queryError(pgError(pgCode, constraint)))).toEqual({
+          status: statusCode,
+          body: { statusCode, code },
+        });
+      },
+    );
+
+    it.each([
       ['23505', Constraint.DOCTOR_CATEGORY_FK, 'DB_UNIQUE_VIOLATION'],
-      ['23503', Constraint.APPOINTMENT_USER_FK, 'DB_FOREIGN_KEY_VIOLATION'],
+      [
+        '23503',
+        Constraint.DOCTOR_MEDICAL_CENTER_FK,
+        'DB_FOREIGN_KEY_VIOLATION',
+      ],
       ['23514', 'unknown_check', 'DB_CHECK_VIOLATION'],
       ['42P01', undefined, 'DB_ERROR'],
     ])(
