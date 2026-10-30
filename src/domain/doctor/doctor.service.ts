@@ -76,6 +76,38 @@ export class DoctorService {
     );
   }
 
+  async addToFavoritesForUser(userId: string, doctorId: string) {
+    if (!(await this.existsById(doctorId))) {
+      throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
+    }
+
+    // An empty result means the link already existed (including a request race)
+    const inserted = await this.db
+      .insert(userFavoriteDoctor)
+      .values({ userId, doctorId })
+      .onConflictDoNothing()
+      .returning({ doctorId: userFavoriteDoctor.doctorId });
+
+    if (inserted.length === 0) {
+      throw new AppException(ErrorCode.FAVORITE_ALREADY_EXISTS, {
+        message: 'Doctor is already in favorites',
+      });
+    }
+
+    return { success: true, doctorId };
+  }
+
+  async removeFromFavoritesForUser(userId: string, doctorId: string) {
+    await this.db
+      .delete(userFavoriteDoctor)
+      .where(
+        and(
+          eq(userFavoriteDoctor.userId, userId),
+          eq(userFavoriteDoctor.doctorId, doctorId),
+        ),
+      );
+  }
+
   async existsById(doctorId: string) {
     return existsById(this.db, doctor, doctorId);
   }

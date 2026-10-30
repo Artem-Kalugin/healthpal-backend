@@ -10,7 +10,6 @@ import { PasswordModule } from './infrastructure/password/password.module';
 import { MedicalCenterModule } from './domain/medical-center/medical-center.module';
 import { LoggerMiddleware } from './common/middlewares/console.logger';
 import { DoctorModule } from './domain/doctor/doctor.module';
-import { FavoritesModule } from './domain/favorites/favorites.module';
 import { AppointmentModule } from './domain/appointment/appointment.module';
 import { HealthModule } from './infrastructure/health/health.module';
 import { TerminusModule } from '@nestjs/terminus';
@@ -29,7 +28,6 @@ import { DbModule } from './db/db.module';
       gracefulShutdownTimeoutMs: 1000,
     }),
     DbModule,
-    FavoritesModule,
     AppointmentModule,
     UsersModule,
     AuthModule,

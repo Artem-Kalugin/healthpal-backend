@@ -13,6 +13,8 @@ import { DB, type Database } from 'src/db/db.module';
 import { clearDatabase, resetSchema } from '../integration/db';
 import { createFactories } from '../integration/factories';
 
+const UNKNOWN_ID = '00000000-0000-4000-8000-000000000000';
+
 type Body = Record<string, any>;
 
 describe('Medical centers (e2e)', () => {
@@ -178,6 +180,72 @@ describe('Medical centers (e2e)', () => {
       const data = body.data as Body[];
       expect(data.map(item => item.id as string)).toEqual([favorite.id]);
       expect(data[0]).toMatchObject({ isFavorite: true });
+    });
+  });
+
+  describe('POST and DELETE /medical-centers/:id/favorite', () => {
+    const call = (method: 'post' | 'delete', id: string, token: string) =>
+      request(app.getHttpServer())
+        [method](`/medical-centers/${id}/favorite`)
+        .set('Authorization', token);
+
+    it('POST adds to favorites → 201, repeated → 409 FAVORITE_ALREADY_EXISTS', async () => {
+      const { user, token } = await newUser();
+      const target = await factories.medicalCenter();
+
+      const created = await call('post', target.id, token);
+      const repeated = await call('post', target.id, token);
+
+      expect(created.status).toBe(201);
+      expect(created.body).toEqual({
+        success: true,
+        medicalCenterId: target.id,
+      });
+      expect(repeated.status).toBe(409);
+      expect(repeated.body).toEqual({
+        statusCode: 409,
+        code: 'FAVORITE_ALREADY_EXISTS',
+      });
+      expect(await db.select().from(userFavoriteMedicalCenter)).toMatchObject([
+        { userId: user.id, medicalCenterId: target.id },
+      ]);
+    });
+
+    it('POST for a nonexistent center → 404 MEDICAL_CENTER_NOT_FOUND', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', UNKNOWN_ID, token);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        code: 'MEDICAL_CENTER_NOT_FOUND',
+      });
+    });
+
+    it('DELETE removes only the link of this user', async () => {
+      const { user, token } = await newUser();
+      const other = await newUser();
+      const target = await factories.medicalCenter();
+      await db.insert(userFavoriteMedicalCenter).values([
+        { userId: user.id, medicalCenterId: target.id },
+        { userId: other.user.id, medicalCenterId: target.id },
+      ]);
+
+      const response = await call('delete', target.id, token);
+
+      expect(response.status).toBe(200);
+      expect(await db.select().from(userFavoriteMedicalCenter)).toMatchObject([
+        { userId: other.user.id, medicalCenterId: target.id },
+      ]);
+    });
+
+    it('invalid id → 400 VALIDATION_FAILED', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', 'not-a-uuid', token);
+
+      expect(response.status).toBe(400);
     });
   });
 });

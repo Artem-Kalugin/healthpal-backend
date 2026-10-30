@@ -143,6 +143,69 @@ describe('Doctors (e2e)', () => {
     });
   });
 
+  describe('POST and DELETE /doctors/:id/favorite', () => {
+    const call = (method: 'post' | 'delete', id: string, token: string) =>
+      request(app.getHttpServer())
+        [method](`/doctors/${id}/favorite`)
+        .set('Authorization', token);
+
+    it('POST adds to favorites → 201, repeated → 409 FAVORITE_ALREADY_EXISTS', async () => {
+      const { user, token } = await newUser();
+      const target = await factories.doctor();
+
+      const created = await call('post', target.id, token);
+      const repeated = await call('post', target.id, token);
+
+      expect(created.status).toBe(201);
+      expect(created.body).toEqual({ success: true, doctorId: target.id });
+      expect(repeated.status).toBe(409);
+      expect(repeated.body).toEqual({
+        statusCode: 409,
+        code: 'FAVORITE_ALREADY_EXISTS',
+      });
+      expect(await db.select().from(userFavoriteDoctor)).toMatchObject([
+        { userId: user.id, doctorId: target.id },
+      ]);
+    });
+
+    it('POST for a nonexistent doctor → 404 DOCTOR_NOT_FOUND', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', UNKNOWN_ID, token);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({
+        statusCode: 404,
+        code: 'DOCTOR_NOT_FOUND',
+      });
+    });
+
+    it('DELETE removes only the link of this user', async () => {
+      const { user, token } = await newUser();
+      const other = await newUser();
+      const target = await factories.doctor();
+      await db.insert(userFavoriteDoctor).values([
+        { userId: user.id, doctorId: target.id },
+        { userId: other.user.id, doctorId: target.id },
+      ]);
+
+      const response = await call('delete', target.id, token);
+
+      expect(response.status).toBe(200);
+      expect(await db.select().from(userFavoriteDoctor)).toMatchObject([
+        { userId: other.user.id, doctorId: target.id },
+      ]);
+    });
+
+    it('invalid id → 400 VALIDATION_FAILED', async () => {
+      const { token } = await newUser();
+
+      const response = await call('post', 'not-a-uuid', token);
+
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe('GET /doctors/:id', () => {
     it('returns a doctor', async () => {
       const { token } = await newUser();
