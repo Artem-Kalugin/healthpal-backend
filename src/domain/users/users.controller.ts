@@ -40,7 +40,7 @@ export class UsersController {
   @Get('me')
   @ApiSerialized(UserResponseDto)
   @ApiNotFoundResponse({
-    description: 'USER_NOT_FOUND: пользователь не найден',
+    description: 'USER_NOT_FOUND: user not found',
   })
   @AuthRegistrationGuardType(AuthGuardsByRegistration.ANY)
   async getCurrent(@CurrentUserId() userId: string): Promise<UserResponseDto> {

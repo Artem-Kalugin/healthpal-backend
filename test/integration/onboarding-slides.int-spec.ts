@@ -29,23 +29,23 @@ describe('OnboardingSlidesService (integration)', () => {
       .insert(onboardingSlide)
       .values({ title, text: `${title} text`, image: IMAGE, order, isActive });
 
-  it('отдаёт пустой список, если слайдов нет', async () => {
+  it('returns an empty list if there are no slides', async () => {
     await expect(service.findActive()).resolves.toEqual([]);
   });
 
-  it('отдаёт только активные слайды по возрастанию order', async () => {
-    await slide('третий', 3);
-    await slide('скрытый', 2, false);
-    await slide('первый', 1);
-    await slide('второй', 2);
+  it('returns only active slides in ascending order', async () => {
+    await slide('third', 3);
+    await slide('hidden', 2, false);
+    await slide('first', 1);
+    await slide('second', 2);
 
     const result = await service.findActive();
 
     expect(result.map(item => item.title)).toEqual([
-      'первый',
-      'второй',
-      'третий',
+      'first',
+      'second',
+      'third',
     ]);
-    expect(result[0]).toMatchObject({ text: 'первый text', image: IMAGE });
+    expect(result[0]).toMatchObject({ text: 'first text', image: IMAGE });
   });
 });

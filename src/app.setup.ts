@@ -7,7 +7,7 @@ import { Reflector } from '@nestjs/core';
 import { AppErrorFilter } from './common/errors/app-error.filter';
 import { createValidationException } from './common/errors/validation-exception.factory';
 
-/** Глобальные pipe, фильтры и интерсепторы: общие для `main.ts` и e2e-тестов. */
+/** Global pipes, filters and interceptors shared by `main.ts` and the e2e tests. */
 export function configureApp(app: INestApplication) {
   app.useGlobalPipes(
     new ValidationPipe({

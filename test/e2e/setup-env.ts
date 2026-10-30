@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-// Выполняется до импорта AppModule: он читает DATABASE_* из process.env при загрузке.
-// Приложение подключается к тестовым Postgres и Redis из docker-compose.test.yml.
+// Must run before AppModule is imported: it reads DATABASE_* from process.env on load.
 const database = process.env.TEST_DATABASE_NAME ?? 'healthpal_test';
 
 if (!database.endsWith('_test')) {
   throw new Error(
-    `e2e-тесты очищают данные, имя БД должно оканчиваться на "_test", получено "${database}"`,
+    `e2e tests wipe data, the DB name must end with "_test", got "${database}"`,
   );
 }
 

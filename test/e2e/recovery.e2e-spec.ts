@@ -37,7 +37,7 @@ describe('Recovery (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await redis.quit();
     await app.close();
   });
@@ -66,7 +66,7 @@ describe('Recovery (e2e)', () => {
     return (verified.body as { recoveryToken: string }).recoveryToken;
   };
 
-  it('восстановление: код → токен → новый пароль; вход работает только с новым паролем', async () => {
+  it('recovery: code → token → new password; login works only with the new password', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {
@@ -81,7 +81,7 @@ describe('Recovery (e2e)', () => {
     expect((await login(OLD_PASSWORD)).status).toBe(401);
   });
 
-  it('пароли не совпадают → 400 PASSWORDS_MISMATCH, пароль не меняется, токен остаётся валидным', async () => {
+  it('passwords do not match → 400 PASSWORDS_MISMATCH, the password is unchanged, the token stays valid', async () => {
     const token = await obtainRecoveryToken();
 
     const reset = await post('/auth/recovery/reset-password', {

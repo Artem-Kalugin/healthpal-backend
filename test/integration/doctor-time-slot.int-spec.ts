@@ -7,9 +7,9 @@ import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 import { freezeDate } from './time';
 
-// 15:00 в Москве, 13:00 в Берлине
+// 15:00 in Moscow, 13:00 in Berlin
 const NOW = new Date('2026-10-29T12:00:00.000Z');
-// 01:30 30.10 в Москве, но ещё 22:30 29.10 в UTC
+// 01:30 on 30.10 in Moscow, but still 22:30 on 29.10 in UTC
 const NOW_NEAR_MIDNIGHT = new Date('2026-10-29T22:30:00.000Z');
 
 const MOSCOW = 'Europe/Moscow';
@@ -64,7 +64,7 @@ describe('DoctorTimeSlotService (integration)', () => {
     days.map(day => ({ date: day.date, ids: day.slots.map(s => s.id) }));
 
   describe('getSlotsForDoctor', () => {
-    it('отдаёт слоты по датам по возрастанию, время в HH:mm', async () => {
+    it('returns slots by date ascending, time in HH:mm', async () => {
       const doctor = await doctorIn();
       const later = await slot(doctor.id, '2026-11-04', '09:00:00', '09:30:00');
       const lateEvening = await slot(
@@ -92,7 +92,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('не отдаёт слоты другого врача', async () => {
+    it('does not return slots of another doctor', async () => {
       const doctor = await doctorIn();
       const other = await doctorIn();
       const own = await slot(doctor.id, '2026-11-03', '10:00:00');
@@ -103,7 +103,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [own.id] }]);
     });
 
-    it('границы диапазона включительные, слоты вне него не попадают', async () => {
+    it('range bounds are inclusive, slots outside it are excluded', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-11-02', '10:00:00');
       const first = await slot(doctor.id, '2026-11-03', '10:00:00');
@@ -122,7 +122,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('скрывает занятые слоты, а день без свободных слотов не отдаёт', async () => {
+    it('hides booked slots and omits a day without free slots', async () => {
       const doctor = await doctorIn();
       const taken = await slot(doctor.id, '2026-11-03', '10:00:00');
       const fullyBookedDay = await slot(doctor.id, '2026-11-04', '10:00:00');
@@ -135,7 +135,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       expect(dayOf(result)).toEqual([{ date: '2026-11-03', ids: [free.id] }]);
     });
 
-    it('скрывает слоты прошедших дней', async () => {
+    it('hides slots of past days', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-28', '23:00:00');
       const tomorrow = await slot(doctor.id, '2026-10-30', '08:00:00');
@@ -147,7 +147,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('сегодня скрывает слоты не позже «сейчас» (включая ровно сейчас), показывает позже', async () => {
+    it('today hides slots not later than "now" (including exactly now), shows later ones', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '14:59:00');
       await slot(doctor.id, '2026-10-29', '15:00:00');
@@ -158,8 +158,8 @@ describe('DoctorTimeSlotService (integration)', () => {
       expect(dayOf(result)).toEqual([{ date: '2026-10-29', ids: [after.id] }]);
     });
 
-    it('«сейчас» считается по поясу центра врача', async () => {
-      // для одного момента в Берлине 13:00, в Москве 15:00
+    it('"now" is computed in the time zone of the doctor center', async () => {
+      // for one moment it is 13:00 in Berlin and 15:00 in Moscow
       const berlin = await doctorIn(BERLIN);
       const moscow = await doctorIn(MOSCOW);
       const berlinSlot = await slot(berlin.id, '2026-10-29', '14:00:00');
@@ -180,7 +180,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       expect(inMoscow).toEqual([]);
     });
 
-    it('дата «сегодня» берётся по часам центра, когда в UTC ещё вчера', async () => {
+    it('the "today" date is taken from the center clock when it is still yesterday in UTC', async () => {
       freezeDate(NOW_NEAR_MIDNIGHT);
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '23:00:00');
@@ -194,7 +194,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       ]);
     });
 
-    it('несуществующий врач → NO_AVAILABLE_SLOTS', async () => {
+    it('nonexistent doctor → NO_AVAILABLE_SLOTS', async () => {
       await expect(
         service.getSlotsForDoctor(
           '00000000-0000-4000-8000-000000000000',
@@ -205,7 +205,7 @@ describe('DoctorTimeSlotService (integration)', () => {
   });
 
   describe('getSlotsRange', () => {
-    it('берёт min/max только по слотам этого врача', async () => {
+    it('takes min/max only over the slots of this doctor', async () => {
       const doctor = await doctorIn();
       const other = await doctorIn();
       await slot(doctor.id, '2026-11-05', '10:00:00');
@@ -220,7 +220,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       });
     });
 
-    it('занятые слоты не влияют на диапазон', async () => {
+    it('booked slots do not affect the range', async () => {
       const doctor = await doctorIn();
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-11-05', '10:00:00');
@@ -233,7 +233,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       });
     });
 
-    it('прошедшие слоты не влияют на диапазон, «сейчас» по часам центра', async () => {
+    it('past slots do not affect the range, "now" is on the center clock', async () => {
       freezeDate(NOW_NEAR_MIDNIGHT);
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '23:00:00');
@@ -247,7 +247,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       });
     });
 
-    it('слот ровно в «сейчас» в диапазон не входит', async () => {
+    it('a slot exactly at "now" is not in the range', async () => {
       const doctor = await doctorIn();
       await slot(doctor.id, '2026-10-29', '15:00:00');
       await slot(doctor.id, '2026-10-30', '10:00:00');
@@ -258,7 +258,7 @@ describe('DoctorTimeSlotService (integration)', () => {
       });
     });
 
-    it('нет свободных будущих слотов (заняты или прошли) → NO_AVAILABLE_SLOTS', async () => {
+    it('no free future slots (booked or past) → NO_AVAILABLE_SLOTS', async () => {
       const doctor = await doctorIn();
       await book(await slot(doctor.id, '2026-11-03', '10:00:00'));
       await slot(doctor.id, '2026-10-28', '10:00:00');

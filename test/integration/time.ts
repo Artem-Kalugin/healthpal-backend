@@ -1,4 +1,4 @@
-/** Замораживает только `Date`: остальные таймеры нужны драйверу `pg`. */
+/** Freezes only `Date`: the other timers are needed by the `pg` driver. */
 export const freezeDate = (now: Date) => {
   jest.useFakeTimers({
     now,

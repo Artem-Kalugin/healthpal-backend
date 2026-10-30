@@ -1,6 +1,6 @@
 {
   "src/common/helpers/escape-like.ts": {
-    "reason": "Проверено: unit-тест проверяет саму замену символов, int:doctor проверяет, что %, _ и \\ в searchFor ищутся как обычный текст в Postgres. Это разные уровни, а не дубль.",
+    "reason": "Verified: the unit test checks the character replacement itself, int:doctor checks that %, _ and \\ in searchFor are matched as plain text in Postgres. These are different levels, not a duplicate.",
     "tests": [
       "unit:src/common/helpers/escape-like.spec.ts",
       "int:test/integration/doctor.int-spec.ts"
@@ -11,7 +11,7 @@
     }
   },
   "src/common/helpers/pagination/paginate.ts": {
-    "reason": "Проверено: арифметика (skip/offset, lastPage, краевые случаи) проверяется только в paginate.spec.ts. Интеграционные тесты проверяют поведение skip/take и limit/offset с join и groupBy (страницы не пересекаются, count верен). e2e проверяют только форму ответа.",
+    "reason": "Verified: the arithmetic (skip/offset, lastPage, edge cases) is checked only in paginate.spec.ts. Integration tests check skip/take and limit/offset behavior with join and groupBy (pages do not overlap, count is correct). e2e tests check only the response shape.",
     "tests": [
       "unit:src/common/helpers/pagination/paginate.spec.ts",
       "int:test/integration/appointment.int-spec.ts",
@@ -32,7 +32,7 @@
     }
   },
   "src/common/helpers/pagination/paginated-query.dto.ts": {
-    "reason": "DTO валидации query, проходит через HTTP в e2e.",
+    "reason": "Query validation DTO, goes through HTTP in e2e.",
     "tests": [
       "e2e:test/e2e/appointments.e2e-spec.ts",
       "e2e:test/e2e/doctors.e2e-spec.ts"
@@ -43,7 +43,7 @@
     }
   },
   "src/common/helpers/pagination/paginated-response.dto.ts": {
-    "reason": "Инфраструктура: DTO ответа, выполняется при загрузке любого контроллера, прямых проверок не требует.",
+    "reason": "Infrastructure: response DTO, executed when any controller loads, needs no direct checks.",
     "tests": "*",
     "cases": {
       "e2e:test/e2e/appointments.e2e-spec.ts": 1,
@@ -52,7 +52,7 @@
     }
   },
   "src/common/helpers/safe-repository.provider.ts": {
-    "reason": "Инфраструктура: провайдер репозиториев, через него проходят все запросы к БД, прямых проверок не требует.",
+    "reason": "Infrastructure: repository provider, all DB queries go through it, needs no direct checks.",
     "tests": "*",
     "cases": {
       "e2e:test/e2e/appointments.e2e-spec.ts": 2,
@@ -62,12 +62,12 @@
     }
   },
   "src/common/helpers/get-entity-repository.ts": {
-    "reason": "Инфраструктура: получение репозитория, через него проходят все запросы к БД, прямых проверок не требует.",
+    "reason": "Infrastructure: repository getter, all DB queries go through it, needs no direct checks.",
     "tests": "*",
     "cases": {}
   },
   "src/common/helpers/clinic-time.ts": {
-    "reason": "Проверено: семантику (пояс, летнее время, независимость от TZ процесса) проверяет только clinic-time.spec.ts. В остальных тестах хелпер используется как зависимость: booking-rules.spec проверяет окно записи, appointment.service.spec проверяет, что сервис берёт пояс центра, int:appointment и e2e:appointments проходят через него при подготовке данных и не проверяют само окно.",
+    "reason": "Verified: the semantics (time zone, daylight saving time, independence from the process TZ) are checked only in clinic-time.spec.ts. In the other tests the helper is used as a dependency: booking-rules.spec checks the booking window, appointment.service.spec checks that the service takes the center time zone, int:appointment and e2e:appointments go through it while preparing data and do not check the window itself.",
     "tests": [
       "unit:src/common/helpers/clinic-time.spec.ts",
       "unit:src/domain/appointment/helpers/booking-rules.spec.ts",
@@ -84,7 +84,7 @@
     }
   },
   "src/domain/appointment/helpers/booking-rules.ts": {
-    "reason": "Проверено: правила окна записи и принадлежности слота проверяет booking-rules.spec.ts. appointment.service.spec проверяет подключение правил в create и reschedule (см. замечание в отчёте про повтор граничного значения 16:59:59). int:appointment и e2e:appointments правила не проверяют: окно записи в них не тестируется, а расчёт PAST/FUTURE в int:appointment идёт через SQL (AT TIME ZONE), а не через этот хелпер.",
+    "reason": "Verified: the booking window and slot ownership rules are checked by booking-rules.spec.ts. appointment.service.spec checks that the rules are wired into create and reschedule (see the report note about the repeated boundary value 16:59:59). int:appointment and e2e:appointments do not check the rules: the booking window is not tested in them, and the PAST/FUTURE calculation in int:appointment goes through SQL (AT TIME ZONE), not through this helper.",
     "tests": [
       "unit:src/domain/appointment/helpers/booking-rules.spec.ts",
       "unit:src/domain/appointment/appointment.service.spec.ts",
@@ -99,7 +99,7 @@
     }
   },
   "src/common/helpers/decorators/not-unique-error-metadata.decorator.ts": {
-    "reason": "Проверено: NotUniqueErrorMetadata применяется при загрузке сущностей (инфраструктура). getNotUniqueErrorText выполняют int:users и int:appointment через DatabaseEntityUniqueConstraintError, но на разных сущностях и разных ограничениях (телефон и никнейм против занятого слота). Текст сообщения проверяет только int:appointment.",
+    "reason": "Verified: NotUniqueErrorMetadata is applied when entities load (infrastructure). getNotUniqueErrorText is executed by int:users and int:appointment via DatabaseEntityUniqueConstraintError, but on different entities and different constraints (phone and nickname versus a taken slot). The message text is checked only by int:appointment.",
     "tests": "*",
     "cases": {
       "int:test/integration/appointment.int-spec.ts": 2,

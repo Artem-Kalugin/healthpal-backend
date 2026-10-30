@@ -11,7 +11,7 @@ export class LoginDto {
   @Matches(PHONE_PATTERN, rule(ValidationCode.PHONE_FORMAT))
   phone: string;
 
-  /** Политику сложности не проверяем: пароли, созданные по старым правилам, должны входить. */
+  /** The complexity policy is not checked: passwords created under the old rules must be able to log in. */
   @ApiProperty({ example: 'Password123' })
   @IsString(rule(ValidationCode.NOT_STRING))
   @MinLength(1, rule(ValidationCode.TEXT_TOO_SHORT, { limit: 1 }))

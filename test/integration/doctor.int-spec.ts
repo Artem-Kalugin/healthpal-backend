@@ -12,14 +12,14 @@ const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const [D1, D2, D3, D4] = [id(1), id(2), id(3), id(4)];
 
 /**
- * Датасет подобран под тай-брейки: у D2 и D3 одинаковые рейтинг и год практики,
- * у D2 и D4 — число отзывов. Читаем только, поэтому сидим один раз.
+ * The dataset is tuned for tie-breaks: D2 and D3 share rating and practice year,
+ * D2 and D4 share the review count. Read-only, so it is seeded once.
  *
- * | врач | центр | категория  | рейтинг | отзывы | год  |
- * | D1   | Север | general    | 4.9     | 50     | 2005 |
- * | D2   | Север | cardiology | 4.5     | 20     | 2012 |
- * | D3   | Юг    | general    | 4.5     | 30     | 2012 |
- * | D4   | Юг    | cardiology | 3.0     | 20     | 2020 |
+ * | doctor | center | category   | rating | reviews | year |
+ * | D1   | North  | general    | 4.9     | 50     | 2005 |
+ * | D2   | North  | cardiology | 4.5     | 20     | 2012 |
+ * | D3   | South  | general    | 4.5     | 30     | 2012 |
+ * | D4   | South  | cardiology | 3.0     | 20     | 2020 |
  */
 describe('DoctorService (integration)', () => {
   let db: Database;
@@ -112,7 +112,7 @@ describe('DoctorService (integration)', () => {
     userB = (await factories.user()).id;
     userWithoutFavorites = (await factories.user()).id;
 
-    // Порядок добавления (D2, D1, D4) не совпадает ни с порядком id, ни с обратным
+    // The insertion order (D2, D1, D4) matches neither the id order nor its reverse
     const favorite = (userId: string, doctorId: string, createdAt: string) =>
       db
         .insert(userFavoriteDoctor)
@@ -142,7 +142,7 @@ describe('DoctorService (integration)', () => {
   };
 
   describe('searchDoctorsForUser', () => {
-    it('возвращает всех врачей по id с центром, категорией и isFavorite', async () => {
+    it('returns all doctors by id with center, category and isFavorite', async () => {
       const { data } = await service.searchDoctorsForUser({
         page: 1,
         size: 10,
@@ -156,7 +156,7 @@ describe('DoctorService (integration)', () => {
       });
     });
 
-    it('isFavorite считается для конкретного пользователя и не дублирует строки', async () => {
+    it('isFavorite is computed for a specific user and does not duplicate rows', async () => {
       const favoritesOf = async (userId: string) => {
         const { data } = await service.searchDoctorsForUser({
           page: 1,
@@ -181,7 +181,7 @@ describe('DoctorService (integration)', () => {
       ]);
     });
 
-    it('фильтры по категории и центру работают по отдельности и вместе (AND)', async () => {
+    it('category and center filters work separately and together (AND)', async () => {
       await expect(search({ categoryId: cardiologyId })).resolves.toEqual([
         D2,
         D4,
@@ -195,14 +195,14 @@ describe('DoctorService (integration)', () => {
       ).resolves.toEqual([D3]);
     });
 
-    it('searchFor ищет по имени и фамилии, названию и адресу центра без учёта регистра', async () => {
+    it('searchFor matches first and last name, center name and address, case-insensitively', async () => {
       await expect(search({ searchFor: 'СИДОР' })).resolves.toEqual([D2]);
       await expect(search({ searchFor: 'борис сид' })).resolves.toEqual([D2]);
       await expect(search({ searchFor: 'север' })).resolves.toEqual([D1, D2]);
       await expect(search({ searchFor: 'МИРА' })).resolves.toEqual([D3, D4]);
     });
 
-    it('searchFor сочетается с фильтром как AND', async () => {
+    it('searchFor combines with a filter as AND', async () => {
       await expect(
         search({ searchFor: 'север', categoryId: cardiologyId }),
       ).resolves.toEqual([D2]);
@@ -212,7 +212,7 @@ describe('DoctorService (integration)', () => {
     });
 
     it.each(['%', '_', '\\'])(
-      'спецсимвол %s в searchFor считается обычным текстом',
+      'special character %s in searchFor is treated as plain text',
       async searchFor => {
         await expect(search({ searchFor })).resolves.toEqual([]);
       },
@@ -226,13 +226,13 @@ describe('DoctorService (integration)', () => {
       ['practiceStartYear', SortOrder.DESC, [D4, D2, D3, D1]],
       ['practiceStartYear', SortOrder.ASC, [D1, D2, D3, D4]],
     ] as const)(
-      'sort=%s order=%s, равные значения идут по id',
+      'sort=%s order=%s, equal values are ordered by id',
       async (sort, order, expected) => {
         await expect(search({ sort, order })).resolves.toEqual(expected);
       },
     );
 
-    it('без order сортирует по убыванию', async () => {
+    it('without order sorts descending', async () => {
       await expect(search({ sort: 'rating' })).resolves.toEqual([
         D1,
         D2,
@@ -241,7 +241,7 @@ describe('DoctorService (integration)', () => {
       ]);
     });
 
-    it('страницы с join не пересекаются и вместе дают всех врачей', async () => {
+    it('pages with a join do not overlap and together give all doctors', async () => {
       const query = { sort: 'rating', order: SortOrder.ASC, size: 2 } as const;
 
       const first = await search({ ...query, page: 1 });
@@ -263,7 +263,7 @@ describe('DoctorService (integration)', () => {
       return data;
     };
 
-    it('возвращает только избранное пользователя, последние добавленные первыми', async () => {
+    it('returns only the favorites of the user, most recently added first', async () => {
       const data = await favoritesFor(userA);
 
       expect(data.map(item => item.id)).toEqual([D4, D1, D2]);
@@ -274,12 +274,12 @@ describe('DoctorService (integration)', () => {
       });
     });
 
-    it('не подмешивает избранное других пользователей', async () => {
+    it('does not mix in the favorites of other users', async () => {
       expect((await favoritesFor(userB)).map(item => item.id)).toEqual([D1]);
       await expect(favoritesFor(userWithoutFavorites)).resolves.toEqual([]);
     });
 
-    it('страницы не пересекаются', async () => {
+    it('pages do not overlap', async () => {
       const first = await favoritesFor(userA, 1, 2);
       const second = await favoritesFor(userA, 2, 2);
 
@@ -291,7 +291,7 @@ describe('DoctorService (integration)', () => {
   });
 
   describe('findOneForUser', () => {
-    it('возвращает врача с центром, категорией и isFavorite для пользователя', async () => {
+    it('returns a doctor with center, category and isFavorite for the user', async () => {
       await expect(service.findOneForUser(userA, D2)).resolves.toMatchObject({
         id: D2,
         isFavorite: true,

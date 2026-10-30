@@ -71,7 +71,7 @@ export class UsersService {
     let updatedUser: User | undefined;
 
     try {
-      // undefined-поля Drizzle в UPDATE не включает, то есть не затирает
+      // Drizzle leaves undefined fields out of UPDATE, so it does not overwrite them
       [updatedUser] = await this.db
         .update(user)
         .set({

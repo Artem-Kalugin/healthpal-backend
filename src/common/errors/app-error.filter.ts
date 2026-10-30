@@ -19,7 +19,7 @@ import { AppException } from './app.exception';
 import { CODE_BY_HTTP_STATUS, ERROR_STATUS, ErrorCode } from './error-code';
 import { ValidationFailedException } from './validation.exception';
 
-/** Ограничения, нарушение которых пользователь может вызвать сам: у них есть публичный код. Остальные уходят клиенту как `INTERNAL_ERROR`. */
+/** Constraints a user can violate on their own: they have a public code. The rest reach the client as `INTERNAL_ERROR`. */
 export const CONSTRAINT_CODES: Partial<Record<Constraint, ErrorCode>> = {
   [Constraint.USER_PHONE_UNIQUE]: ErrorCode.USER_PHONE_TAKEN,
   [Constraint.USER_NICKNAME_UNIQUE]: ErrorCode.USER_NICKNAME_TAKEN,
@@ -39,7 +39,7 @@ const DB_CODE_BY_PG_CODE: Record<string, ErrorCode> = {
   [CHECK_VIOLATION]: ErrorCode.DB_CHECK_VIOLATION,
 };
 
-/** Внутренний код для лога и код для клиента; `detail` дописывается в лог. */
+/** Internal code for the log and code for the client; `detail` is appended to the log. */
 const resolve = (exception: unknown) => {
   if (exception instanceof AppException) {
     return {
@@ -82,7 +82,7 @@ const resolve = (exception: unknown) => {
   };
 };
 
-/** Единственное место, где любая ошибка превращается в HTTP-ответ `{ statusCode, code }` (для валидации ещё `validation`). Неизвестные ошибки отдаются как `INTERNAL_ERROR`, детали только в логе. */
+/** The only place where any error becomes an HTTP response `{ statusCode, code }` (plus `validation` for validation errors). Unknown errors are returned as `INTERNAL_ERROR`, details only in the log. */
 @Catch()
 export class AppErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger(AppErrorFilter.name);

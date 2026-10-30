@@ -70,7 +70,7 @@ describe('RecoveryService (integration, Redis)', () => {
     await redis.quit();
   });
 
-  // лок «не чаще раза в 10 секунд» проверяется отдельно, в остальных тестах мешает
+  // the lock "at most once per 10 seconds" is tested separately, in the other tests it gets in the way
   const requestOtp = async (phone = PHONE) => {
     await redis.del(`otp_lock:${phone}`);
 
@@ -86,7 +86,7 @@ describe('RecoveryService (integration, Redis)', () => {
     );
 
   describe('requestOtp', () => {
-    it('неизвестный телефон → UserNotFound, лок и OTP не создаются', async () => {
+    it('unknown phone → UserNotFound, no lock and no OTP are created', async () => {
       usersService.findOneByPhone.mockRejectedValue(
         new UserNotFoundException(),
       );
@@ -97,13 +97,13 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(await redis.keys('*')).toEqual([]);
     });
 
-    it('OTP дополняется нулями до 5 цифр', async () => {
+    it('OTP is zero-padded to 5 digits', async () => {
       jest.spyOn(crypto, 'randomInt').mockReturnValue(42 as never);
 
       expect(await requestOtp()).toBe('00042');
     });
 
-    it('в Redis лежит хеш, а не сам OTP, с TTL OTP_TTL', async () => {
+    it('Redis holds a hash, not the OTP itself, with TTL OTP_TTL', async () => {
       const otp = await requestOtp();
 
       const stored = await redis.get(`otp:${PHONE}`);
@@ -115,7 +115,7 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(ttl).toBeLessThanOrEqual(OTP_TTL);
     });
 
-    it('повторный запрос в пределах лока → код ошибки, прежний OTP не перезаписан', async () => {
+    it('repeated request within the lock → error code, the previous OTP is not overwritten', async () => {
       await service.requestOtp(PHONE);
       const before = await redis.get(`otp:${PHONE}`);
 
@@ -125,7 +125,7 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(await redis.get(`otp:${PHONE}`)).toBe(before);
     });
 
-    it('сверх OTP_MAX_REQUESTS запросов в окне → код ошибки, OTP не перезаписан', async () => {
+    it('more than OTP_MAX_REQUESTS requests in the window → error code, OTP is not overwritten', async () => {
       for (let index = 0; index < OTP_MAX_REQUESTS; index++) await requestOtp();
       const before = await redis.get(`otp:${PHONE}`);
 
@@ -137,7 +137,7 @@ describe('RecoveryService (integration, Redis)', () => {
   });
 
   describe('verifyOtp', () => {
-    it('верный код → токен восстановления с TTL RECOVERY_TTL, привязанный к телефону', async () => {
+    it('valid code → recovery token with TTL RECOVERY_TTL, bound to the phone', async () => {
       const otp = await requestOtp();
 
       const { recoveryToken } = await service.verifyOtp(PHONE, otp);
@@ -148,7 +148,7 @@ describe('RecoveryService (integration, Redis)', () => {
       );
     });
 
-    it('OTP одноразовый: повторная проверка того же кода → код ошибки', async () => {
+    it('OTP is single-use: re-checking the same code → error code', async () => {
       const otp = await requestOtp();
       await service.verifyOtp(PHONE, otp);
 
@@ -157,13 +157,13 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
     });
 
-    it('OTP не запрашивали или он истёк → код ошибки', async () => {
+    it('OTP was not requested or has expired → error code', async () => {
       const error = await rejection(service.verifyOtp(PHONE, '12345'));
 
       expect(error).toMatchObject({ code: ErrorCode.TEMP_PASSWORD_EXPIRED });
     });
 
-    it('неверный код → код ошибки, токен не создан, настоящий OTP ещё валиден', async () => {
+    it('wrong code → error code, no token created, the real OTP is still valid', async () => {
       const otp = await requestOtp();
 
       const error = await rejection(service.verifyOtp(PHONE, wrongOtp(otp)));
@@ -175,7 +175,7 @@ describe('RecoveryService (integration, Redis)', () => {
       );
     });
 
-    it('после OTP_MAX_ATTEMPTS неверных кодов OTP сгорает, даже верный код не проходит', async () => {
+    it('after OTP_MAX_ATTEMPTS wrong codes the OTP burns, even a valid code fails', async () => {
       const otp = await requestOtp();
       for (let index = 0; index < OTP_MAX_ATTEMPTS; index++) {
         await rejection(service.verifyOtp(PHONE, wrongOtp(otp)));
@@ -187,7 +187,7 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(await redis.keys('recovery:*')).toEqual([]);
     });
 
-    it('попытки на единицу меньше лимита не сжигают OTP', async () => {
+    it('attempts one below the limit do not burn the OTP', async () => {
       const otp = await requestOtp();
       for (let index = 0; index < OTP_MAX_ATTEMPTS - 1; index++) {
         await rejection(service.verifyOtp(PHONE, wrongOtp(otp)));
@@ -198,7 +198,7 @@ describe('RecoveryService (integration, Redis)', () => {
       );
     });
 
-    it('новый requestOtp обнуляет счётчик неверных попыток', async () => {
+    it('a new requestOtp resets the wrong-attempts counter', async () => {
       const first = await requestOtp();
       for (let index = 0; index < OTP_MAX_ATTEMPTS - 1; index++) {
         await rejection(service.verifyOtp(PHONE, wrongOtp(first)));
@@ -207,7 +207,7 @@ describe('RecoveryService (integration, Redis)', () => {
 
       await rejection(service.verifyOtp(PHONE, wrongOtp(second)));
 
-      // иначе эта попытка стала бы пятой и сожгла OTP
+      // otherwise this attempt would be the fifth and burn the OTP
       await expect(service.verifyOtp(PHONE, second)).resolves.toHaveProperty(
         'recoveryToken',
       );
@@ -221,7 +221,7 @@ describe('RecoveryService (integration, Redis)', () => {
       return (await service.verifyOtp(PHONE, otp)).recoveryToken;
     };
 
-    it('сохраняет хеш (не пароль), гасит токен и возвращает токены входа', async () => {
+    it('stores the hash (not the password), invalidates the token and returns login tokens', async () => {
       const recoveryToken = await issueRecoveryToken();
       const tokens = { accessToken: 'a', refreshToken: 'r', user };
       authService.generateTokens.mockResolvedValue(tokens);
@@ -239,7 +239,7 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(await redis.get(`recovery:${recoveryToken}`)).toBeNull();
     });
 
-    it('токен одноразовый: повторный сброс с ним отклоняется', async () => {
+    it('the token is single-use: a repeated reset with it is rejected', async () => {
       const recoveryToken = await issueRecoveryToken();
       authService.generateTokens.mockResolvedValue({});
       await service.resetPassword(recoveryToken, 'NewPassword1');
@@ -252,7 +252,7 @@ describe('RecoveryService (integration, Redis)', () => {
       expect(usersService.changeUserPassword).toHaveBeenCalledTimes(1);
     });
 
-    it('неизвестный или истёкший токен → код ошибки, пароль не меняется', async () => {
+    it('unknown or expired token → error code, the password is unchanged', async () => {
       const error = await rejection(
         service.resetPassword('unknown', 'NewPassword1'),
       );

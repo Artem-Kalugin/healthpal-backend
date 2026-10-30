@@ -14,7 +14,7 @@ import { PaginatedQueryDto } from 'src/common/helpers/pagination/paginated-query
 
 export class DoctorSearchQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
-    description: 'Поисковый запрос (>=3 символов)',
+    description: 'Search query (>=3 characters)',
     example: 'Иван',
   })
   @IsOptional()
@@ -23,20 +23,20 @@ export class DoctorSearchQueryDto extends PaginatedQueryDto {
   @MaxLength(100, rule(ValidationCode.TEXT_TOO_LONG, { limit: 100 }))
   searchFor?: string;
 
-  @ApiPropertyOptional({ description: 'Фильтр по категории врача' })
+  @ApiPropertyOptional({ description: 'Doctor category filter' })
   @IsOptional()
   @IsUUID()
   categoryId?: string;
 
   @ApiPropertyOptional({
-    description: 'Фильтр по медицинскому центру',
+    description: 'Medical center filter',
   })
   @IsOptional()
   @IsUUID()
   medicalCenterId?: string;
 
   @ApiPropertyOptional({
-    description: 'Поле сортировки',
+    description: 'Sort field',
     enum: ['rating', 'reviews', 'practiceStartYear'],
     example: 'rating',
   })
@@ -45,7 +45,7 @@ export class DoctorSearchQueryDto extends PaginatedQueryDto {
   sort?: 'rating' | 'reviews' | 'practiceStartYear';
 
   @ApiPropertyOptional({
-    description: 'Направление сортировки',
+    description: 'Sort direction',
     enum: SortOrder,
     example: SortOrder.ASC,
   })

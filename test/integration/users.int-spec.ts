@@ -18,7 +18,7 @@ const OLD_IMAGE = { image: 'old.jpg', thumbhash: 'old-hash' };
 const AVATAR = Buffer.from('avatar');
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
 
-/** Код и ограничение Postgres из `cause` ошибки драйвера; HTTP-статус появится с глобальным фильтром. */
+/** Postgres code and constraint from the driver error `cause`; the HTTP status comes with the global filter. */
 const violation = (error: unknown) => {
   expect(error).toBeInstanceOf(DrizzleQueryError);
   const { code, constraint } = (error as DrizzleQueryError)
@@ -62,7 +62,7 @@ describe('UsersService (integration)', () => {
     await pool.end();
   });
 
-  // DTO типизирован как обязательный, хотя валидатор допускает частичное обновление
+  // The DTO is typed as required although the validator allows a partial update
   const update = (id: string, dto: Partial<UpdateUserDto>) =>
     service.update(id, dto as UpdateUserDto);
 
@@ -75,7 +75,7 @@ describe('UsersService (integration)', () => {
     return found;
   };
 
-  it('create: хеширует пароль, нормализует имя и фамилию, регистрация не завершена', async () => {
+  it('create: hashes the password, normalizes first and last name, registration is not complete', async () => {
     const created = await service.create({
       phone: '+79001234567',
       password: 'secret',
@@ -91,7 +91,7 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  it('create: занятый телефон → нарушение уникальности', async () => {
+  it('create: taken phone → uniqueness violation', async () => {
     const existing = await factories.user();
 
     const error: unknown = await service
@@ -109,7 +109,7 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  it('update: занятый никнейм → нарушение уникальности', async () => {
+  it('update: taken nickname → uniqueness violation', async () => {
     await factories.user({ nickname: 'taken' });
     const user = await factories.user();
 
@@ -123,7 +123,7 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  it('update: никнейм сохраняется в нижнем регистре', async () => {
+  it('update: nickname is stored in lowercase', async () => {
     const user = await factories.user();
 
     await update(user.id, { nickname: 'MiXeD' });
@@ -131,7 +131,7 @@ describe('UsersService (integration)', () => {
     expect((await reload(user.id)).nickname).toBe('mixed');
   });
 
-  it('update: не переданные поля не затираются', async () => {
+  it('update: fields not passed are not overwritten', async () => {
     const user = await factories.user({
       name: 'Иван',
       surname: 'Иванов',
@@ -149,7 +149,7 @@ describe('UsersService (integration)', () => {
   });
 
   describe('update: registrationComplete', () => {
-    it('birthday и gender переданы вместе → true', async () => {
+    it('birthday and gender passed together → true', async () => {
       const user = await factories.user({ registrationComplete: false });
 
       await update(user.id, {
@@ -160,7 +160,7 @@ describe('UsersService (integration)', () => {
       expect((await reload(user.id)).registrationComplete).toBe(true);
     });
 
-    it('передано только одно из полей → false', async () => {
+    it('only one of the fields passed → false', async () => {
       const user = await factories.user({ registrationComplete: false });
 
       await update(user.id, { birthday: BIRTHDAY });
@@ -168,7 +168,7 @@ describe('UsersService (integration)', () => {
       expect((await reload(user.id)).registrationComplete).toBe(false);
     });
 
-    it('у завершившего регистрацию правка имени флаг не сбрасывает', async () => {
+    it('for a user who completed registration, editing the name does not reset the flag', async () => {
       const user = await factories.user({
         registrationComplete: true,
         birthday: new Date(BIRTHDAY),
@@ -181,8 +181,8 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  describe('аватар', () => {
-    it('сохраняется без защиты, старый файл удаляется', async () => {
+  describe('avatar', () => {
+    it('is saved unprotected, the old file is deleted', async () => {
       const user = await factories.user({ avatar: OLD_IMAGE });
 
       await service.update(user.id, {} as UpdateUserDto, AVATAR);
@@ -197,7 +197,7 @@ describe('UsersService (integration)', () => {
       expect(storage.deleteImage).toHaveBeenCalledWith(OLD_IMAGE.image);
     });
 
-    it('если старого аватара не было, удалять нечего', async () => {
+    it('if there was no old avatar, there is nothing to delete', async () => {
       const user = await factories.user();
 
       await service.update(user.id, {} as UpdateUserDto, AVATAR);
@@ -205,7 +205,7 @@ describe('UsersService (integration)', () => {
       expect(storage.deleteImage).not.toHaveBeenCalled();
     });
 
-    it('при ошибке обновления удаляется новый файл, старый остаётся', async () => {
+    it('on update error the new file is deleted, the old one stays', async () => {
       await factories.user({ nickname: 'taken' });
       const user = await factories.user({ avatar: OLD_IMAGE });
 
@@ -219,7 +219,7 @@ describe('UsersService (integration)', () => {
       expect((await reload(user.id)).avatar).toEqual(OLD_IMAGE);
     });
 
-    it('без аватара файловое хранилище не трогается', async () => {
+    it('without an avatar the file storage is untouched', async () => {
       const user = await factories.user({ avatar: OLD_IMAGE });
 
       await update(user.id, { name: 'иван' });
@@ -230,8 +230,8 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  describe('не найден', () => {
-    it('update: UserNotFoundException без побочных эффектов', async () => {
+  describe('not found', () => {
+    it('update: UserNotFoundException without side effects', async () => {
       await expect(
         service.update(MISSING_ID, {} as UpdateUserDto, AVATAR),
       ).rejects.toBeInstanceOf(UserNotFoundException);
@@ -257,7 +257,7 @@ describe('UsersService (integration)', () => {
     });
   });
 
-  it('changeUserPassword: сохраняет новый хеш', async () => {
+  it('changeUserPassword: saves the new hash', async () => {
     const user = await factories.user();
 
     await service.changeUserPassword(user.id, 'new-hash');

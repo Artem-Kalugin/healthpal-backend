@@ -21,7 +21,7 @@ export class FavoritesService {
       throw new AppException(ErrorCode.DOCTOR_NOT_FOUND);
     }
 
-    // Пустой результат значит, что связь уже была (в том числе при гонке запросов)
+    // An empty result means the link already existed (including a request race)
     const inserted = await this.db
       .insert(userFavoriteDoctor)
       .values({ userId, doctorId })
@@ -30,7 +30,7 @@ export class FavoritesService {
 
     if (inserted.length === 0) {
       throw new AppException(ErrorCode.FAVORITE_ALREADY_EXISTS, {
-        message: 'Доктор уже в избранном',
+        message: 'Doctor is already in favorites',
       });
     }
 
@@ -52,7 +52,7 @@ export class FavoritesService {
 
     if (inserted.length === 0) {
       throw new AppException(ErrorCode.FAVORITE_ALREADY_EXISTS, {
-        message: 'Медицинский центр уже в избранном',
+        message: 'Medical center is already in favorites',
       });
     }
 

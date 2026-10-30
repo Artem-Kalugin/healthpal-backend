@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsDateString } from 'class-validator';
 
-// Клиент шлёт полный ISO, в запросе нужна только дата
+// The client sends a full ISO string, only the date is needed here
 const toDatePart = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.slice(0, 10) : value;
 

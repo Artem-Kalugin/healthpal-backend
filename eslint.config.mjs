@@ -38,12 +38,12 @@ export default tseslint.config(
   eslintNestJs.configs.flatRecommended,
   {
     rules: {
-      // Составной декоратор из `src/common/helpers/decorators`.
+      // Composite decorator from `src/common/helpers/decorators`.
       '@darraghor/nestjs-typed/api-method-should-specify-api-response': [
         'error',
         { additionalCustomApiResponseDecorators: ['ApiSerialized'] },
       ],
-      // Составной декоратор из `src/common/validators`.
+      // Composite decorator from `src/common/validators`.
       '@darraghor/nestjs-typed/all-properties-are-whitelisted': [
         'error',
         { additionalDecorators: ['IsPassword', 'IsNotFutureDate'] },
@@ -72,7 +72,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ['../../*'],
-              message: 'Между папками импортируем от корня (src/...), ../ только на один уровень.',
+              message: 'Import across folders from the root (src/...), ../ only for one level up.',
             },
           ],
         },

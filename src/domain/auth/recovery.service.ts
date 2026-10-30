@@ -11,9 +11,9 @@ import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { PasswordService } from 'src/infrastructure/password/password.service';
 
-/** Неверных вводов на один OTP, после чего он сгорает и нужен новый запрос. */
+/** Wrong inputs per OTP, after which it burns and a new request is needed. */
 export const OTP_MAX_ATTEMPTS = 5;
-/** Запросов OTP на телефон в окне `OTP_REQUESTS_WINDOW_SECONDS`. */
+/** OTP requests per phone within the `OTP_REQUESTS_WINDOW_SECONDS` window. */
 export const OTP_MAX_REQUESTS = 10;
 export const OTP_REQUESTS_WINDOW_SECONDS = 3600;
 
@@ -50,7 +50,7 @@ export class RecoveryService {
 
     if (!lockSet) {
       throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
-        message: 'Повторный запрос OTP возможен только через 10 секунд',
+        message: 'A repeated OTP request is possible only after 10 seconds',
       });
     }
 
@@ -61,7 +61,7 @@ export class RecoveryService {
     }
     if (requests > OTP_MAX_REQUESTS) {
       throw new AppException(ErrorCode.OTP_RATE_LIMITED, {
-        message: 'Слишком много запросов OTP за окно',
+        message: 'Too many OTP requests within the window',
       });
     }
 
@@ -91,7 +91,7 @@ export class RecoveryService {
     const stored = await this.redis.get(`otp:${phone}`);
     if (!stored) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
-        message: 'OTP не запрашивали или он истёк',
+        message: 'OTP was not requested or has expired',
       });
     }
 
@@ -104,7 +104,7 @@ export class RecoveryService {
     if (!isValid) {
       await this.registerFailedAttempt(phone);
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
-        message: 'Неверный OTP',
+        message: 'Wrong OTP',
       });
     }
 
@@ -122,12 +122,12 @@ export class RecoveryService {
   }
 
   async resetPassword(recoveryToken: string, newPassword: string) {
-    // GETDEL: токен одноразовый, параллельный запрос с тем же токеном получит null
+    // GETDEL: the token is single-use, a parallel request with the same token gets null
     const phone = await this.redis.getdel(`recovery:${recoveryToken}`);
 
     if (!phone) {
       throw new AppException(ErrorCode.TEMP_PASSWORD_EXPIRED, {
-        message: 'Токен восстановления неизвестен или истёк',
+        message: 'Recovery token is unknown or has expired',
       });
     }
 
@@ -137,7 +137,7 @@ export class RecoveryService {
 
     await this.usersService.changeUserPassword(user.id, newUserPassword);
 
-    // украденный refresh-токен не должен пережить смену пароля
+    // a stolen refresh token must not outlive a password change
     await this.authService.revokeAllSessions(user.id);
 
     return this.authService.generateTokens(user);

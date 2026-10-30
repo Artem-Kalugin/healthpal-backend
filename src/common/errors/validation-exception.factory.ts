@@ -28,11 +28,12 @@ const toIssue = (
   const code = DEFAULT_RULE_CODES[rule];
   if (code) return { code };
 
-  logger.warn(`Правило ${rule} поля ${error.property} без кода: ${message}`);
+  logger.warn(
+    `Rule ${rule} of field ${error.property} has no code: ${message}`,
+  );
   return { code: ValidationCode.INVALID_VALUE };
 };
 
-/** `exceptionFactory` для `ValidationPipe`. */
 export const createValidationException = (
   validationErrors: ValidationError[] = [],
 ) => {

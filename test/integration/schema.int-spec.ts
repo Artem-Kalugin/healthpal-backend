@@ -10,7 +10,7 @@ import {
 import { clearDatabase, createTestDb } from './db';
 import { createFactories } from './factories';
 
-/** Ограничение, нарушенное запросом: код Postgres и имя лежат в `cause` ошибки драйвера. */
+/** Constraint violated by the query: the Postgres code and name are in the driver error `cause`. */
 const violation = async (query: PromiseLike<unknown>) => {
   try {
     await query;
@@ -23,7 +23,7 @@ const violation = async (query: PromiseLike<unknown>) => {
     };
   }
 
-  throw new Error('Запрос не нарушил ограничение');
+  throw new Error('The query did not violate a constraint');
 };
 
 describe('schema (integration)', () => {
@@ -65,7 +65,7 @@ describe('schema (integration)', () => {
     expect(center?.timezone).toBe('Europe/Moscow');
   });
 
-  // На этом держится защита от двойной записи на слот (I3).
+  // This is what protects against double booking of a slot.
   it('rejects a second appointment on the same time slot at the database level', async () => {
     const doctor = await factories.doctor();
     const slot = await factories.timeSlot(doctor.id);

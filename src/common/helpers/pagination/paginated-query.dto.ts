@@ -5,7 +5,7 @@ import { rule, ValidationCode } from 'src/common/errors/validation-code';
 
 export class PaginatedQueryDto {
   @ApiPropertyOptional({
-    description: 'Номер страницы (>=1)',
+    description: 'Page number (>=1)',
     example: 1,
     type: 'number',
   })
@@ -15,7 +15,7 @@ export class PaginatedQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: 'Размер страницы (10–40)',
+    description: 'Page size (10–40)',
     example: 10,
     type: 'number',
   })

@@ -1,8 +1,8 @@
 import { ValidationOptions } from 'class-validator';
 
 /**
- * Коды ошибок валидации DTO: клиент по ним подбирает локализованный текст.
- * Значение менять нельзя без согласования с клиентом.
+ * DTO validation error codes: the client picks the localized text by them.
+ * Values must not change without agreeing with the client.
  */
 export enum ValidationCode {
   NOT_STRING = 'NOT_STRING',
@@ -11,9 +11,9 @@ export enum ValidationCode {
   INVALID_BOOLEAN = 'INVALID_BOOLEAN',
   INVALID_ENUM = 'INVALID_ENUM',
   INVALID_DATE = 'INVALID_DATE',
-  /** Запасной код для правила, которое не прошло через `rule()` и не учтено в таблице по умолчанию. */
+  /** Fallback code for a rule that did not go through `rule()` and is not covered by the default table. */
   INVALID_VALUE = 'INVALID_VALUE',
-  /** Лишнее поле в теле (`forbidNonWhitelisted`). */
+  /** Extra field in the body (`forbidNonWhitelisted`). */
   UNKNOWN_FIELD = 'UNKNOWN_FIELD',
 
   TEXT_TOO_SHORT = 'TEXT_TOO_SHORT',
@@ -33,7 +33,7 @@ export enum ValidationCode {
   NICKNAME_HAS_SPACES = 'NICKNAME_HAS_SPACES',
 }
 
-/** Форма параметров каждого кода; `undefined` значит без параметров. */
+/** Parameter shape of each code; `undefined` means no parameters. */
 export interface ValidationParameters {
   [ValidationCode.NOT_STRING]: undefined;
   [ValidationCode.INVALID_UUID]: undefined;
@@ -67,8 +67,8 @@ type RuleArguments<C extends ValidationCode> =
     : [parameters: ValidationParameters[C]];
 
 /**
- * Опции class-validator для DTO: `message` несёт код, `context` несёт параметры.
- * Параметры берите из той же константы, что и аргумент декоратора.
+ * class-validator options for DTOs: `message` carries the code, `context` carries the parameters.
+ * Take the parameters from the same constant as the decorator argument.
  */
 export const rule = <C extends ValidationCode>(
   code: C,
@@ -78,7 +78,7 @@ export const rule = <C extends ValidationCode>(
 export const isValidationCode = (value: unknown): value is ValidationCode =>
   Object.values(ValidationCode).includes(value as ValidationCode);
 
-/** Код встроенного правила class-validator, когда в DTO нет `rule()`. Ключ это имя правила из `ValidationError.constraints`. */
+/** Code of a built-in class-validator rule when the DTO has no `rule()`. The key is the rule name from `ValidationError.constraints`. */
 export const DEFAULT_RULE_CODES: Record<string, ValidationCode> = {
   isString: ValidationCode.NOT_STRING,
   isUuid: ValidationCode.INVALID_UUID,

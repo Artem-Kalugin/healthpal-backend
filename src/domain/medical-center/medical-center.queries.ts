@@ -9,7 +9,7 @@ import { centerOfDoctor } from 'src/domain/doctor/doctor.queries';
 
 export type Point = { lat: number; lon: number };
 
-/** Расстояние до центра в км с одним знаком (хаверсин с зажимом `acos` в [-1, 1]). */
+/** Distance to the center in km with one decimal (haversine with `acos` clamped to [-1, 1]). */
 export const distanceTo = ({ lat, lon }: Point) =>
   sql<number>`round((6371 * acos(least(1, greatest(-1,
     cos(radians(${lat})) * cos(radians(${medicalCenter.lat})) *
@@ -17,10 +17,10 @@ export const distanceTo = ({ lat, lon }: Point) =>
     sin(radians(${lat})) * sin(radians(${medicalCenter.lat}))
   ))))::numeric, 1)`.mapWith(Number);
 
-/** Сумма отзывов врачей центра; `bigint` приходит строкой. */
+/** Sum of the reviews of the center doctors; `bigint` arrives as a string. */
 export const reviewsCount = sql<string>`coalesce(sum(${doctor.reviewsCount}), 0)`;
 
-/** Рейтинг центра: среднее по врачам, взвешенное по отзывам; без отзывов `null`. */
+/** Center rating: average over doctors weighted by reviews; `null` without reviews. */
 export const rating = sql<string | null>`case
   when sum(${doctor.reviewsCount}) > 0
   then round(sum(${doctor.rating} * ${doctor.reviewsCount}) / sum(${doctor.reviewsCount}), 2)
@@ -30,9 +30,9 @@ end`;
 export const favoritedAt = sql<Date | null>`max(${userFavoriteMedicalCenter.createdAt})`;
 
 /**
- * Центры с агрегатами по врачам и флагом избранного для пользователя.
- * Возвращает динамический билдер: сортировку, `where` и пагинацию добавляет вызывающий.
- * Избранное джойнится по первичному ключу (не больше одной строки на центр), поэтому суммы по врачам не раздуваются.
+ * Centers with doctor aggregates and the favorite flag for the user.
+ * Returns a dynamic builder: the caller adds sorting, `where` and pagination.
+ * Favorites are joined by primary key (at most one row per center), so the doctor sums are not inflated.
  */
 export const selectCenters = <
   Extra extends Record<string, SQL> = Record<never, SQL>,

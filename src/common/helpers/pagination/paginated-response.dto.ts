@@ -3,19 +3,19 @@ import { Expose, Type } from 'class-transformer';
 
 export class PaginatedResponseDto<T> {
   @Expose()
-  @ApiProperty({ description: 'Текущая страница' })
+  @ApiProperty({ description: 'Current page' })
   page: number;
 
   @Expose()
-  @ApiProperty({ description: 'Размер страницы' })
+  @ApiProperty({ description: 'Page size' })
   size: number;
 
   @Expose()
-  @ApiProperty({ description: 'Есть ли следующая страница' })
+  @ApiProperty({ description: 'Whether there is a next page' })
   hasMore: boolean;
 
   @Expose()
-  @ApiProperty({ isArray: true, description: 'Массив данных' })
+  @ApiProperty({ isArray: true, description: 'Array of data' })
   @Type(() => Object)
   data: T[];
 

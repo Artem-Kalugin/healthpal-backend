@@ -7,10 +7,10 @@ import {
   userFavoriteDoctor,
 } from 'src/db/schema';
 
-/** Условие join'а врача с его центром: `.innerJoin(medicalCenter, centerOfDoctor)`. */
+/** Join condition of a doctor with their center: `.innerJoin(medicalCenter, centerOfDoctor)`. */
 export const centerOfDoctor = eq(medicalCenter.id, doctor.medicalCenterId);
 
-/** Врач с категорией, центром (имя, адрес) и флагом избранного; `where`, сортировку и пагинацию добавляет вызывающий. */
+/** Doctor with category, center (name, address) and the favorite flag; the caller adds `where`, sorting and pagination. */
 export const selectDoctors = (db: Database, userId: string) =>
   db
     .select({

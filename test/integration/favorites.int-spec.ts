@@ -36,7 +36,7 @@ describe('FavoritesService (integration)', () => {
   });
 
   describe('addDoctorToFavorites', () => {
-    it('сохраняет связь и возвращает идентификатор врача', async () => {
+    it('saves the link and returns the doctor id', async () => {
       const doctor = await factories.doctor();
 
       const result = await service.addDoctorToFavorites(userId, doctor.id);
@@ -47,14 +47,14 @@ describe('FavoritesService (integration)', () => {
       ]);
     });
 
-    it('несуществующий врач: NotFound, связь не создаётся', async () => {
+    it('nonexistent doctor: NotFound, no link is created', async () => {
       await expect(
         service.addDoctorToFavorites(userId, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });
       expect(await doctorLinks()).toHaveLength(0);
     });
 
-    it('повторное добавление: Conflict, связь остаётся одна', async () => {
+    it('repeated add: Conflict, a single link remains', async () => {
       const doctor = await factories.doctor();
       await service.addDoctorToFavorites(userId, doctor.id);
 
@@ -64,7 +64,7 @@ describe('FavoritesService (integration)', () => {
       expect(await doctorLinks()).toHaveLength(1);
     });
 
-    it('избранное другого пользователя не мешает добавить того же врача', async () => {
+    it('the favorite of another user does not prevent adding the same doctor', async () => {
       const doctor = await factories.doctor();
       await service.addDoctorToFavorites(otherUserId, doctor.id);
 
@@ -76,7 +76,7 @@ describe('FavoritesService (integration)', () => {
   });
 
   describe('addMedicalCenterToFavorites', () => {
-    it('сохраняет связь и возвращает идентификатор центра', async () => {
+    it('saves the link and returns the center id', async () => {
       const center = await factories.medicalCenter();
 
       const result = await service.addMedicalCenterToFavorites(
@@ -90,14 +90,14 @@ describe('FavoritesService (integration)', () => {
       ]);
     });
 
-    it('несуществующий центр: NotFound, связь не создаётся', async () => {
+    it('nonexistent center: NotFound, no link is created', async () => {
       await expect(
         service.addMedicalCenterToFavorites(userId, MISSING_ID),
       ).rejects.toMatchObject({ code: ErrorCode.MEDICAL_CENTER_NOT_FOUND });
       expect(await centerLinks()).toHaveLength(0);
     });
 
-    it('повторное добавление: Conflict, связь остаётся одна', async () => {
+    it('repeated add: Conflict, a single link remains', async () => {
       const center = await factories.medicalCenter();
       await service.addMedicalCenterToFavorites(userId, center.id);
 
@@ -109,7 +109,7 @@ describe('FavoritesService (integration)', () => {
   });
 
   describe('removeDoctorFromFavorites', () => {
-    it('удаляет только связь этого пользователя с этим врачом', async () => {
+    it('removes only the link of this user to this doctor', async () => {
       const [target, kept] = [
         await factories.doctor(),
         await factories.doctor(),
@@ -132,7 +132,7 @@ describe('FavoritesService (integration)', () => {
       );
     });
 
-    it('удаление отсутствующей связи не бросает исключение', async () => {
+    it('removing a missing link does not throw', async () => {
       await expect(
         service.removeDoctorFromFavorites(userId, MISSING_ID),
       ).resolves.toBeUndefined();
@@ -140,7 +140,7 @@ describe('FavoritesService (integration)', () => {
   });
 
   describe('removeMedicalCenterFromFavorites', () => {
-    it('удаляет только связь этого пользователя с этим центром', async () => {
+    it('removes only the link of this user to this center', async () => {
       const [target, kept] = [
         await factories.medicalCenter(),
         await factories.medicalCenter(),

@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 
-/** Применяет миграции из `drizzle/` отдельным шагом перед стартом приложения. */
+/** Applies migrations from `drizzle/` as a separate step before the app starts. */
 const run = async () => {
   const pool = new Pool({
     host: process.env.DATABASE_HOST ?? 'localhost',
@@ -24,6 +24,6 @@ const run = async () => {
 };
 
 run().catch(error => {
-  console.error('Миграции не применены:', error);
+  console.error('Migrations not applied:', error);
   process.exit(1);
 });

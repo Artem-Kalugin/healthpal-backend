@@ -4,7 +4,7 @@ import { Image } from 'src/common/helpers/image.dto';
 
 export class OnboardingSlideResponseDto {
   @ApiProperty({
-    description: '{ image: ссылка на файл, thumbhash: хэш превью }',
+    description: '{ image: file link, thumbhash: preview hash }',
   })
   @Expose()
   @Type(() => Image)

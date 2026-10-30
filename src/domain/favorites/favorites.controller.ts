@@ -17,12 +17,12 @@ export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
   @Post('doctors/:doctorId')
-  @ApiOkResponse({ description: 'Доктор добавлен в избранное' })
+  @ApiOkResponse({ description: 'Doctor added to favorites' })
   @ApiParam({ name: 'doctorId', type: 'string' })
   @ApiConflictResponse({
-    description: 'FAVORITE_ALREADY_EXISTS: доктор уже в избранном',
+    description: 'FAVORITE_ALREADY_EXISTS: doctor is already in favorites',
   })
-  @ApiNotFoundResponse({ description: 'DOCTOR_NOT_FOUND: доктор не найден' })
+  @ApiNotFoundResponse({ description: 'DOCTOR_NOT_FOUND: doctor not found' })
   async addDoctor(
     @CurrentUserId() userId: string,
     @Param('doctorId', ParseUUIDPipe) doctorId: string,
@@ -32,7 +32,7 @@ export class FavoritesController {
 
   @Delete('doctors/:doctorId')
   @ApiParam({ name: 'doctorId', type: 'string' })
-  @ApiOkResponse({ description: 'Доктор удалён из избранного' })
+  @ApiOkResponse({ description: 'Doctor removed from favorites' })
   async removeDoctor(
     @CurrentUserId() userId: string,
     @Param('doctorId', ParseUUIDPipe) doctorId: string,
@@ -41,13 +41,13 @@ export class FavoritesController {
   }
 
   @Post('medical-centers/:medicalCenterId')
-  @ApiOkResponse({ description: 'Медицинский центр добавлен в избранное' })
+  @ApiOkResponse({ description: 'Medical center added to favorites' })
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
   @ApiConflictResponse({
-    description: 'FAVORITE_ALREADY_EXISTS: центр уже в избранном',
+    description: 'FAVORITE_ALREADY_EXISTS: center is already in favorites',
   })
   @ApiNotFoundResponse({
-    description: 'MEDICAL_CENTER_NOT_FOUND: центр не найден',
+    description: 'MEDICAL_CENTER_NOT_FOUND: center not found',
   })
   async addMedicalCenter(
     @CurrentUserId() userId: string,
@@ -60,7 +60,7 @@ export class FavoritesController {
   }
 
   @Delete('medical-centers/:medicalCenterId')
-  @ApiOkResponse({ description: 'Медицинский центр удалён из избранного' })
+  @ApiOkResponse({ description: 'Medical center removed from favorites' })
   @ApiParam({ name: 'medicalCenterId', type: 'string' })
   async removeMedicalCenter(
     @CurrentUserId() userId: string,

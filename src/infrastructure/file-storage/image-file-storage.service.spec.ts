@@ -34,7 +34,7 @@ describe('ImageFileStorageService', () => {
   });
 
   describe('processAndSave', () => {
-    it('сохраняет картинку как webp по размеру пресета и возвращает путь', async () => {
+    it('saves the image as webp at the preset size and returns the path', async () => {
       const result = await service.processAndSave(source, 'avatar');
 
       expect(result.image).toBe(SAVED_PATH);
@@ -53,7 +53,7 @@ describe('ImageFileStorageService', () => {
       ['onboarding', 1024],
       ['medical-centers', 512],
       ['doctors', 512],
-    ] as const)('пресет %s даёт квадрат %i', async (type, size) => {
+    ] as const)('preset %s gives a %i square', async (type, size) => {
       await service.processAndSave(source, type);
 
       const [saved] = storage.saveFile.mock.calls[0] as [Buffer];
@@ -61,7 +61,7 @@ describe('ImageFileStorageService', () => {
       expect(meta).toMatchObject({ width: size, height: size });
     });
 
-    it('пробрасывает isProtected в saveFile (по умолчанию true)', async () => {
+    it('passes isProtected to saveFile (true by default)', async () => {
       await service.processAndSave(source, 'avatar');
       await service.processAndSave(source, 'avatar', false);
 
@@ -79,7 +79,7 @@ describe('ImageFileStorageService', () => {
       );
     });
 
-    it('битый буфер → BadRequest, ничего не сохраняется', async () => {
+    it('broken buffer → BadRequest, nothing is saved', async () => {
       await expect(
         service.processAndSave(Buffer.from('not an image'), 'avatar'),
       ).rejects.toMatchObject({ code: ErrorCode.IMAGE_INVALID });

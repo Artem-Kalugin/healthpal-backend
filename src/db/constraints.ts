@@ -1,6 +1,6 @@
 /**
- * Имена ограничений (FK, unique, check, pk): единственный источник для схемы, миграций, обработки ошибок и тестов.
- * Строки попадают в `drizzle/*.sql` и в `constraint` ошибки Postgres; правка значения = пересоздание ограничения.
+ * Constraint names (FK, unique, check, pk): the single source for the schema, migrations, error handling and tests.
+ * The strings end up in `drizzle/*.sql` and in the `constraint` of Postgres errors; changing a value means recreating the constraint.
  */
 export enum Constraint {
   DOCTOR_CATEGORY_FK = 'doctor_category_fk',

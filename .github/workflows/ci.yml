@@ -3,7 +3,7 @@ name: Node.js CI
 on:
   pull_request:
     branches: [ main ]
-  # CD ждёт завершения этого workflow на main
+  # CD waits for this workflow to finish on main
   push:
     branches: [ main ]
 
@@ -34,7 +34,7 @@ jobs:
         cache: pnpm
     - run: pnpm install --frozen-lockfile
     - run: pnpm test
-    # Postgres (с локалью ru_RU) и Redis для интеграционных и e2e тестов
+    # Postgres (with the ru_RU locale) and Redis for integration and e2e tests
     - run: pnpm test:db:up
     - run: pnpm test:int
     - run: pnpm test:e2e

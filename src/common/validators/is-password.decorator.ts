@@ -5,10 +5,10 @@ import { rule, ValidationCode } from '../errors/validation-code';
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 50;
 
-/** Строчные и (прописные или цифры): минимум два типа символов. */
+/** Lowercase and (uppercase or digits): at least two character types. */
 const PASSWORD_STRENGTH = /^(?=.*\p{Ll})(?=.*[\p{Lu}\d]).+$/u;
 
-/** Политика пароля при создании или смене. Для входа не использовать: старые пароли должны проходить. */
+/** Password policy on create or change. Do not use for login: old passwords must pass. */
 export const IsPassword = () =>
   applyDecorators(
     IsString(rule(ValidationCode.NOT_STRING)),

@@ -1,10 +1,10 @@
 import { registerDecorator, ValidationOptions } from 'class-validator';
 import { rule, ValidationCode } from '../errors/validation-code';
 
-/** Сегодня в UTC как `YYYY-MM-DD`, как `CURRENT_DATE` в БД. */
+/** Today in UTC as `YYYY-MM-DD`, like `CURRENT_DATE` in the DB. */
 const todayUtc = () => new Date().toISOString().slice(0, 10);
 
-/** Дата `YYYY-MM-DD` не позже сегодняшней. Формат проверять отдельными правилами: строки сравниваются лексикографически. */
+/** A `YYYY-MM-DD` date not later than today. Check the format with separate rules: strings are compared lexicographically. */
 export const IsNotFutureDate =
   (
     options: ValidationOptions = rule(ValidationCode.DATE_IN_FUTURE),

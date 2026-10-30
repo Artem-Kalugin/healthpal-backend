@@ -22,7 +22,7 @@ const PASSWORD = 'Password1';
 const WRONG_PASSWORD = 'Password2';
 const SID = 'session-1';
 const ACCESS_TTL = 3600;
-// отличается от ACCESS_TTL, чтобы тест различал, какой токен получил какой срок
+// differs from ACCESS_TTL so the test can tell which token got which lifetime
 const REFRESH_TTL = 7200;
 const T0 = new Date('2026-10-29T12:00:00Z');
 const T1 = new Date('2026-10-29T12:00:10Z');
@@ -105,7 +105,7 @@ describe('AuthService (integration)', () => {
     );
 
   describe('login', () => {
-    it('верные данные → токены, пользователь и refresh-токен в Redis', async () => {
+    it('valid credentials → tokens, user and refresh token in Redis', async () => {
       const result = await service.login({ phone, password: PASSWORD });
 
       expect(result.user.id).toBe(user.id);
@@ -118,14 +118,14 @@ describe('AuthService (integration)', () => {
 
     it.each([
       {
-        name: 'неверный пароль',
+        name: 'wrong password',
         dto: () => ({ phone, password: WRONG_PASSWORD }),
       },
       {
-        name: 'неизвестный телефон',
+        name: 'unknown phone',
         dto: () => ({ phone: '+70000000000', password: PASSWORD }),
       },
-    ])('$name → код ошибки, сессия не создаётся', async ({ dto }) => {
+    ])('$name → error code, no session is created', async ({ dto }) => {
       const error = await rejection(service.login(dto()));
 
       expect(error).toMatchObject({ code: ErrorCode.INVALID_CREDENTIALS });
@@ -135,7 +135,7 @@ describe('AuthService (integration)', () => {
 
   describe('generateTokens', () => {
     it.each([false, true])(
-      'в payload id и registrationComplete=%s, у refresh свой срок жизни',
+      'payload has id and registrationComplete=%s, refresh has its own lifetime',
       async registrationComplete => {
         const tokens = await service.generateTokens(
           { ...user, registrationComplete },
@@ -152,7 +152,7 @@ describe('AuthService (integration)', () => {
       },
     );
 
-    it('refresh-токен хранится по ключу пользователя и sid со сроком жизни', async () => {
+    it('the refresh token is stored under the user and sid key with a lifetime', async () => {
       const tokens = await service.generateTokens(user, SID);
 
       expect(await redis.get(refreshKey())).toBe(tokens.refreshToken);
@@ -160,7 +160,7 @@ describe('AuthService (integration)', () => {
       expect(await redis.ttl(refreshKey())).toBeLessThanOrEqual(REFRESH_TTL);
     });
 
-    it('без sid каждый вызов создаёт новую сессию, refresh-токен несёт её sid', async () => {
+    it('without sid each call creates a new session, the refresh token carries its sid', async () => {
       const first = await service.generateTokens(user);
       const second = await service.generateTokens(user);
 
@@ -175,7 +175,7 @@ describe('AuthService (integration)', () => {
       );
     });
 
-    it('разные sid живут независимо, тот же sid перезаписывается', async () => {
+    it('different sids live independently, the same sid is overwritten', async () => {
       freezeDate(T0);
       const phoneSession = await service.generateTokens(user, 'phone');
       const tabletSession = await service.generateTokens(user, 'tablet');
@@ -193,7 +193,7 @@ describe('AuthService (integration)', () => {
   });
 
   describe('refresh', () => {
-    it('валидный токен → новая пара, в Redis новый токен', async () => {
+    it('valid token → new pair, new token in Redis', async () => {
       freezeDate(T0);
       const old = await service.generateTokens(user, SID);
       freezeDate(T1);
@@ -205,8 +205,8 @@ describe('AuthService (integration)', () => {
       expect(await redis.get(refreshKey())).toBe(result.refreshToken);
     });
 
-    it('токен одноразовый: повторное использование → код ошибки', async () => {
-      // в одну секунду refresh выдал бы тот же JWT и «старый» токен снова стал бы валидным
+    it('the token is single-use: reuse → error code', async () => {
+      // within the same second refresh would issue the same JWT and the "old" token would become valid again
       freezeDate(T0);
       const { refreshToken } = await service.generateTokens(user, SID);
       freezeDate(T1);
@@ -217,7 +217,7 @@ describe('AuthService (integration)', () => {
       expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
 
-    it('параллельные запросы с одним токеном: проходит ровно один', async () => {
+    it('parallel requests with one token: exactly one succeeds', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
 
       const results = await Promise.allSettled([
@@ -228,7 +228,7 @@ describe('AuthService (integration)', () => {
       expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     });
 
-    it('чужой токен → код ошибки и сессия владельца остаётся рабочей', async () => {
+    it('foreign token → error code and the owner session stays valid', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
 
       const error = await rejection(service.refresh(user.id, 'garbage'));
@@ -237,7 +237,7 @@ describe('AuthService (integration)', () => {
       expect(await redis.get(refreshKey())).toBe(refreshToken);
     });
 
-    it('нет сессии (ключ удалён или истёк срок) → код ошибки', async () => {
+    it('no session (key deleted or expired) → error code', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
       await redis.del(refreshKey());
 
@@ -246,7 +246,7 @@ describe('AuthService (integration)', () => {
       expect(error).toMatchObject({ code: ErrorCode.REFRESH_TOKEN_INVALID });
     });
 
-    it('токен другого пользователя в запросе → код ошибки, сессия остаётся', async () => {
+    it('another user token in the request → error code, the session stays', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
 
       const error = await rejection(
@@ -257,7 +257,7 @@ describe('AuthService (integration)', () => {
       expect(await redis.get(refreshKey())).toBe(refreshToken);
     });
 
-    it('refresh сохраняет sid сессии', async () => {
+    it('refresh keeps the session sid', async () => {
       freezeDate(T0);
       const { refreshToken } = await service.generateTokens(user, SID);
       freezeDate(T1);
@@ -268,7 +268,7 @@ describe('AuthService (integration)', () => {
       expect(await redis.keys('refresh:*')).toEqual([refreshKey()]);
     });
 
-    it('пользователь удалён → код ошибки, а не 404', async () => {
+    it('user deleted → error code, not 404', async () => {
       const { refreshToken } = await service.generateTokens(user, SID);
       await db.delete(userTable).where(eq(userTable.id, user.id));
 
@@ -279,7 +279,7 @@ describe('AuthService (integration)', () => {
   });
 
   describe('revokeAllSessions', () => {
-    it('удаляет все сессии пользователя и не трогает чужие', async () => {
+    it('deletes all sessions of the user and leaves others untouched', async () => {
       const other = await factories.user();
       await service.generateTokens(user, 'phone');
       await service.generateTokens(user, 'tablet');

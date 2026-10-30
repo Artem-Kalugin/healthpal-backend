@@ -21,7 +21,7 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'Введите JWT токен',
+        description: 'Enter the JWT token',
         in: 'header',
       },
       'JWT',
@@ -29,7 +29,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  // Swagger UI отключён: отдаём только JSON, интерфейс рисует Scalar
+  // Swagger UI is disabled: serve only JSON, Scalar renders the interface
   SwaggerModule.setup('api', app, document, {
     ui: false,
     jsonDocumentUrl: 'api-json',
@@ -38,7 +38,7 @@ async function bootstrap() {
     '/api',
     apiReference({
       content: document,
-      // Версия закреплена, чтобы UI не менялся без нашего ведома
+      // The version is pinned so the UI does not change unnoticed
       cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.2',
     }),
   );

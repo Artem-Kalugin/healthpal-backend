@@ -1,7 +1,7 @@
 import { getTableColumns } from 'drizzle-orm';
 import type { Table } from 'drizzle-orm';
 
-/** Все колонки таблицы, кроме перечисленных: для `select`, где нужны почти все поля. */
+/** All table columns except the listed ones: for a `select` that needs almost all fields. */
 export const getTableColumnsExcluding = <
   T extends Table,
   K extends keyof T['_']['columns'],

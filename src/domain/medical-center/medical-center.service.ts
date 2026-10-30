@@ -14,7 +14,7 @@ import {
 } from './medical-center.queries';
 
 const TOP_LIMIT = 5;
-/** Средняя скорость пешком, км/ч. */
+/** Average walking speed, km/h. */
 const WALKING_SPEED = 5;
 
 @Injectable()

@@ -11,18 +11,6 @@ const [C1, C2, C3, C4, C5, C6] = [id(1), id(2), id(3), id(4), id(5), id(6)];
 const SPB = { lat: 59.9343, lon: 30.3351 };
 const EQUATOR_ORIGIN = { lat: 0, lon: 0 };
 
-/**
- * Центры C2..C6 лежат на экваторе (1° долготы ≈ 111.19 км), пользователь в (0, 0).
- * C1 стоит в Петербурге: на этих координатах `acos` без зажима падает при совпадении точек.
- *
- * | центр | lon   | до (0,0), км | врачи (рейтинг × отзывы)     | rating | reviewsCount |
- * | C1    | СПб   | далеко       | 5.0 × 10, 4.0 × 30           | 4.25   | 40           |
- * | C2    | 0.01  | 1.1          | 4.6 × 5                      | 4.60   | 5            |
- * | C3    | 0.02  | 2.2          | нет                          | null   | 0            |
- * | C4    | 0.03  | 3.3          | 5.0 × 0                      | null   | 0            |
- * | C5    | 0.04  | 4.4          | 4.2 × 10, 4.3 × 10           | 4.25   | 20           |
- * | C6    | 0.05  | 5.6          | 3.0 × 10                     | 3.00   | 10           |
- */
 describe('MedicalCentersService (integration)', () => {
   let db: Database;
   let pool: Pool;
@@ -67,7 +55,7 @@ describe('MedicalCentersService (integration)', () => {
     userB = (await factories.user()).id;
     userWithoutFavorites = (await factories.user()).id;
 
-    // Порядок добавления (C3, C1, C6) не совпадает ни с порядком id, ни с обратным
+    // The insertion order (C3, C1, C6) matches neither the id order nor its reverse
     const favorite = (userId: string, medicalCenterId: string, at: string) =>
       db.insert(userFavoriteMedicalCenter).values({
         userId,
@@ -99,14 +87,14 @@ describe('MedicalCentersService (integration)', () => {
     );
 
   describe('findByRatingForUser', () => {
-    it('rating — среднее, взвешенное по отзывам, reviewsCount — их сумма', async () => {
+    it('rating is the average weighted by reviews, reviewsCount is their sum', async () => {
       const centers = await byRating();
       const aggregates = Object.fromEntries(
         centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
       );
 
       expect(aggregates).toMatchObject({
-        // простое среднее дало бы 4.5
+        // a plain average would give 4.5
         [C1]: ['4.25', '40'],
         [C2]: ['4.60', '5'],
         [C5]: ['4.25', '20'],
@@ -114,7 +102,7 @@ describe('MedicalCentersService (integration)', () => {
       });
     });
 
-    it('центры без врачей и без отзывов остаются в выдаче с rating = null и reviewsCount = 0', async () => {
+    it('centers without doctors and without reviews stay in the result with rating = null and reviewsCount = 0', async () => {
       const centers = await byRating();
       const aggregates = Object.fromEntries(
         centers.map(item => [item.id, [item.rating, item.reviewsCount]]),
@@ -127,13 +115,13 @@ describe('MedicalCentersService (integration)', () => {
       });
     });
 
-    it('сортирует по убыванию рейтинга, центры без рейтинга в конце, равные — по id', async () => {
+    it('sorts by rating descending, centers without a rating last, ties by id', async () => {
       const centers = await byRating();
 
       expect(centers.map(item => item.id)).toEqual([C2, C1, C5, C6, C3, C4]);
     });
 
-    it('isFavorite считается для конкретного пользователя и не раздувает агрегаты', async () => {
+    it('isFavorite is computed for a specific user and does not inflate the aggregates', async () => {
       const flags = async (userId: string) =>
         (await byRating(userId)).map(item => [item.id, item.isFavorite]);
 
@@ -162,7 +150,7 @@ describe('MedicalCentersService (integration)', () => {
       });
     });
 
-    it('top5Only ограничивает выдачу пятью лучшими, без него приходят все', async () => {
+    it('top5Only limits the result to the five best, without it all come back', async () => {
       const top5 = await byRating(userWithoutFavorites, true);
       const all = await byRating(userWithoutFavorites, false);
 
@@ -172,7 +160,7 @@ describe('MedicalCentersService (integration)', () => {
   });
 
   describe('findWithDistanceForUser', () => {
-    it('считает расстояние в км с одним знаком и время пешком, ближайшие первыми', async () => {
+    it('computes the distance in km with one decimal and the walking time, nearest first', async () => {
       const centers = await byDistance();
 
       expect(centers.map(item => item.id)).toEqual([C2, C3, C4, C5, C6, C1]);
@@ -190,13 +178,13 @@ describe('MedicalCentersService (integration)', () => {
       expect(centers[5].distance).toBeGreaterThan(5000);
     });
 
-    it('top5Only возвращает пять ближайших, а не пять первых по id', async () => {
+    it('top5Only returns the five nearest, not the first five by id', async () => {
       const centers = await byDistance(EQUATOR_ORIGIN, true);
 
       expect(centers.map(item => item.id)).toEqual([C2, C3, C4, C5, C6]);
     });
 
-    it('пользователь в точке центра: запрос не падает, distance и walkingTimeMinutes равны 0', async () => {
+    it('user at the center point: the query does not fail, distance and walkingTimeMinutes are 0', async () => {
       const centers = await byDistance(SPB);
 
       expect(centers[0]).toMatchObject({
@@ -211,7 +199,7 @@ describe('MedicalCentersService (integration)', () => {
     const favoritesFor = async (userId: string, page = 1, size = 10) =>
       service.findFavoritesForUser({ userId, page, size });
 
-    it('возвращает только избранное пользователя, последние добавленные первыми', async () => {
+    it('returns only the favorites of the user, most recently added first', async () => {
       const { data } = await favoritesFor(userA);
 
       expect(data.map(item => item.id)).toEqual([C6, C1, C3]);
@@ -219,14 +207,14 @@ describe('MedicalCentersService (integration)', () => {
       expect(data[1]).toMatchObject({ rating: '4.25', reviewsCount: '40' });
     });
 
-    it('не подмешивает избранное других пользователей', async () => {
+    it('does not mix in the favorites of other users', async () => {
       expect((await favoritesFor(userB)).data.map(item => item.id)).toEqual([
         C1,
       ]);
       expect((await favoritesFor(userWithoutFavorites)).data).toEqual([]);
     });
 
-    it('страницы не пересекаются, hasMore верен при группировке', async () => {
+    it('pages do not overlap, hasMore is correct with grouping', async () => {
       const first = await favoritesFor(userA, 1, 2);
       const second = await favoritesFor(userA, 2, 2);
       const third = await favoritesFor(userA, 3, 2);

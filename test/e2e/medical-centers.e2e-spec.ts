@@ -36,7 +36,7 @@ describe('Medical centers (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false }).quit();
     await app.close();
   });
@@ -61,7 +61,7 @@ describe('Medical centers (e2e)', () => {
     return { user, token: `Bearer ${accessToken}` };
   };
 
-  /** Центры на экваторе: i-й в 0.01·i градуса долготы от точки (0, 0). */
+  /** Centers on the equator: the i-th at 0.01·i degrees of longitude from the point (0, 0). */
   const seedCenters = async (count: number) => {
     const centers: { id: string }[] = [];
     for (let index = 1; index <= count; index++) {
@@ -71,7 +71,7 @@ describe('Medical centers (e2e)', () => {
     return centers;
   };
 
-  it('без токена оба эндпоинта отвечают 401', async () => {
+  it('without a token both endpoints respond 401', async () => {
     for (const url of ['/medical-centers', '/medical-centers/favorites']) {
       const { status } = await send(url, { shouldTake5Only: false });
       expect(status).toBe(401);
@@ -79,7 +79,7 @@ describe('Medical centers (e2e)', () => {
   });
 
   describe('GET /medical-centers', () => {
-    it('без lat/lon отдаёт центры по рейтингу без расстояния; shouldTake5Only приходит строкой и честно разбирается', async () => {
+    it('without lat/lon returns centers by rating without distance; shouldTake5Only arrives as a string and is parsed correctly', async () => {
       const { token } = await newUser();
       await seedCenters(6);
 
@@ -100,7 +100,7 @@ describe('Medical centers (e2e)', () => {
       expect(all.body).toHaveLength(6);
     });
 
-    it('с lat и lon отдаёт центры по расстоянию с distance и walkingTimeMinutes', async () => {
+    it('with lat and lon returns centers by distance with distance and walkingTimeMinutes', async () => {
       const { token } = await newUser();
       const centers = await seedCenters(3);
 
@@ -117,7 +117,7 @@ describe('Medical centers (e2e)', () => {
       expect(body[0]).toMatchObject({ distance: 1.1, walkingTimeMinutes: 13 });
     });
 
-    it('нечисловой lat → 400', async () => {
+    it('non-numeric lat → 400', async () => {
       const { token } = await newUser();
 
       const { status } = await send(
@@ -131,7 +131,7 @@ describe('Medical centers (e2e)', () => {
   });
 
   describe('GET /medical-centers/favorites', () => {
-    it('отдаёт страницу только избранных центров пользователя с метаданными', async () => {
+    it('returns a page of only the favorite centers of the user with metadata', async () => {
       const { user, token } = await newUser();
       const [favorite] = await seedCenters(2);
       await db

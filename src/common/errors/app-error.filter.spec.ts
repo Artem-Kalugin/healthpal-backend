@@ -53,7 +53,7 @@ describe('AppErrorFilter', () => {
     };
   };
 
-  describe('ошибки БД', () => {
+  describe('DB errors', () => {
     it.each([
       ['23505', Constraint.USER_PHONE_UNIQUE, 409, ErrorCode.USER_PHONE_TAKEN],
       [
@@ -75,7 +75,7 @@ describe('AppErrorFilter', () => {
         ErrorCode.USER_PHONE_INVALID,
       ],
     ])(
-      'публичное ограничение: %s %s → %i %s',
+      'public constraint: %s %s → %i %s',
       (pgCode, constraint, statusCode, code) => {
         expect(run(queryError(pgError(pgCode, constraint)))).toEqual({
           status: statusCode,
@@ -90,7 +90,7 @@ describe('AppErrorFilter', () => {
       ['23514', 'unknown_check', 'DB_CHECK_VIOLATION'],
       ['42P01', undefined, 'DB_ERROR'],
     ])(
-      'ограничение без публичного кода (%s %s) → клиенту INTERNAL_ERROR, в логе %s',
+      'constraint without a public code (%s %s) → client gets INTERNAL_ERROR, log has %s',
       (pgCode, constraint, logged) => {
         expect(run(queryError(pgError(pgCode, constraint)))).toEqual({
           status: 500,
@@ -103,7 +103,7 @@ describe('AppErrorFilter', () => {
       },
     );
 
-    it('не-pg причина (обрыв соединения) → INTERNAL_ERROR, код в логе DB_ERROR', () => {
+    it('non-pg cause (dropped connection) → INTERNAL_ERROR, log code DB_ERROR', () => {
       expect(run(queryError(new Error('ECONNRESET')))).toEqual({
         status: 500,
         body: { statusCode: 500, code: ErrorCode.INTERNAL_ERROR },
@@ -114,7 +114,7 @@ describe('AppErrorFilter', () => {
       );
     });
 
-    it('в ответ не попадают constraint и текст ошибки драйвера', () => {
+    it('the response does not include the constraint or the driver error text', () => {
       const { body } = run(
         queryError(pgError('23503', Constraint.APPOINTMENT_USER_FK)),
       );
@@ -124,7 +124,7 @@ describe('AppErrorFilter', () => {
   });
 
   describe('AppException', () => {
-    it('клиент получает code, статус выбирается по нему', () => {
+    it('client gets the code, the status is chosen by it', () => {
       expect(run(new AppException(ErrorCode.USER_PHONE_TAKEN))).toEqual({
         status: 409,
         body: { statusCode: 409, code: ErrorCode.USER_PHONE_TAKEN },
@@ -135,7 +135,7 @@ describe('AppErrorFilter', () => {
       expect(error).not.toHaveBeenCalled();
     });
 
-    it('clientCode подменяет code и статус, в лог идут оба', () => {
+    it('clientCode replaces code and status, both go to the log', () => {
       expect(
         run(
           new AppException(ErrorCode.USER_PHONE_TAKEN, {
@@ -151,7 +151,7 @@ describe('AppErrorFilter', () => {
       );
     });
 
-    it('clientCode INTERNAL_ERROR скрывает причину: 500, в логе код и message', () => {
+    it('clientCode INTERNAL_ERROR hides the cause: 500, the log has code and message', () => {
       expect(
         run(
           new AppException(ErrorCode.DB_ERROR, {
@@ -171,7 +171,7 @@ describe('AppErrorFilter', () => {
   });
 
   describe('ValidationFailedException', () => {
-    it('кладёт validation рядом с statusCode и code, лог warn', () => {
+    it('puts validation next to statusCode and code, logs warn', () => {
       const validation = {
         password: [
           { code: ValidationCode.PASSWORD_TOO_SHORT, params: { limit: 8 } },
@@ -193,21 +193,21 @@ describe('AppErrorFilter', () => {
     });
   });
 
-  describe('исключения Nest', () => {
+  describe('Nest exceptions', () => {
     it.each([
       [new NotFoundException('Cannot GET /x'), 404, ErrorCode.NOT_FOUND],
-      [new ForbiddenException('текст'), 403, ErrorCode.FORBIDDEN],
+      [new ForbiddenException('text'), 403, ErrorCode.FORBIDDEN],
       [new ThrottlerException(), 429, ErrorCode.TOO_MANY_REQUESTS],
       [new PayloadTooLargeException(), 413, ErrorCode.PAYLOAD_TOO_LARGE],
       [new HttpException('teapot', 418), 400, ErrorCode.BAD_REQUEST],
-    ])('%s → %s %s без message в теле', (exception, status, code) => {
+    ])('%s → %s %s without message in the body', (exception, status, code) => {
       expect(run(exception)).toEqual({
         status,
         body: { statusCode: status, code },
       });
     });
 
-    it('5xx без записи → INTERNAL_ERROR, лог error', () => {
+    it('5xx without an entry → INTERNAL_ERROR, logs error', () => {
       expect(run(new HttpException('boom', 502))).toEqual({
         status: 500,
         body: { statusCode: 500, code: ErrorCode.INTERNAL_ERROR },
@@ -216,8 +216,8 @@ describe('AppErrorFilter', () => {
     });
   });
 
-  describe('неизвестные ошибки', () => {
-    it('Error → 500 INTERNAL_ERROR, текст и стек только в логе', () => {
+  describe('unknown errors', () => {
+    it('Error → 500 INTERNAL_ERROR, text and stack only in the log', () => {
       const { status, body } = run(new Error('secret detail'));
 
       expect(status).toBe(500);
@@ -231,7 +231,7 @@ describe('AppErrorFilter', () => {
       );
     });
 
-    it('не Error (строка) → 500 INTERNAL_ERROR', () => {
+    it('non-Error (string) → 500 INTERNAL_ERROR', () => {
       expect(run('oops')).toEqual({
         status: 500,
         body: { statusCode: 500, code: ErrorCode.INTERNAL_ERROR },

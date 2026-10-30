@@ -28,7 +28,7 @@ describe('createValidationException', () => {
 
   beforeEach(() => warn.mockClear());
 
-  it('несколько правил на поле: код из message, params из context', () => {
+  it('several rules per field: code from message, params from context', () => {
     expect(
       validate({ password: 'abc', name: 'ab', plain: 'x', uncoded: 'ab' })
         .password,
@@ -38,21 +38,21 @@ describe('createValidationException', () => {
     ]);
   });
 
-  it('параметры берутся из context', () => {
+  it('params are taken from context', () => {
     expect(
       validate({ password: 'Password1', name: 'ab', plain: 'x', uncoded: 'ab' })
         .name,
     ).toEqual([{ code: ValidationCode.TEXT_TOO_SHORT, params: { limit: 3 } }]);
   });
 
-  it('встроенное правило получает код по умолчанию', () => {
+  it('a built-in rule gets the default code', () => {
     expect(
       validate({ password: 'Password1', name: 'abc', plain: 1, uncoded: 'ab' })
         .plain,
     ).toEqual([{ code: ValidationCode.NOT_STRING }]);
   });
 
-  it('неизвестное правило без rule(): INVALID_VALUE и warn', () => {
+  it('unknown rule without rule(): INVALID_VALUE and warn', () => {
     expect(
       validate({
         password: 'Password1',

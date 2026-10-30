@@ -25,11 +25,11 @@ describe('DoctorCategoryService (integration)', () => {
     await clearDatabase(db);
   });
 
-  it('отдаёт пустой список, если категорий нет', async () => {
+  it('returns an empty list if there are no categories', async () => {
     await expect(service.findAll()).resolves.toEqual([]);
   });
 
-  it('отдаёт все категории с type, icon и id', async () => {
+  it('returns all categories with type, icon and id', async () => {
     const cardiology = await factories.category({
       type: DoctorCategoryType.CARDIOLOGY,
       icon: 'heart',

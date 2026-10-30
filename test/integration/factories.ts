@@ -21,7 +21,7 @@ const next = () => ++sequence;
 
 type Insert<T extends { $inferInsert: object }> = Partial<T['$inferInsert']>;
 type DoctorOverrides = Omit<Insert<typeof doctorTable>, 'rating'> & {
-  /** `numeric` в Drizzle строка, для удобства тестов принимаем и число. */
+  /** `numeric` is a string in Drizzle, for test convenience we accept a number too. */
   rating?: number | string;
 };
 
@@ -72,7 +72,7 @@ export const createFactories = (db: Database) => {
         .returning(),
     );
 
-  /** Без явных `medicalCenterId`/`categoryId` создаёт их сам. */
+  /** Creates `medicalCenterId`/`categoryId` itself if not given. */
   const doctor = async (overrides: DoctorOverrides = {}) =>
     insert(
       db
@@ -128,7 +128,7 @@ export const createFactories = (db: Database) => {
         .returning(),
     );
 
-  /** Запись на слот; время копируется из слота, как делает сервис. */
+  /** Appointment for a slot; the time is copied from the slot, like the service does. */
   const appointment = (
     userId: string,
     slot: typeof doctorTimeSlot.$inferSelect,

@@ -1,4 +1,4 @@
-# 3 days (in minutes) — защита от supply chain атак на свежеопубликованные версии
+# 3 days (in minutes) — protection against supply chain attacks via freshly published versions
 minimumReleaseAge: 4320
 
 allowBuilds:

@@ -12,7 +12,7 @@ const TABLES = Object.values(schema).filter(value =>
   is(value, PgTable),
 ) as unknown as PgTable[];
 
-/** Пересоздаёт схему и применяет миграции из `drizzle/`; e2e зовут её на подключении приложения. */
+/** Recreates the schema and applies migrations from `drizzle/`; e2e calls it on the app connection. */
 export const resetSchema = async (db: Database) => {
   await db.execute('DROP SCHEMA IF EXISTS drizzle CASCADE');
   await db.execute('DROP SCHEMA IF EXISTS public CASCADE');
@@ -21,15 +21,15 @@ export const resetSchema = async (db: Database) => {
 };
 
 /**
- * Подключение к тестовой БД с пересозданием схемы миграциями из `drizzle/`.
- * Сброс разрушителен, поэтому работаем только с БД, имя которой оканчивается на `_test`.
+ * Connection to the test DB that recreates the schema via migrations from `drizzle/`.
+ * The reset is destructive, so we only work with a DB whose name ends with `_test`.
  */
 export const createTestDb = async (): Promise<TestDb> => {
   const database = process.env.TEST_DATABASE_NAME ?? 'healthpal_test';
 
   if (!database.endsWith('_test')) {
     throw new Error(
-      `Интеграционные тесты сбрасывают схему, имя БД должно оканчиваться на "_test", получено "${database}"`,
+      `Integration tests reset the schema, the DB name must end with "_test", got "${database}"`,
     );
   }
 
@@ -47,7 +47,6 @@ export const createTestDb = async (): Promise<TestDb> => {
   return { db, pool };
 };
 
-/** Очищает данные между тестами, схема остаётся. */
 export const clearDatabase = async (db: Database) => {
   const tables = TABLES.map(table => `"${getTableName(table)}"`).join(', ');
 

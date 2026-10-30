@@ -15,8 +15,8 @@ import Redis from 'ioredis';
 import { REDIS_PROVIDER_KEY } from 'src/infrastructure/redis/redis.module';
 import { UserNotFoundException } from 'src/domain/users/exceptions/user-not-found.exception';
 
-// Сверка и удаление атомарны: неверный токен не сжигает чужой ключ,
-// а параллельные запросы с одним токеном не пройдут оба.
+// Comparison and deletion are atomic: a wrong token does not burn another user's key,
+// and parallel requests with one token cannot both succeed.
 const CONSUME_REFRESH_TOKEN_SCRIPT = `
   if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])
@@ -44,7 +44,7 @@ export class AuthService {
     const user = await this.usersService.findOneByPhone(phone).catch(error => {
       throw error instanceof UserNotFoundException
         ? new AppException(ErrorCode.INVALID_CREDENTIALS, {
-            message: 'Пользователь не найден',
+            message: 'User not found',
           })
         : error;
     });
@@ -56,7 +56,7 @@ export class AuthService {
 
     if (!isPasswordCorrect) {
       throw new AppException(ErrorCode.INVALID_CREDENTIALS, {
-        message: 'Неверный пароль',
+        message: 'Wrong password',
       });
     }
 
@@ -70,8 +70,8 @@ export class AuthService {
     };
   }
 
-  // sid идентифицирует сессию (устройство): новый логин создаёт новую,
-  // refresh продлевает существующую.
+  // sid identifies a session (device): a new login creates a new one,
+  // refresh extends the existing one.
   async generateTokens(user: User, sid: string = randomUUID()) {
     const payload = this.getJwtPayload(user);
 
@@ -99,7 +99,6 @@ export class AuthService {
     };
   }
 
-  /** Отзывает все refresh-сессии пользователя (все устройства). */
   async revokeAllSessions(userId: string) {
     let cursor = '0';
     do {
@@ -147,7 +146,7 @@ export class AuthService {
     }
 
     const user = await this.usersService.findOne(userId).catch(error => {
-      // публичный эндпоинт не должен раскрывать, существует ли пользователь
+      // a public endpoint must not reveal whether the user exists
       throw error instanceof UserNotFoundException ? invalid() : error;
     });
 

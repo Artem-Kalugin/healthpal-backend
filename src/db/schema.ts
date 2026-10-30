@@ -61,7 +61,7 @@ export const medicalCenter = pgTable('medical_center', {
   image: jsonb().$type<StoredImage>().notNull(),
   lat: doublePrecision().notNull(),
   lon: doublePrecision().notNull(),
-  /** IANA-имя пояса (`Europe/Moscow`): в нём заданы `date`/`startTime` слотов центра. */
+  /** IANA time zone name (`Europe/Moscow`): the center slot `date`/`startTime` are given in it. */
   timezone: varchar().notNull().default('Europe/Moscow'),
   type: medicalCenterType()
     .$type<MedicalCenterType>()
@@ -136,7 +136,7 @@ export const doctorSchedule = pgTable(
     doctorId: uuid().notNull(),
     startTime: time().notNull(),
     endTime: time().notNull(),
-    /** ISO-день недели: 1 = понедельник ... 7 = воскресенье. */
+    /** ISO weekday: 1 = Monday ... 7 = Sunday. */
     weekday: smallint().$type<ScheduleDay>().notNull(),
   },
   t => [
@@ -184,7 +184,6 @@ export const appointment = pgTable(
     doctorId: uuid().notNull(),
     timeSlotId: uuid(),
     isCancelled: boolean().notNull().default(false),
-    // snapshot-колонки
     date: date({ mode: 'string' }).notNull(),
     startTime: time().notNull(),
     endTime: time().notNull(),
@@ -205,7 +204,7 @@ export const appointment = pgTable(
       columns: [t.timeSlotId],
       foreignColumns: [doctorTimeSlot.id],
     }).onDelete('set null'),
-    // Отмена освобождает слот (`timeSlotId = null`), поэтому занятость слота целиком держится на этом unique
+    // Cancelling frees the slot (`timeSlotId = null`), so slot occupancy relies entirely on this unique
     unique(Constraint.APPOINTMENT_TIME_SLOT_UNIQUE).on(t.timeSlotId),
     index('appointment_user_idx').on(t.userId),
   ],

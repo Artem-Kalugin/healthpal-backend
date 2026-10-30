@@ -13,7 +13,7 @@ export class DoctorCategoryController {
 
   @Get()
   @ApiSerialized(DoctorCategoryResponseDto, {
-    description: 'Список категорий врачей',
+    description: 'List of doctor categories',
     isArray: true,
   })
   async getAll(): Promise<DoctorCategoryResponseDto[]> {

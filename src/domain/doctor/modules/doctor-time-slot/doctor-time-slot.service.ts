@@ -71,7 +71,7 @@ export class DoctorTimeSlotService {
     }));
   }
 
-  /** Диапазон дат, в котором у врача есть свободные будущие слоты (те же правила, что в `getSlotsForDoctor`). */
+  /** Date range in which the doctor has free future slots (same rules as in `getSlotsForDoctor`). */
   async getSlotsRange(doctorId: string) {
     const now = getZonedNowParts(await this.getDoctorTimezone(doctorId));
 
@@ -111,7 +111,7 @@ export class DoctorTimeSlotService {
   }
 }
 
-/** Слот начинается строго позже «сейчас» (дата и время по часам центра). */
+/** The slot starts strictly after "now" (date and time on the center clock). */
 const isUpcoming = ({ date, time }: { date: string; time: string }) =>
   or(
     gt(doctorTimeSlot.date, date),

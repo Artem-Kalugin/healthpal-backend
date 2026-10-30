@@ -5,7 +5,7 @@ import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-/** «Сейчас» на часах центра: дата и время в формате колонок `date`/`time`. */
+/** "Now" on the center clock: date and time in the format of the `date`/`time` columns. */
 export const getZonedNowParts = (zone: string, now: Date = new Date()) => {
   const [date, time] = dayjs(now)
     .tz(zone)
@@ -15,7 +15,7 @@ export const getZonedNowParts = (zone: string, now: Date = new Date()) => {
   return { date, time };
 };
 
-/** Абсолютный момент начала слота: `date` и `time` заданы в поясе центра. */
+/** Absolute start moment of a slot: `date` and `time` are given in the center time zone. */
 export const getSlotStart = (date: string, time: string, zone: string) =>
   dayjs.tz(`${date} ${time}`, zone).toDate();
 

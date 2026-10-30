@@ -26,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     } catch (error) {
       if (error instanceof UserNotFoundException) {
         throw new AppException(ErrorCode.UNAUTHORIZED, {
-          message: 'Пользователь токена не найден',
+          message: 'Token user not found',
           cause: error,
         });
       }

@@ -8,26 +8,26 @@ export class UserResponseDto {
   id: string;
 
   @ApiProperty({
-    description: 'Имя',
+    description: 'First name',
   })
   @Expose()
   name: string;
 
   @ApiProperty({
-    description: 'Фамилия',
+    description: 'Last name',
   })
   @Expose()
   surname: string;
 
   @ApiProperty({
-    description: 'Телефон в формате +7...',
+    description: 'Phone in the format +7...',
     example: '+79323572448',
   })
   @Expose()
   phone: string;
 
   @ApiProperty({
-    description: 'Никнейм пользователя',
+    description: 'User nickname',
     example: 'user1337',
     nullable: true,
   })
@@ -35,7 +35,7 @@ export class UserResponseDto {
   nickname: string | null;
 
   @ApiProperty({
-    description: 'Дата рождения',
+    description: 'Birth date',
     example: '2025-10-06',
     type: String,
     format: 'date',
@@ -45,7 +45,7 @@ export class UserResponseDto {
   birthday: Date | null;
 
   @ApiProperty({
-    description: 'Пол',
+    description: 'Gender',
     example: Gender.MALE,
     enum: Gender,
     enumName: 'Gender',
@@ -55,14 +55,14 @@ export class UserResponseDto {
   gender: Gender | null;
 
   @ApiProperty({
-    description: 'Аватар: { image: ссылка на файл, thumbhash: хэш превью }',
+    description: 'Avatar: { image: file link, thumbhash: preview hash }',
     nullable: true,
   })
   @Expose()
   avatar: Image | null;
 
   @ApiProperty({
-    description: 'Никнейм пользователя',
+    description: 'User nickname',
     type: 'boolean',
     nullable: true,
   })

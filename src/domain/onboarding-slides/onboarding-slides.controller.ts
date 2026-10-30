@@ -13,7 +13,7 @@ export class OnboardingSlidesController {
   @Public()
   @Get('/slides')
   @ApiSerialized(OnboardingSlideResponseDto, {
-    description: 'Список активных onboarding-слайдов',
+    description: 'List of active onboarding slides',
     isArray: true,
   })
   async getAll(): Promise<OnboardingSlideResponseDto[]> {

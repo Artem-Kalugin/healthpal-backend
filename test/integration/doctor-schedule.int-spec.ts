@@ -36,7 +36,7 @@ describe('DoctorScheduleService (integration)', () => {
     await pool.end();
   });
 
-  it('врач без расписания → все семь дней с пустыми списками', async () => {
+  it('doctor without a schedule → all seven days with empty lists', async () => {
     const doctor = await factories.doctor();
 
     const result = await service.getScheduleByDoctorId(doctor.id);
@@ -44,7 +44,7 @@ describe('DoctorScheduleService (integration)', () => {
     expect(result).toEqual(emptyWeek());
   });
 
-  it('раскладывает интервалы по дням, обрезает секунды и сортирует по началу', async () => {
+  it('groups intervals by day, trims seconds and sorts by start', async () => {
     const doctor = await factories.doctor();
     await factories.schedule(doctor.id, {
       weekday: ScheduleDay.WEDNESDAY,
@@ -74,7 +74,7 @@ describe('DoctorScheduleService (integration)', () => {
     });
   });
 
-  it('не включает расписание других врачей', async () => {
+  it('does not include the schedule of other doctors', async () => {
     const doctor = await factories.doctor();
     const other = await factories.doctor();
     await factories.schedule(other.id);
@@ -84,7 +84,7 @@ describe('DoctorScheduleService (integration)', () => {
     expect(Object.values(result).flat()).toEqual([]);
   });
 
-  it('несуществующий врач → NotFound', async () => {
+  it('nonexistent doctor → NotFound', async () => {
     await expect(
       service.getScheduleByDoctorId(MISSING_ID),
     ).rejects.toMatchObject({ code: ErrorCode.DOCTOR_NOT_FOUND });

@@ -42,7 +42,7 @@ export class JwtAuthWithRegistrationGuard extends AuthGuard('jwt') {
     const user = request.user;
     if (!user)
       throw new AppException(ErrorCode.UNAUTHORIZED, {
-        message: 'В запросе нет пользователя после проверки токена',
+        message: 'No user in the request after the token check',
       });
 
     switch (requiredType) {

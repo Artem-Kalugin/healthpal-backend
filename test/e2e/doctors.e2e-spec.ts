@@ -39,7 +39,7 @@ describe('Doctors (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false }).quit();
     await app.close();
   });
@@ -64,7 +64,7 @@ describe('Doctors (e2e)', () => {
     return { user, token: `Bearer ${accessToken}` };
   };
 
-  it('без токена все эндпоинты отвечают 401', async () => {
+  it('without a token all endpoints respond 401', async () => {
     const urls = [
       '/doctors/search',
       '/doctors/favorites',
@@ -78,7 +78,7 @@ describe('Doctors (e2e)', () => {
   });
 
   describe('GET /doctors/search', () => {
-    it('отдаёт страницу врачей в формате ответа с isFavorite и метаданными', async () => {
+    it('returns a page of doctors in the response format with isFavorite and metadata', async () => {
       const { user, token } = await newUser();
       const [first, second] = [
         await factories.doctor({ name: 'Анна' }),
@@ -107,9 +107,9 @@ describe('Doctors (e2e)', () => {
     });
 
     it.each([
-      { title: 'sort вне списка', query: { sort: 'name' } },
-      { title: 'слишком короткий searchFor', query: { searchFor: 'ab' } },
-      { title: 'size меньше минимума', query: { size: 5 } },
+      { title: 'sort outside the list', query: { sort: 'name' } },
+      { title: 'searchFor too short', query: { searchFor: 'ab' } },
+      { title: 'size below the minimum', query: { size: 5 } },
     ])('$title → 400', async ({ query }) => {
       const { token } = await newUser();
 
@@ -120,7 +120,7 @@ describe('Doctors (e2e)', () => {
   });
 
   describe('GET /doctors/favorites', () => {
-    it('отдаёт только избранных врачей пользователя', async () => {
+    it('returns only the favorite doctors of the user', async () => {
       const { user, token } = await newUser();
       const favorite = await factories.doctor();
       await factories.doctor();
@@ -142,7 +142,7 @@ describe('Doctors (e2e)', () => {
   });
 
   describe('GET /doctors/:id', () => {
-    it('отдаёт врача', async () => {
+    it('returns a doctor', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
 
@@ -156,7 +156,7 @@ describe('Doctors (e2e)', () => {
       expect(body).toMatchObject({ id: doctor.id, isFavorite: false });
     });
 
-    it('несуществующий врач → 404 DOCTOR_NOT_FOUND', async () => {
+    it('nonexistent doctor → 404 DOCTOR_NOT_FOUND', async () => {
       const { token } = await newUser();
 
       const { status, body } = await send(
@@ -169,7 +169,7 @@ describe('Doctors (e2e)', () => {
       expect(body).toEqual({ statusCode: 404, code: 'DOCTOR_NOT_FOUND' });
     });
 
-    it('неизвестный маршрут → 404 NOT_FOUND в общем формате', async () => {
+    it('unknown route → 404 NOT_FOUND in the common format', async () => {
       const { status, body } = await send('/doctors/no/such/route');
 
       expect(status).toBe(404);
@@ -178,7 +178,7 @@ describe('Doctors (e2e)', () => {
   });
 
   describe('GET /doctors/:id/time-slots', () => {
-    it('врач без свободных слотов → 200 и пустой список', async () => {
+    it('doctor without free slots → 200 and an empty list', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
 
@@ -193,7 +193,7 @@ describe('Doctors (e2e)', () => {
   });
 
   describe('GET /doctors/:id/schedule', () => {
-    it('отдаёт расписание врача по дням недели', async () => {
+    it('returns the doctor schedule by weekday', async () => {
       const { token } = await newUser();
       const doctor = await factories.doctor();
       await factories.schedule(doctor.id);

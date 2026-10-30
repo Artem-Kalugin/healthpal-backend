@@ -20,7 +20,7 @@ export enum Gender {
   FEMALE = 'FEMALE',
 }
 
-/** ISO-день недели, хранится в БД числом. */
+/** ISO weekday, stored in the DB as a number. */
 export enum ScheduleDay {
   MONDAY = 1,
   TUESDAY = 2,

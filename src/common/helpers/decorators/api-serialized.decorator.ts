@@ -3,12 +3,12 @@ import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
 import type { ApiResponseMetadata } from '@nestjs/swagger';
 
 type Options = Omit<ApiResponseMetadata, 'type'> & {
-  /** Тип в Swagger, если он отличается от типа сериализации (пагинация). */
+  /** Swagger type if it differs from the serialization type (pagination). */
   swaggerType?: ApiResponseMetadata['type'];
   created?: boolean;
 };
 
-/** Описание ответа в Swagger и тип сериализации (белый список `@Expose`) одним декоратором. */
+/** Swagger response description and serialization type (`@Expose` whitelist) in one decorator. */
 export function ApiSerialized(
   type: new (...arguments_: never[]) => object,
   { swaggerType = type, created, ...response }: Options = {},

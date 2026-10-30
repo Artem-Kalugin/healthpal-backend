@@ -39,7 +39,7 @@ describe('Auth (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await redis.quit();
     await app.close();
   });
@@ -57,7 +57,7 @@ describe('Auth (e2e)', () => {
   const post = (path: string, body: object) =>
     request(app.getHttpServer()).post(path).send(body);
 
-  it('register → login → refresh: токены рабочие, пароль не отдаётся', async () => {
+  it('register → login → refresh: tokens work, the password is not returned', async () => {
     freezeDate(new Date('2026-10-29T12:00:00Z'));
     const registered = await post('/auth/register', {
       phone: PHONE,
@@ -89,8 +89,8 @@ describe('Auth (e2e)', () => {
     expect((me.body as { id: string }).id).toBe(loggedInBody.user.id);
   });
 
-  describe('ошибки валидации', () => {
-    it('регистрация со слабым паролем: все нарушенные правила с params', async () => {
+  describe('validation errors', () => {
+    it('registration with a weak password: all violated rules with params', async () => {
       const response = await post('/auth/register', {
         phone: PHONE,
         password: 'abc',
@@ -111,7 +111,7 @@ describe('Auth (e2e)', () => {
       });
     });
 
-    it('логин: политика пароля не проверяется, лишнее поле даёт UNKNOWN_FIELD', async () => {
+    it('login: the password policy is not checked, an extra field gives UNKNOWN_FIELD', async () => {
       const response = await post('/auth/login', {
         phone: 'bad',
         password: 'abc',

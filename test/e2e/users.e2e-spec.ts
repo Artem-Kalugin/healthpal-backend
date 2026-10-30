@@ -35,7 +35,7 @@ describe('Users (e2e)', () => {
   });
 
   afterAll(async () => {
-    // RedisModule сам соединение не закрывает, без этого Jest не завершается
+    // RedisModule does not close the connection itself, without this Jest does not exit
     await app.get<Redis>(REDIS_PROVIDER_KEY, { strict: false }).quit();
     await app.close();
   });
@@ -63,7 +63,7 @@ describe('Users (e2e)', () => {
     };
   };
 
-  it('GET /users/me доступен при незавершённой регистрации', async () => {
+  it('GET /users/me is available while registration is incomplete', async () => {
     const user = await factories.user({ registrationComplete: false });
 
     const { status, body } = await me('get', await tokenFor(user));
@@ -72,7 +72,7 @@ describe('Users (e2e)', () => {
     expect(body.id).toBe(user.id);
   });
 
-  it('PATCH /users/me при незавершённой регистрации → 403', async () => {
+  it('PATCH /users/me while registration is incomplete → 403', async () => {
     const user = await factories.user({ registrationComplete: false });
 
     const { status, body } = await me('patch', await tokenFor(user), {
@@ -83,7 +83,7 @@ describe('Users (e2e)', () => {
     expect(body).toEqual({ statusCode: 403, code: 'REGISTRATION_INCOMPLETE' });
   });
 
-  it('PATCH /users/me обновляет профиль и не отдаёт пароль', async () => {
+  it('PATCH /users/me updates the profile and does not return the password', async () => {
     const user = await factories.user({ registrationComplete: true });
 
     const { status, body } = await me('patch', await tokenFor(user), {
@@ -97,28 +97,35 @@ describe('Users (e2e)', () => {
 
   it.each([
     {
-      title: 'несуществующая дата',
+      title: 'nonexistent date',
       birthday: '2026-13-45',
       code: 'DATE_FORMAT',
     },
-    { title: '31 февраля', birthday: '2001-02-31', code: 'DATE_FORMAT' },
-    { title: 'дата в будущем', birthday: '2999-01-01', code: 'DATE_IN_FUTURE' },
-  ])('PATCH /users/me: $title в birthday → 400', async ({ birthday, code }) => {
-    const user = await factories.user({ registrationComplete: true });
+    { title: '31 February', birthday: '2001-02-31', code: 'DATE_FORMAT' },
+    {
+      title: 'date in the future',
+      birthday: '2999-01-01',
+      code: 'DATE_IN_FUTURE',
+    },
+  ])(
+    'PATCH /users/me: $title in birthday → 400',
+    async ({ birthday, code }) => {
+      const user = await factories.user({ registrationComplete: true });
 
-    const { status, body } = await me('patch', await tokenFor(user), {
-      birthday,
-    });
+      const { status, body } = await me('patch', await tokenFor(user), {
+        birthday,
+      });
 
-    expect(status).toBe(400);
-    expect(body.code).toBe('VALIDATION_FAILED');
-    expect(body.validation as Record<string, unknown>).toHaveProperty(
-      'birthday',
-      expect.arrayContaining([{ code }]),
-    );
-  });
+      expect(status).toBe(400);
+      expect(body.code).toBe('VALIDATION_FAILED');
+      expect(body.validation as Record<string, unknown>).toHaveProperty(
+        'birthday',
+        expect.arrayContaining([{ code }]),
+      );
+    },
+  );
 
-  it('GET /users/me для удалённого пользователя → 401', async () => {
+  it('GET /users/me for a deleted user → 401', async () => {
     const user = await factories.user({ registrationComplete: true });
     const token = await tokenFor(user);
     await db.delete(userTable).where(eq(userTable.id, user.id));
@@ -129,7 +136,7 @@ describe('Users (e2e)', () => {
     expect(body).toEqual({ statusCode: 401, code: 'UNAUTHORIZED' });
   });
 
-  it('PATCH /users/me с занятым nickname → 409 USER_NICKNAME_TAKEN', async () => {
+  it('PATCH /users/me with a taken nickname → 409 USER_NICKNAME_TAKEN', async () => {
     await factories.user({ nickname: 'taken' });
     const user = await factories.user({ registrationComplete: true });
 

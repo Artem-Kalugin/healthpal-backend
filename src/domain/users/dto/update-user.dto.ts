@@ -33,13 +33,13 @@ export class UpdateUserDto extends PartialType(
   @Matches(/^\d{4}-\d{2}-\d{2}$/, rule(ValidationCode.DATE_FORMAT))
   @IsDateString({ strict: true }, rule(ValidationCode.DATE_FORMAT))
   @IsNotFutureDate()
-  @ApiProperty({ description: 'Дата рождения', type: String, format: 'date' })
+  @ApiProperty({ description: 'Birth date', type: String, format: 'date' })
   birthday: string;
 
   @IsEnum(Gender, rule(ValidationCode.INVALID_ENUM))
   @IsOptional()
   @ApiProperty({
-    description: 'Пол',
+    description: 'Gender',
     example: Gender.MALE,
     enum: Gender,
     enumName: 'Gender',
@@ -54,7 +54,7 @@ export class UpdateUserDto extends PartialType(
     rule(ValidationCode.TEXT_TOO_LONG, { limit: NICKNAME_MAX }),
   )
   @ApiPropertyOptional({
-    description: 'Никнейм пользователя',
+    description: 'User nickname',
     example: 'user1337',
   })
   nickname?: string;

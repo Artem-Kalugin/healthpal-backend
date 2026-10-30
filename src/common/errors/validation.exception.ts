@@ -7,7 +7,7 @@ export interface ValidationIssue {
   params?: Record<string, unknown>;
 }
 
-/** `{ поле: [нарушенные правила] }`: попадает в тело ответа рядом с `statusCode` и `code`. */
+/** `{ field: [violated rules] }`: goes into the response body next to `statusCode` and `code`. */
 export type ValidationErrors = Record<string, ValidationIssue[]>;
 
 export class ValidationFailedException extends AppException {

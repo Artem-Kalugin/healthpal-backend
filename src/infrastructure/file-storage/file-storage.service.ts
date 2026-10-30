@@ -49,8 +49,8 @@ export class FileStorageService {
     }
   }
 
-  // Принимает как имя файла, так и путь, который возвращает saveFile
-  // (`/uploads/<protected|public>/<name>`): в БД хранится именно путь.
+  // Accepts both a file name and the path returned by saveFile
+  // (`/uploads/<protected|public>/<name>`): the DB stores the path.
   deleteFile(fileNameOrPath: string, isProtected = true): void {
     const storedPath = STORED_PATH_PATTERN.exec(fileNameOrPath);
     const isInProtected = storedPath

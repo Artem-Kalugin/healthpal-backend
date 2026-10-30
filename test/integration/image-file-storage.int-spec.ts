@@ -44,7 +44,7 @@ describe('ImageFileStorageService (integration)', () => {
     ['protected', true],
     ['public', false],
   ] as const)(
-    'deleteImage удаляет файл по пути, который вернул processAndSave (%s)',
+    'deleteImage removes the file at the path returned by processAndSave (%s)',
     async (kind, isProtected) => {
       const { image } = await service.processAndSave(
         source,
@@ -59,7 +59,7 @@ describe('ImageFileStorageService (integration)', () => {
     },
   );
 
-  it('ошибка после сохранения → BadRequest и файл откатывается', async () => {
+  it('error after saving → BadRequest and the file is rolled back', async () => {
     jest.mocked(rgbaToThumbHash).mockImplementationOnce(() => {
       throw new Error('thumbhash failed');
     });

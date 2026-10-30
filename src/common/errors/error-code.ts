@@ -1,13 +1,13 @@
 import { HttpStatus } from '@nestjs/common';
 
 /**
- * Публичные коды ошибок: клиент по ним подбирает локализованный текст.
- * Значение менять нельзя без согласования с клиентом.
+ * Public error codes: the client picks the localized text by them.
+ * Values must not change without agreeing with the client.
  */
 export enum ErrorCode {
-  /** Общий ответ вместо внутренних деталей. */
+  /** Generic response instead of internal details. */
   INTERNAL_ERROR = 'INTERNAL_ERROR',
-  /** Детали по полям лежат в `validation`, коды в `ValidationCode`. */
+  /** Per-field details are in `validation`, codes in `ValidationCode`. */
   VALIDATION_FAILED = 'VALIDATION_FAILED',
 
   USER_PHONE_TAKEN = 'USER_PHONE_TAKEN',
@@ -41,7 +41,7 @@ export enum ErrorCode {
   OTP_RATE_LIMITED = 'OTP_RATE_LIMITED',
   PASSWORDS_MISMATCH = 'PASSWORDS_MISMATCH',
 
-  /** Общие коды по HTTP-статусу для ошибок, которые не прошли через `AppException` (Nest, Throttler, Multer). */
+  /** Generic codes by HTTP status for errors that did not go through `AppException` (Nest, Throttler, Multer). */
   BAD_REQUEST = 'BAD_REQUEST',
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
@@ -53,17 +53,17 @@ export enum ErrorCode {
   TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 
-  /** Только для логов: сбой файлового хранилища, клиент получает `INTERNAL_ERROR`. */
+  /** Log only: file storage failure, the client gets `INTERNAL_ERROR`. */
   FILE_SAVE_FAILED = 'FILE_SAVE_FAILED',
   FILE_DELETE_FAILED = 'FILE_DELETE_FAILED',
-  /** Только для логов: ограничение БД без публичного кода, клиент получает `INTERNAL_ERROR`. */
+  /** Log only: DB constraint without a public code, the client gets `INTERNAL_ERROR`. */
   DB_UNIQUE_VIOLATION = 'DB_UNIQUE_VIOLATION',
   DB_FOREIGN_KEY_VIOLATION = 'DB_FOREIGN_KEY_VIOLATION',
   DB_CHECK_VIOLATION = 'DB_CHECK_VIOLATION',
   DB_ERROR = 'DB_ERROR',
 }
 
-/** HTTP-статус каждого кода; всегда берётся по коду, который уходит клиенту, чтобы статус не выдавал скрытую причину. */
+/** HTTP status of each code; always taken from the code sent to the client so the status does not reveal a hidden cause. */
 export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.INTERNAL_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,
   [ErrorCode.VALIDATION_FAILED]: HttpStatus.BAD_REQUEST,
@@ -118,7 +118,7 @@ export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.DB_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
-/** Общий код по HTTP-статусу для исключений Nest; статусы без записи считаются ошибкой клиента (`BAD_REQUEST`) или сервера. */
+/** Generic code by HTTP status for Nest exceptions; statuses without an entry count as a client error (`BAD_REQUEST`) or a server error. */
 export const CODE_BY_HTTP_STATUS: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.BAD_REQUEST]: ErrorCode.BAD_REQUEST,
   [HttpStatus.UNAUTHORIZED]: ErrorCode.UNAUTHORIZED,

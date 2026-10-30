@@ -1,3 +1,3 @@
-// `thumbhash` поставляется как ESM, Jest (CommonJS) его не грузит. Обработка
-// картинок в e2e записей не участвует, поэтому подменяем пакет заглушкой.
+// `thumbhash` ships as ESM, Jest (CommonJS) does not load it. Image
+// processing does not take part in the e2e tests, so the package is replaced with a stub.
 export const rgbaToThumbHash = () => new Uint8Array();

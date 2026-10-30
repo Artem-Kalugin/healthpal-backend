@@ -30,7 +30,7 @@ export type Database = NodePgDatabase;
           password: configService.get('DATABASE_PASSWORD'),
           database: configService.get('DATABASE_NAME'),
         });
-        // Без слушателя обрыв простаивающего соединения роняет процесс
+        // Without a listener a dropped idle connection crashes the process
         pool.on('error', error =>
           new Logger('DbModule').error(
             `Idle pg client error: ${error.message}`,

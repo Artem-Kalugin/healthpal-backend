@@ -1,12 +1,12 @@
-// Окружение Jest для scripts/coverage-overlap.mjs: для каждого тест-кейса запоминает,
-// какие функции исходников он выполнил. Снимок счётчиков покрытия берётся только вокруг
-// тела теста (события test_fn_start/test_fn_success), поэтому beforeAll, beforeEach и
-// afterEach в разницу не попадают. Результат пишется в файл из COVERAGE_CASES_OUT.
+// Jest environment for scripts/coverage-overlap.mjs: for each test case it records
+// which source functions it executed. The coverage counters snapshot is taken only around
+// the test body (test_fn_start/test_fn_success events), so beforeAll, beforeEach and
+// afterEach are excluded from the diff. The result is written to the file from COVERAGE_CASES_OUT.
 
 const { writeFileSync } = require('node:fs');
 
 const loadNodeEnvironment = () => {
-  // jest-environment-node может не лежать в корневых node_modules (pnpm), ищем от jest
+  // jest-environment-node may not be in the root node_modules (pnpm), so we look it up from jest
   try {
     return require('jest-environment-node');
   } catch {

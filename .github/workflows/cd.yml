@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    # деплой только после зелёного CI на push в main
+    # deploy only after a green CI on push to main
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
 
@@ -48,7 +48,7 @@ jobs:
             if docker compose ps | grep -q "healthpal-ngrok"; then
               echo "✅ ngrok is running"
               
-              # Пробуем получить URL (с retries)
+              # Try to get the URL (with retries)
               for i in {1..10}; do
                 NGROK_URL=$(docker compose logs ngrok 2>/dev/null | grep -oP 'URL.*https://\K[^ ]+' | tail -1)
                 if [ -n "$NGROK_URL" ]; then

@@ -1,8 +1,8 @@
 export const offsetOf = (page: number, size: number) => (page - 1) * size;
 
 /**
- * Страница одним запросом: просит у `selectData` на строку больше `size`, лишняя строка говорит, что дальше есть данные.
- * Общее число записей не считается: клиенту нужен только `hasMore`.
+ * A page in one query: asks `selectData` for one row more than `size`, the extra row says there is more data.
+ * The total count is not computed: the client only needs `hasMore`.
  */
 export const paginate = async <T>(
   { page, size }: { page: number; size: number },
