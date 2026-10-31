@@ -64,6 +64,21 @@ export enum ErrorCode {
   DB_ERROR = 'DB_ERROR',
 }
 
+/** Codes that exist only in the log: the client never receives them (see `clientCode` in `AppException`). */
+export const LOG_ONLY_ERROR_CODES: readonly ErrorCode[] = [
+  ErrorCode.FILE_SAVE_FAILED,
+  ErrorCode.FILE_DELETE_FAILED,
+  ErrorCode.DB_UNIQUE_VIOLATION,
+  ErrorCode.DB_FOREIGN_KEY_VIOLATION,
+  ErrorCode.DB_CHECK_VIOLATION,
+  ErrorCode.DB_ERROR,
+];
+
+/** Codes the client can receive: the enum published in OpenAPI. */
+export const CLIENT_ERROR_CODES: readonly ErrorCode[] = Object.values(
+  ErrorCode,
+).filter(code => !LOG_ONLY_ERROR_CODES.includes(code));
+
 /** HTTP status of each code; always taken from the code sent to the client so the status does not reveal a hidden cause. */
 export const ERROR_STATUS: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.INTERNAL_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,

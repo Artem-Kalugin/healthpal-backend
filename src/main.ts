@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { configureApp } from './app.setup';
+import { ERROR_RESPONSE_MODELS } from './common/errors/dto/error-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -27,7 +28,9 @@ async function bootstrap() {
       'JWT',
     )
     .build();
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    extraModels: ERROR_RESPONSE_MODELS,
+  });
 
   SwaggerModule.setup('api', app, document, {
     ui: false,

@@ -20,7 +20,7 @@ export class UserResponseDto {
   surname: string;
 
   @ApiProperty({
-    description: 'Phone in the format +7...',
+    description: 'Phone in E.164 format, e.g. +79323572448',
     example: '+79323572448',
   })
   @Expose()
