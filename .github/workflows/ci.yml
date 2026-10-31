@@ -32,11 +32,13 @@ jobs:
       with:
         node-version: 22.x
         cache: pnpm
-    - run: pnpm install --frozen-lockfile
-    - run: pnpm test
-    # Postgres (ICU, C.UTF-8) and Redis for integration and e2e tests
+    # The images for the integration and e2e databases (Postgres with ICU, Redis) are pulled
+    # while the dependencies install
+    - run: |
+        docker compose -f docker-compose.test.yml pull --quiet &
+        pnpm install --frozen-lockfile
+        wait
     - run: pnpm test:db:up
-    - run: pnpm test:int
-    - run: pnpm test:e2e
+    - run: pnpm test:all
     - if: always()
       run: pnpm test:db:down

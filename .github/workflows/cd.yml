@@ -35,17 +35,15 @@ jobs:
             git status
             
             echo "🔨 Building Docker images..."
-            docker compose build --no-cache
+            docker compose build
             
             # the tunnel runs only here, never on a developer machine (see the ngrok service in docker-compose.yml)
             export COMPOSE_PROFILES=tunnel
 
             echo "🟢 Starting containers..."
             docker compose down --remove-orphans || true
-            docker compose up -d
-
-            echo "⏳ Waiting for services to start..."
-            sleep 5
+            echo "⏳ Waiting for services to become healthy..."
+            docker compose up -d --wait --wait-timeout 180
 
             echo "📊 Container status:"
             docker compose ps
