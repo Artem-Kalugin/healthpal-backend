@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { SortOrder } from 'src/common/config';
 import { escapeLike } from 'src/common/helpers/escape-like';
@@ -16,7 +16,7 @@ import {
 import { localized } from 'src/common/i18n/locale';
 import type { RequestContext } from 'src/common/i18n/request-context';
 import { unaccent, unaccentedTerm } from 'src/common/i18n/search';
-import { selectDoctors } from './doctor.queries';
+import { centerOfDoctor, selectDoctors } from './doctor.queries';
 import { AppException } from 'src/common/errors/app.exception';
 import { ErrorCode } from 'src/common/errors/error-code';
 
@@ -67,15 +67,24 @@ export class DoctorService {
     );
     const direction = order === SortOrder.ASC ? asc : desc;
 
-    return paginate(
-      selectDoctors(this.db, userId, locale)
-        .where(where)
-        .orderBy(
-          ...(sort ? [direction(sortColumns[sort])] : []),
-          asc(doctor.id),
-        ),
-      { page, size },
-    );
+    const [result, [{ total }]] = await Promise.all([
+      paginate(
+        selectDoctors(this.db, userId, locale)
+          .where(where)
+          .orderBy(
+            ...(sort ? [direction(sortColumns[sort])] : []),
+            asc(doctor.id),
+          ),
+        { page, size },
+      ),
+      this.db
+        .select({ total: count() })
+        .from(doctor)
+        .innerJoin(medicalCenter, centerOfDoctor)
+        .where(where),
+    ]);
+
+    return { ...result, total };
   }
 
   async existsById(doctorId: string) {

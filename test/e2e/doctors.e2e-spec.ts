@@ -89,7 +89,12 @@ describe('Doctors (e2e)', () => {
       );
 
       expect(status).toBe(200);
-      expect(body).toMatchObject({ page: 1, size: 10, hasMore: false });
+      expect(body).toMatchObject({
+        page: 1,
+        size: 10,
+        hasMore: false,
+        total: 2,
+      });
       const byId = new Map(
         (body.data as Body[]).map(item => [item.id as string, item]),
       );

@@ -10,6 +10,7 @@ import {
 } from 'src/common/i18n/request-context';
 import { DoctorService } from './doctor.service';
 import { DoctorResponseDto } from './dto/doctor-response.dto';
+import { DoctorSearchResponseDto } from './dto/doctor-search-response.dto';
 import { DoctorSearchQueryDto } from './dto/doctor-search-query.dto';
 
 @ApiTags('Doctors')
@@ -20,7 +21,7 @@ export class DoctorController {
 
   @Get('search')
   @ApiClientContext()
-  @ApiSerialized(DoctorResponseDto, { paginated: true })
+  @ApiSerialized(DoctorSearchResponseDto)
   search(
     @CurrentUserId() userId: string,
     @Query() query: DoctorSearchQueryDto,
