@@ -36,7 +36,7 @@ export class DoctorController {
     @CurrentUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @ClientContext() context: RequestContext,
-  ): Promise<DoctorResponseDto> {
+  ) {
     return this.doctorService.findOneForUser(userId, id, context);
   }
 }

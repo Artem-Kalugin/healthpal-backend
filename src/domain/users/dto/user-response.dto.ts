@@ -62,10 +62,8 @@ export class UserResponseDto {
   avatar: Image | null;
 
   @ApiProperty({
-    description: 'User nickname',
-    type: 'boolean',
-    nullable: true,
+    description: 'Whether the profile has everything required to use the app',
   })
   @Expose()
-  registrationComplete: boolean | null;
+  registrationComplete: boolean;
 }

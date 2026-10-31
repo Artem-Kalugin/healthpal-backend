@@ -1,5 +1,5 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
-import { Expose, Type } from 'class-transformer';
+import { Expose, Transform, Type } from 'class-transformer';
 import { DoctorCategoryResponseDto } from 'src/domain/doctor/modules/doctor-category/dto/doctor-category-response.dto';
 import { MedicalCenterResponseDto } from 'src/domain/medical-center/dto/medical-center-response.dto';
 import { Image } from 'src/common/entities/image.dto';
@@ -27,8 +27,10 @@ export class DoctorResponseDto {
   @Expose()
   image: Image;
 
+  // numeric is read from the DB as a string
   @Expose()
-  rating: string;
+  @Transform(({ value }: { value: string }) => Number(value))
+  rating: number;
 
   @Expose()
   reviewsCount: number;

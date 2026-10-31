@@ -145,7 +145,7 @@ export const user = pgTable(
     birthday: timestamp({ mode: 'date' }),
     gender: gender().$type<Gender>(),
     avatar: jsonb().$type<StoredImage>(),
-    registrationComplete: boolean(),
+    registrationComplete: boolean().notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

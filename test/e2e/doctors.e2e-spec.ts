@@ -221,6 +221,15 @@ describe('Doctors (e2e)', () => {
       expect(body).toMatchObject({ id: doctor.id, isFavorite: false });
     });
 
+    it('serializes rating as a number', async () => {
+      const { token } = await newUser();
+      const doctor = await factories.doctor({ rating: 4.5 });
+
+      const { body } = await send(`/doctors/${doctor.id}`, undefined, token);
+
+      expect(body.rating).toBe(4.5);
+    });
+
     it('nonexistent doctor → 404 DOCTOR_NOT_FOUND', async () => {
       const { token } = await newUser();
 

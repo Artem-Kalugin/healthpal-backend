@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { Image } from 'src/common/entities/image.dto';
 import { MedicalCenterType } from 'src/db/enums';
 
@@ -19,8 +19,13 @@ export class MedicalCenterResponseDto {
   @Expose()
   reviewsCount: string;
 
+  // the aggregate is read from the DB as a string
+  @ApiProperty({ type: Number, nullable: true })
   @Expose()
-  rating: string | null;
+  @Transform(({ value }: { value: string | null }) =>
+    value === null ? null : Number(value),
+  )
+  rating: number | null;
 
   @Expose()
   image: Image;

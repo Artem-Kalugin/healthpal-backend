@@ -1,5 +1,10 @@
 import { applyDecorators, SerializeOptions } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiOkResponse,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import type { ApiResponseMetadata } from '@nestjs/swagger';
 import {
   PaginatedResponseDto,
@@ -21,10 +26,25 @@ export function ApiSerialized(
 ) {
   const apiResponse = created ? ApiCreatedResponse : ApiOkResponse;
 
+  // `data` is generic, so Swagger needs the item type spelled out per endpoint.
+  const paginatedSchema = {
+    allOf: [
+      { $ref: getSchemaPath(PaginatedResponseDto) },
+      {
+        properties: {
+          data: { type: 'array', items: { $ref: getSchemaPath(type) } },
+        },
+      },
+    ],
+  };
+
   return applyDecorators(
+    ...(paginated ? [ApiExtraModels(PaginatedResponseDto, type)] : []),
     apiResponse({
       ...response,
-      type: swaggerType ?? (paginated ? PaginatedResponseDto : type),
+      ...(paginated && !swaggerType
+        ? { schema: paginatedSchema }
+        : { type: swaggerType ?? type }),
     }),
     SerializeOptions({
       type: paginated ? PaginatedResponseOf(type) : type,
